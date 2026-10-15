@@ -1204,6 +1204,159 @@ describe("API Endpoints", () => {
     await db.run("DELETE FROM members WHERE id = ?", [memberId]);
   });
 
+  test("POST /api/v1/portal/loans/apply rejects loan application without attachmentUrl", async () => {
+    const memberId = `portal-loan-no-att-${Date.now()}`;
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, 'Anggota', 'Aktif', '01 Jan 2024', 1000, 0, 0, 1000)`,
+      [memberId, "Attachment Test Member"]
+    );
+
+    const memberToken = await sign(
+      {
+        sub: memberId,
+        email: `${memberId}@example.com`,
+        role: "member",
+        name: "Attachment Test Member",
+        exp: Math.floor(Date.now() / 1000) + 60 * 60,
+      },
+      secretKey
+    );
+
+    // Without attachmentUrl
+    const resNoAtt = await server.fetch(
+      new Request("http://localhost/api/v1/portal/loans/apply", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${memberToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: 5000000,
+          tenor: 12,
+          purpose: "Renovasi Rumah",
+        }),
+      })
+    );
+    expect(resNoAtt.status).toBe(400);
+    const bodyNoAtt = await resNoAtt.json();
+    expect(bodyNoAtt.success).toBe(false);
+    expect(bodyNoAtt.message).toContain("Lampiran dokumen pendukung wajib diunggah");
+
+    // Also test POST /api/v1/portal/loans without attachment
+    const resDirectNoAtt = await server.fetch(
+      new Request("http://localhost/api/v1/portal/loans", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${memberToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: 5000000,
+          tenor: 12,
+          purpose: "Renovasi Rumah",
+          attachmentUrl: "",
+        }),
+      })
+    );
+    expect(resDirectNoAtt.status).toBe(400);
+    const bodyDirectNoAtt = await resDirectNoAtt.json();
+    expect(bodyDirectNoAtt.success).toBe(false);
+    expect(bodyDirectNoAtt.message).toContain("Lampiran dokumen pendukung wajib diunggah");
+
+    // Cleanup
+    await db.run("DELETE FROM members WHERE id = ?", [memberId]);
+  });
+
+  test("POST /api/v1/portal/loans/apply successfully processes loan application with attachmentUrl", async () => {
+    const memberId = `portal-loan-att-${Date.now()}`;
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, 'Anggota', 'Aktif', '01 Jan 2024', 1000, 0, 0, 1000)`,
+      [memberId, "Attachment Success Member"]
+    );
+
+    const memberToken = await sign(
+      {
+        sub: memberId,
+        email: `${memberId}@example.com`,
+        role: "member",
+        name: "Attachment Success Member",
+        exp: Math.floor(Date.now() / 1000) + 60 * 60,
+      },
+      secretKey
+    );
+
+    const resWithAtt = await server.fetch(
+      new Request("http://localhost/api/v1/portal/loans/apply", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${memberToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: 5000000,
+          tenor: 12,
+          purpose: "Renovasi Rumah",
+          attachmentUrl: "/uploads/loan-attachments/evidence.pdf",
+          attachmentName: "evidence.pdf",
+        }),
+      })
+    );
+    expect(resWithAtt.status).toBe(200);
+    const bodyWithAtt = await resWithAtt.json();
+    expect(bodyWithAtt.success).toBe(true);
+    expect(bodyWithAtt.data.attachmentUrl).toBe("/uploads/loan-attachments/evidence.pdf");
+    expect(bodyWithAtt.data.attachmentName).toBe("evidence.pdf");
+    expect(bodyWithAtt.data.status).toBe("Menunggu");
+
+    // Also verify POST /api/v1/portal/loans endpoint with attachment works
+    const memberId2 = `portal-loan-att2-${Date.now()}`;
+    await db.run(
+      `INSERT INTO members (id, name, role, status, joinDate, simpananPokok, simpananWajib, simpananSukarela, totalSavings)
+       VALUES (?, ?, 'Anggota', 'Aktif', '01 Jan 2024', 1000, 0, 0, 1000)`,
+      [memberId2, "Attachment Success Member 2"]
+    );
+
+    const memberToken2 = await sign(
+      {
+        sub: memberId2,
+        email: `${memberId2}@example.com`,
+        role: "member",
+        name: "Attachment Success Member 2",
+        exp: Math.floor(Date.now() / 1000) + 60 * 60,
+      },
+      secretKey
+    );
+
+    const resWithAtt2 = await server.fetch(
+      new Request("http://localhost/api/v1/portal/loans", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${memberToken2}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: 3000000,
+          tenor: 6,
+          purpose: "Kuitansi Biaya Pengobatan",
+          attachmentUrl: "/uploads/loan-attachments/kuitansi.jpg",
+          attachmentName: "kuitansi.jpg",
+        }),
+      })
+    );
+    expect(resWithAtt2.status).toBe(200);
+    const bodyWithAtt2 = await resWithAtt2.json();
+    expect(bodyWithAtt2.success).toBe(true);
+    expect(bodyWithAtt2.data.attachmentUrl).toBe("/uploads/loan-attachments/kuitansi.jpg");
+    expect(bodyWithAtt2.data.attachmentName).toBe("kuitansi.jpg");
+    expect(bodyWithAtt2.data.status).toBe("Menunggu");
+
+    // Cleanup
+    await db.run("DELETE FROM loans WHERE memberId IN (?, ?)", [memberId, memberId2]);
+    await db.run("DELETE FROM members WHERE id IN (?, ?)", [memberId, memberId2]);
+  });
+
   test("GET /api/v1/portal/profile and savings work for member JWT", async () => {
     const memberId = `portal-prof-m-${Date.now()}`;
     await db.run(
