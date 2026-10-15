@@ -341,6 +341,11 @@ export default function MemberPortal() {
     setApplyError('');
     setApplySuccess('');
     try {
+      if (!attachmentUrl) {
+        setApplyError('Lampiran dokumen pendukung wajib diunggah');
+        setApplyLoading(false);
+        return;
+      }
       const numericAmount = parseFloat(applyAmount.replace(/\D/g, '')) || 0;
       const headers = {
         'Content-Type': 'application/json',
@@ -1723,10 +1728,10 @@ export default function MemberPortal() {
 
                     {/* Lampiran Dokumen Pendukung */}
                     <VStack gap={2}>
-                      <HStack justify="space-between" vAlign="center">
-                        <Text type="supporting">Lampiran Dokumen Pendukung (Opsional)</Text>
+                      <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                        <Text type="supporting">Lampiran Dokumen Pendukung (Wajib)</Text>
                         <Text type="supporting" size="sm" color="secondary">
-                          PDF, JPG, PNG (Maks. 10 MB)
+                          PDF, JPG, PNG, WEBP (Maks. 10 MB)
                         </Text>
                       </HStack>
 
@@ -1752,10 +1757,20 @@ export default function MemberPortal() {
                             transition: 'all 0.2s ease',
                           }}
                         >
-                          <VStack gap={1} vAlign="center">
+                          <VStack gap={2} vAlign="center">
                             <Text type="body" weight="semibold">
                               {uploadingAttachment ? '⏳ Sedang mengunggah file...' : '📎 Klik untuk Unggah Dokumen / Foto Pendukung'}
                             </Text>
+                            <VStack gap={1} vAlign="center" style={{ maxWidth: '520px' }}>
+                              <Text type="supporting" size="sm" color="secondary" weight="semibold">
+                                Contoh dokumen yang dapat diunggah sesuai tujuan pinjaman:
+                              </Text>
+                              <VStack gap={1} vAlign="start" style={{ textAlign: 'left', width: '100%', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+                                <div>• <strong>Kuitansi / Bukti Tagihan / Invoice</strong> (Pembelian barang, biaya pendidikan/kesehatan)</div>
+                                <div>• <strong>Foto Kondisi Rumah</strong> (Untuk renovasi / perbaikan rumah)</div>
+                                <div>• <strong>Laporan SLIK OJK / Dokumen Penunjang Lainnya</strong></div>
+                              </VStack>
+                            </VStack>
                           </VStack>
                         </div>
                       ) : (
@@ -1847,20 +1862,27 @@ export default function MemberPortal() {
                       </Card>
                     )}
 
-                    <HStack gap={3} justify="end">
-                      <Button
-                        label="Batal"
-                        variant="ghost"
-                        type="button"
-                        onClick={() => setShowApplyForm(false)}
-                        isDisabled={applyLoading}
-                      />
-                      <Button
-                        label={applyLoading ? 'Mengirim...' : 'Kirim Pengajuan'}
-                        variant="primary"
-                        type="submit"
-                        isDisabled={applyLoading}
-                      />
+                    <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                      {!attachmentUrl ? (
+                        <Text type="supporting" size="sm" color="critical">
+                          * Lampiran dokumen pendukung wajib diunggah
+                        </Text>
+                      ) : <div />}
+                      <HStack gap={3} justify="end">
+                        <Button
+                          label="Batal"
+                          variant="ghost"
+                          type="button"
+                          onClick={() => setShowApplyForm(false)}
+                          isDisabled={applyLoading}
+                        />
+                        <Button
+                          label={applyLoading ? 'Mengirim...' : 'Ajukan Pinjaman Sekarang'}
+                          variant="primary"
+                          type="submit"
+                          isDisabled={applyLoading || !attachmentUrl}
+                        />
+                      </HStack>
                     </HStack>
                   </form>
                 </Card>

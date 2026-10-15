@@ -411,8 +411,8 @@ memberSelfService.get('/loans/:loanId/payments', async (c) => {
   return c.json({ success: true, data: payments });
 });
 
-// Submit new loan application by member
-memberSelfService.post('/loans/apply', async (c) => {
+// Submit new loan application by member (accessible via /loans/apply and /loans)
+const handleLoanApplication = async (c: any) => {
   const payload = c.get('jwtPayload') as JwtPayload;
   const memberId = payload.sub;
 
@@ -439,6 +439,9 @@ memberSelfService.post('/loans/apply', async (c) => {
   }
   if (!purpose) {
     return c.json({ success: false, message: 'Keperluan pinjaman wajib diisi' }, 400);
+  }
+  if (!attachmentUrl) {
+    return c.json({ success: false, message: 'Lampiran dokumen pendukung wajib diunggah' }, 400);
   }
 
   // Check if member already has a pending loan application
@@ -474,7 +477,10 @@ memberSelfService.post('/loans/apply', async (c) => {
     message: 'Pengajuan pinjaman berhasil dikirim dan sedang menunggu persetujuan pengurus.',
     data: { id: loanId, amount, tenor, purpose, status: 'Menunggu', createdAt, attachmentUrl, attachmentName }
   });
-});
+};
+
+memberSelfService.post('/loans/apply', handleLoanApplication);
+memberSelfService.post('/loans', handleLoanApplication);
 
 // Financial Report: Income Statement for Members
 memberSelfService.get('/reports/income-statement', async (c) => {

@@ -1,5 +1,7 @@
 process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret-key-123";
 process.env.DATABASE_URL = process.env.DATABASE_URL || "postgres://koperasi:koperasi_pass@localhost:5432/koperasi_test";
+process.env.NUSANET_SSO_CLIENT_ID = process.env.NUSANET_SSO_CLIENT_ID || "test-client-id";
+process.env.NUSANET_SSO_CLIENT_SECRET = process.env.NUSANET_SSO_CLIENT_SECRET || "test-client-secret";
 
 (globalThis as any).NativeRequest = Request;
 (globalThis as any).NativeHeaders = Headers;
