@@ -532,6 +532,29 @@ export default function EWA() {
     }
   };
 
+  const formatDisbursedDateTime = (dateStr?: string | null) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const datePart = d.toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'Asia/Jakarta',
+      });
+      const timePart = d.toLocaleTimeString('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Jakarta',
+      }).replace('.', ':');
+      return `${datePart}, ${timePart} WIB`;
+    } catch {
+      return dateStr;
+    }
+  };
+
   // Table Columns - Requests
   const requestColumns: TableColumn<EWARequest>[] = useMemo(
     () => [
@@ -607,7 +630,7 @@ export default function EWA() {
       {
         key: 'status',
         header: 'Status',
-        width: pixel(160),
+        width: pixel(180),
         renderCell: (r: EWARequest) => {
           let variant: any = 'neutral';
           let label = r.status;
@@ -625,9 +648,24 @@ export default function EWA() {
             label = 'Ditolak';
           }
           const reason = r.rejectionReason || (r as any).rejection_reason;
+          const isDisbursedOrSettled = r.status === 'DISBURSED' || r.status === 'PAID_SETTLED';
           return (
             <VStack gap={1} hAlign="start">
               <Badge variant={variant} label={label} size="sm" />
+              {isDisbursedOrSettled && (
+                <>
+                  {r.disbursedByName && (
+                    <Text type="supporting" color="secondary" style={{ fontSize: 11, lineHeight: 1.2 }}>
+                      oleh {r.disbursedByName}
+                    </Text>
+                  )}
+                  {r.disbursedAt && (
+                    <Text type="supporting" color="secondary" style={{ fontSize: 11, lineHeight: 1.2 }}>
+                      {formatDisbursedDateTime(r.disbursedAt)}
+                    </Text>
+                  )}
+                </>
+              )}
               {r.status === 'REJECTED' && reason && (
                 <Text type="supporting" color="critical" style={{ fontSize: 11, lineHeight: 1.2 }}>
                   Alasan: {reason}

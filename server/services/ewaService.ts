@@ -656,10 +656,12 @@ export async function getEwaRequestById(db: Db, id: string): Promise<EWARequest 
         r.rejection_reason as "rejectionReason",
         r.transferred_at as "disbursedAt",
         r.disbursed_by as "disbursedBy",
+        COALESCE(NULLIF(TRIM(a.name), ''), a.email) as "disbursedByName",
         r.settled_at as "settledAt",
         r.created_at as "createdAt"
        FROM withdrawal_requests r
        JOIN employees e ON r.employee_id = e.id
+       LEFT JOIN admins a ON r.disbursed_by = a.id
        WHERE r.id = ?`
     )
     .get<any>(id);
@@ -755,10 +757,12 @@ export async function getEwaRequestsList(
         r.rejection_reason as "rejectionReason", 
         r.transferred_at as "disbursedAt", 
         r.disbursed_by as "disbursedBy",
+        COALESCE(NULLIF(TRIM(a.name), ''), a.email) as "disbursedByName",
         r.settled_at as "settledAt", 
         r.created_at as "createdAt"
        FROM withdrawal_requests r
        JOIN employees e ON r.employee_id = e.id
+       LEFT JOIN admins a ON r.disbursed_by = a.id
        ${whereClause}
        ORDER BY r.created_at DESC
        LIMIT ? OFFSET ?`
