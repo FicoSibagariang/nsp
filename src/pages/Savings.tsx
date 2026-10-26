@@ -32,6 +32,8 @@ import {RejectSavingsWithdrawalDialogContent} from '../components/RejectSavingsW
 import {ApproveSavingsDepositDialogContent} from '../components/ApproveSavingsDepositDialog';
 import {RejectSavingsDepositDialogContent} from '../components/RejectSavingsDepositDialog';
 import {useAuth} from '../hooks/useAuth';
+import {useDemoMode} from '../contexts/DemoModeContext';
+import {maskName, maskNik} from '../utils/privacyMask';
 
 import type {SavingsTransactionRow, SavingsWithdrawalRow, SavingsDepositRow, PaginatedResponse} from '../shared/types';
 
@@ -53,6 +55,7 @@ export default function SavingsTemplate() {
   const toast = useToast();
   const dialog = useA11yDialog({purpose: 'form', width: 600});
   const {hasPermission} = useAuth();
+  const {isDemoMode} = useDemoMode();
   
   // Tab state
   const [activeTab, setActiveTab] = useState<'transactions' | 'deposits' | 'withdrawals'>('transactions');
@@ -139,9 +142,12 @@ export default function SavingsTemplate() {
       key: 'memberName',
       header: 'Nama Anggota',
       width: proportional(2),
-      renderCell: (item: SavingsTransactionRow) => (
-        <Text type="body">{item.memberName || 'Anggota Koperasi'}</Text>
-      ),
+      renderCell: (item: SavingsTransactionRow) => {
+        const displayName = isDemoMode
+          ? maskName(item.memberId || item.memberName, item.memberName)
+          : (item.memberName || 'Anggota Koperasi');
+        return <Text type="body">{displayName}</Text>;
+      },
     },
     {
       key: 'type',
@@ -212,7 +218,7 @@ export default function SavingsTemplate() {
         <Text type="supporting" color="secondary">{item.createdBy}</Text>
       ),
     },
-  ], []);
+  ], [isDemoMode]);
 
   const withdrawalColumns: TableColumn<SavingsWithdrawalRow>[] = useMemo(() => [
     {
@@ -241,16 +247,24 @@ export default function SavingsTemplate() {
       key: 'memberName',
       header: 'Nama Anggota',
       width: proportional(2),
-      renderCell: (item: SavingsWithdrawalRow) => (
-        <VStack gap={0}>
-          <Text type="body" weight="semibold">{item.memberName || 'Anggota'}</Text>
-          {item.memberNik && (
-            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-              NIK: {item.memberNik}
-            </Text>
-          )}
-        </VStack>
-      ),
+      renderCell: (item: SavingsWithdrawalRow) => {
+        const displayName = isDemoMode
+          ? maskName(item.memberId || item.memberName, item.memberName)
+          : (item.memberName || 'Anggota');
+        const displayNik = isDemoMode
+          ? maskNik(item.memberId || item.memberName, item.memberNik)
+          : item.memberNik;
+        return (
+          <VStack gap={0}>
+            <Text type="body" weight="semibold">{displayName}</Text>
+            {item.memberNik && (
+              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+                NIK: {displayNik}
+              </Text>
+            )}
+          </VStack>
+        );
+      },
     },
     {
       key: 'amount',
@@ -400,7 +414,7 @@ export default function SavingsTemplate() {
         );
       },
     },
-  ], [hasPermission, dialog, fetchWithdrawals, fetchPendingCount, fetchTransactions]);
+  ], [isDemoMode, hasPermission, dialog, fetchWithdrawals, fetchPendingCount, fetchTransactions]);
 
   const depositColumns: TableColumn<SavingsDepositRow>[] = useMemo(() => [
     {
@@ -415,16 +429,24 @@ export default function SavingsTemplate() {
       key: 'memberName',
       header: 'Nama Anggota',
       width: proportional(2),
-      renderCell: (item: SavingsDepositRow) => (
-        <VStack gap={0}>
-          <Text type="body" weight="medium">{item.memberName || 'Anggota Koperasi'}</Text>
-          {item.memberNik && (
-            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-              NIK: {item.memberNik}
-            </Text>
-          )}
-        </VStack>
-      ),
+      renderCell: (item: SavingsDepositRow) => {
+        const displayName = isDemoMode
+          ? maskName(item.memberId || item.memberName, item.memberName)
+          : (item.memberName || 'Anggota Koperasi');
+        const displayNik = isDemoMode
+          ? maskNik(item.memberId || item.memberName, item.memberNik)
+          : item.memberNik;
+        return (
+          <VStack gap={0}>
+            <Text type="body" weight="medium">{displayName}</Text>
+            {item.memberNik && (
+              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
+                NIK: {displayNik}
+              </Text>
+            )}
+          </VStack>
+        );
+      },
     },
     {
       key: 'savingsType',
@@ -611,7 +633,7 @@ export default function SavingsTemplate() {
         );
       },
     },
-  ], [hasPermission, dialog, fetchDeposits, fetchPendingDepositsCount, fetchTransactions]);
+  ], [isDemoMode, hasPermission, dialog, fetchDeposits, fetchPendingDepositsCount, fetchTransactions]);
 
   return (
     <>

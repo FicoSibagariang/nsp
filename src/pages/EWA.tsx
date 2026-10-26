@@ -27,9 +27,12 @@ import { Icon } from '@astryxdesign/core/Icon';
 import { Pagination } from '../components/Pagination';
 import { CopyableAccountNumber } from '../components/CopyableAccountNumber';
 import type { CompanyEmployee, EWARequest, EwaFeeTier } from '../../shared/types';
+import { useDemoMode } from '../contexts/DemoModeContext';
+import { maskName, maskNip, maskNik, maskEmail } from '../utils/privacyMask';
 
 export default function EWA() {
   const { hasPermission } = useAuth();
+  const { isDemoMode } = useDemoMode();
   const canViewEmployees = hasPermission('approve:loans');
   const canImportEmployees = hasPermission('create:members');
   const [activeTab, setActiveTab] = useState<'requests' | 'employees' | 'payroll' | 'fee-tiers'>('requests');
@@ -587,19 +590,23 @@ export default function EWA() {
         key: 'employee',
         header: 'Karyawan',
         width: proportional(1.5),
-        renderCell: (r: EWARequest) => (
-          <VStack gap={0}>
-            <Text type="body" weight="medium">
-              {r.employeeName}
-            </Text>
-            <HStack gap={1} vAlign="center">
-              <Text type="supporting" color="secondary">
-                NIP: {r.employeeNip || '-'}
+        renderCell: (r: EWARequest) => {
+          const empName = isDemoMode ? maskName(r.employeeId || r.id, r.employeeName) : r.employeeName;
+          const empNip = isDemoMode ? maskNip(r.employeeId || r.id, r.employeeNip) : (r.employeeNip || '-');
+          return (
+            <VStack gap={0}>
+              <Text type="body" weight="medium">
+                {empName}
               </Text>
-              <Badge variant={r.isMember ? 'success' : 'neutral'} size="sm" label={r.isMember ? 'Anggota' : 'Non-Anggota'} />
-            </HStack>
-          </VStack>
-        ),
+              <HStack gap={1} vAlign="center">
+                <Text type="supporting" color="secondary">
+                  NIP: {empNip}
+                </Text>
+                <Badge variant={r.isMember ? 'success' : 'neutral'} size="sm" label={r.isMember ? 'Anggota' : 'Non-Anggota'} />
+              </HStack>
+            </VStack>
+          );
+        },
       },
       {
         key: 'amount',
@@ -667,7 +674,7 @@ export default function EWA() {
                 <>
                   {r.disbursedByName && (
                     <Text type="supporting" color="secondary" style={{ fontSize: 11, lineHeight: 1.2 }}>
-                      oleh {r.disbursedByName}
+                      oleh {isDemoMode ? maskName(r.disbursedBy || r.disbursedByName, r.disbursedByName) : r.disbursedByName}
                     </Text>
                   )}
                   {r.disbursedAt && (
@@ -714,7 +721,7 @@ export default function EWA() {
           ),
       },
     ],
-    [actionLoading, paymentSources]
+    [isDemoMode, actionLoading, paymentSources]
   );
 
   // Table Columns - Employees
@@ -724,23 +731,31 @@ export default function EWA() {
         key: 'nip',
         header: 'NIP / NIK',
         width: pixel(140),
-        renderCell: (e: CompanyEmployee) => (
-          <VStack gap={0}>
-            <Text type="body" weight="medium">{e.nip}</Text>
-            <Text type="supporting" color="secondary">{e.nik || '-'}</Text>
-          </VStack>
-        ),
+        renderCell: (e: CompanyEmployee) => {
+          const displayNip = isDemoMode ? maskNip(e.id, e.nip) : e.nip;
+          const displayNik = isDemoMode ? maskNik(e.id, e.nik) : (e.nik || '-');
+          return (
+            <VStack gap={0}>
+              <Text type="body" weight="medium">{displayNip}</Text>
+              <Text type="supporting" color="secondary">{displayNik}</Text>
+            </VStack>
+          );
+        },
       },
       {
         key: 'name',
         header: 'Nama & Email',
         width: proportional(1.5),
-        renderCell: (e: CompanyEmployee) => (
-          <VStack gap={0}>
-            <Text type="body" weight="semibold">{e.name}</Text>
-            <Text type="supporting" color="secondary">{e.email}</Text>
-          </VStack>
-        ),
+        renderCell: (e: CompanyEmployee) => {
+          const displayName = isDemoMode ? maskName(e.id, e.name) : e.name;
+          const displayEmail = isDemoMode ? maskEmail(e.id, e.email) : e.email;
+          return (
+            <VStack gap={0}>
+              <Text type="body" weight="semibold">{displayName}</Text>
+              <Text type="supporting" color="secondary">{displayEmail}</Text>
+            </VStack>
+          );
+        },
       },
       {
         key: 'salary',
@@ -797,12 +812,12 @@ export default function EWA() {
         width: proportional(1.5),
         renderCell: (e: CompanyEmployee) => (
           <Text type="supporting">
-            {e.bankName ? `${e.bankName} - ${e.bankAccountNumber}` : 'Belum diatur'}
+            {e.bankName ? `${e.bankName} - ${isDemoMode ? maskAccountNumber(e.id, e.bankAccountNumber) : e.bankAccountNumber}` : 'Belum diatur'}
           </Text>
         ),
       },
     ],
-    []
+    [isDemoMode]
   );
 
   const openAddTier = () => {
@@ -1367,8 +1382,8 @@ export default function EWA() {
                           <tbody>
                             {payrollRecap.items.map((it: any) => (
                               <tr key={it.employeeId} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '10px 12px' }}>{it.nip}</td>
-                                <td style={{ padding: '10px 12px', fontWeight: 600 }}>{it.name}</td>
+                                <td style={{ padding: '10px 12px' }}>{isDemoMode ? maskNip(it.employeeId, it.nip) : it.nip}</td>
+                                <td style={{ padding: '10px 12px', fontWeight: 600 }}>{isDemoMode ? maskName(it.employeeId, it.name) : it.name}</td>
                                 <td style={{ padding: '10px 12px' }}>
                                   <Badge variant={it.isMember ? 'success' : 'neutral'} size="sm" label={it.isMember ? 'Anggota' : 'Non-Anggota'} />
                                 </td>
@@ -1486,11 +1501,15 @@ export default function EWA() {
                       <VStack gap={2}>
                         <HStack justify="space-between">
                           <Text type="supporting">Karyawan:</Text>
-                          <Text type="body" weight="semibold">{selectedDisburseReq.employeeName}</Text>
+                          <Text type="body" weight="semibold">
+                            {isDemoMode ? maskName(selectedDisburseReq.employeeId || selectedDisburseReq.id, selectedDisburseReq.employeeName) : selectedDisburseReq.employeeName}
+                          </Text>
                         </HStack>
                         <HStack justify="space-between">
                           <Text type="supporting">NIP / NIK:</Text>
-                          <Text type="body">{selectedDisburseReq.employeeNip || '-'}</Text>
+                          <Text type="body">
+                            {isDemoMode ? maskNip(selectedDisburseReq.employeeId || selectedDisburseReq.id, selectedDisburseReq.employeeNip) : (selectedDisburseReq.employeeNip || '-')}
+                          </Text>
                         </HStack>
                         <HStack justify="space-between">
                           <Text type="supporting">Nominal Dicairkan:</Text>
@@ -1601,7 +1620,7 @@ export default function EWA() {
                   <VStack gap={4}>
                     <Heading level={4}>Tolak Permohonan EWA</Heading>
                     <Text type="supporting">
-                      Karyawan: <b>{selectedReq?.employeeName}</b> (Nominal: {formatRp(selectedReq?.disbursedAmount || 0)})
+                      Karyawan: <b>{isDemoMode ? maskName(selectedReq?.employeeId || selectedReq?.id, selectedReq?.employeeName) : selectedReq?.employeeName}</b> (Nominal: {formatRp(selectedReq?.disbursedAmount || 0)})
                     </Text>
                     <VStack gap={2}>
                       <Text type="supporting">Alasan Penolakan:</Text>

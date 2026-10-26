@@ -5,6 +5,8 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
 import { useToast } from '@astryxdesign/core/Toast';
 import { DocumentDuplicateIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { useDemoMode } from '../contexts/DemoModeContext';
+import { maskAccountNumber, maskName } from '../utils/privacyMask';
 
 export interface CopyableAccountNumberProps {
   bankName?: string | null;
@@ -21,12 +23,20 @@ export function CopyableAccountNumber({
 }: CopyableAccountNumberProps) {
   const toast = useToast();
   const [copied, setCopied] = useState(false);
+  const { isDemoMode } = useDemoMode();
 
-  if (!accountNumber && !bankName) {
+  const effectiveAccount = isDemoMode && accountNumber
+    ? maskAccountNumber(accountNumber, accountNumber, true)
+    : accountNumber;
+  const effectiveHolder = isDemoMode && accountHolder
+    ? maskName(accountHolder, accountHolder, true)
+    : accountHolder;
+
+  if (!effectiveAccount && !bankName) {
     return <Text type="supporting" color="secondary">-</Text>;
   }
 
-  const cleanNumber = (accountNumber || '').trim();
+  const cleanNumber = (effectiveAccount || '').trim();
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -105,9 +115,9 @@ export function CopyableAccountNumber({
           />
         )}
       </HStack>
-      {showHolder && accountHolder && (
+      {showHolder && effectiveHolder && (
         <Text type="supporting" color="secondary">
-          a.n. {accountHolder}
+          a.n. {effectiveHolder}
         </Text>
       )}
     </VStack>
