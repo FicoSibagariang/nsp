@@ -4,6 +4,8 @@ export interface MockWithdrawal {
   employer_id: number;
   amount: number;
   fee: number;
+  fee_percentage?: number;
+  total_payroll_deduction?: number;
   net_amount: number;
   daily_rate: number;
   days_worked: number;
@@ -132,6 +134,8 @@ class MockReviewStore {
       employer_id: emp.employer_id,
       amount,
       fee,
+      fee_percentage: amount > 0 ? Math.round((fee / amount) * 10000) / 100 : 0,
+      total_payroll_deduction: amount + fee,
       net_amount: amount - fee,
       daily_rate: 333333,
       days_worked: 15,

@@ -636,7 +636,10 @@ export async function getEwaRequestById(db: Db, id: string): Promise<EWARequest 
         COALESCE(r.salary_basis, e.base_salary) as "salaryBasis",
         COALESCE(r.max_limit, e.withdrawal_limit) as "maxLimit",
         r.amount as "amountRequested",
-        COALESCE(r.fee_percentage, 0) as "feePercentage",
+        COALESCE(
+          r.fee_percentage,
+          CASE WHEN r.amount > 0 THEN ROUND((r.fee::numeric / r.amount::numeric) * 100, 2) ELSE 0 END
+        ) as "feePercentage",
         r.fee as "feeAmount",
         r.amount as "disbursedAmount",
         COALESCE(r.total_payroll_deduction, r.amount + r.fee) as "totalPayrollDeduction",
@@ -732,7 +735,10 @@ export async function getEwaRequestsList(
         COALESCE(r.salary_basis, e.base_salary) as "salaryBasis",
         COALESCE(r.max_limit, e.withdrawal_limit) as "maxLimit", 
         r.amount as "amountRequested", 
-        COALESCE(r.fee_percentage, 0) as "feePercentage",
+        COALESCE(
+          r.fee_percentage,
+          CASE WHEN r.amount > 0 THEN ROUND((r.fee::numeric / r.amount::numeric) * 100, 2) ELSE 0 END
+        ) as "feePercentage",
         r.fee as "feeAmount", 
         r.amount as "disbursedAmount", 
         COALESCE(r.total_payroll_deduction, r.amount + r.fee) as "totalPayrollDeduction",

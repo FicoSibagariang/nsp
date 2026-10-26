@@ -2,6 +2,9 @@ import { describe, expect, it, beforeAll, afterAll } from "bun:test";
 import { createHash, randomBytes } from "node:crypto";
 import { app } from "../../index";
 import { sql } from "../../db";
+import { WalletCalculator } from "../domain/rules/wallet-calculator.js";
+
+const calculator = new WalletCalculator();
 
 describe("Mobile API Routes mounting under /api", () => {
   let testToken: string;
@@ -160,8 +163,9 @@ describe("Mobile API Routes mounting under /api", () => {
         VALUES (${loanId}, ${memberId}, 'Pinjaman Renovasi', 10000000, 10, 'Renovasi Rumah', 'Disetujui', 9.1, 1000000, 10000000, NOW()::text)
       `;
 
-      // Schedule due in current period month (e.g. 2026-09)
-      const periodMonth = new Date().toISOString().slice(0, 7);
+      // Schedule due in current period month
+      const period = calculator.getPayPeriod(new Date(), 25);
+      const periodMonth = period.end.slice(0, 7);
       await sql`
         INSERT INTO loan_schedules (id, loanid, installmentno, duedate, principalamount, interestamount, paidamount, status, createdat, updatedat)
         VALUES (${schedId}, ${loanId}, 1, ${periodMonth + '-15'}::date, 900000, 100000, 0, 'Pending', NOW(), NOW())
@@ -191,6 +195,35 @@ describe("Mobile API Routes mounting under /api", () => {
     const body = await res.json();
     expect(body.data).toBeArray();
     expect(body.meta).toBeDefined();
+  });
+
+  it("POST /api/withdrawals creates withdrawal and stores fee_percentage and total_payroll_deduction", async () => {
+    const res = await app.request("/api/withdrawals", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${testToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ amount: 50000 }),
+    });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.data).toBeDefined();
+    expect(body.data.amount).toBe(50000);
+    expect(body.data.fee).toBe(15000);
+    expect(body.data.fee_percent).toBe(30);
+
+    // Verify raw database record
+    const [dbRow] = await sql`
+      SELECT fee_percentage, total_payroll_deduction, period_month
+      FROM withdrawal_requests
+      WHERE id = ${body.data.id}
+    `;
+    expect(Number(dbRow.fee_percentage)).toBe(30);
+    expect(Number(dbRow.total_payroll_deduction)).toBe(65000);
+    expect(dbRow.period_month).toBeTruthy();
+
+    await sql`DELETE FROM withdrawal_requests WHERE id = ${body.data.id}`.catch(() => {});
   });
 
   it("POST /api/auth/google returns 400 on invalid payload", async () => {
