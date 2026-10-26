@@ -98,4 +98,86 @@ describe("getEwaRequestsList search filter", () => {
       await db.run(`DELETE FROM withdrawal_requests WHERE id = ?`, [nullFeeReqId]);
     }
   });
+
+  test("returns disbursedByName from admins table when disbursed_by is present", async () => {
+    const adminId = `admin-test-${uniqueSuffix}`;
+    const adminName = `Operator Hendra ${uniqueSuffix}`;
+    const adminEmail = `operator_${uniqueSuffix}@example.com`;
+
+    await db.run(
+      `INSERT INTO admins (id, name, email, password, role)
+       VALUES (?, ?, ?, 'dummy_password', 'admin')`,
+      [adminId, adminName, adminEmail]
+    );
+
+    const disRes = await db.query(
+      `INSERT INTO withdrawal_requests (
+        employer_id, employee_id, amount, status, period_month, pay_period_start, pay_period_end,
+        fee, fee_percentage, destination_bank_name, destination_account_number, destination_account_holder,
+        disbursed_by, transferred_at
+      ) VALUES (
+        1, ?, 350000, 'transferred', '2026-09', '2026-09-01', '2026-09-30',
+        10000, 2.86, 'Bank Mandiri', '1234567890', ?,
+        ?, NOW()
+      ) RETURNING id`
+    ).get<{ id: number | string }>(testEmployeeId, testName, adminId);
+    const disReqId = disRes!.id;
+
+    try {
+      const byId = await getEwaRequestById(db, String(disReqId));
+      expect(byId).not.toBeNull();
+      expect(byId!.disbursedBy).toBe(adminId);
+      expect(byId!.disbursedByName).toBe(adminName);
+      expect(byId!.status).toBe("DISBURSED");
+
+      const listRes = await getEwaRequestsList(db, { search: testName });
+      const found = listRes.data.find((r) => String(r.id) === String(disReqId));
+      expect(found).toBeDefined();
+      expect(found!.disbursedBy).toBe(adminId);
+      expect(found!.disbursedByName).toBe(adminName);
+    } finally {
+      await db.run(`DELETE FROM withdrawal_requests WHERE id = ?`, [disReqId]);
+      await db.run(`DELETE FROM admins WHERE id = ?`, [adminId]);
+    }
+  });
+
+  test("fallbacks disbursedByName to admin email when admin name is null or empty", async () => {
+    const adminId = `admin-test-noname-${uniqueSuffix}`;
+    const adminEmail = `noname_${uniqueSuffix}@example.com`;
+
+    await db.run(
+      `INSERT INTO admins (id, name, email, password, role)
+       VALUES (?, NULL, ?, 'dummy_password', 'admin')`,
+      [adminId, adminEmail]
+    );
+
+    const disRes = await db.query(
+      `INSERT INTO withdrawal_requests (
+        employer_id, employee_id, amount, status, period_month, pay_period_start, pay_period_end,
+        fee, fee_percentage, destination_bank_name, destination_account_number, destination_account_holder,
+        disbursed_by, transferred_at
+      ) VALUES (
+        1, ?, 400000, 'settled', '2026-09', '2026-09-01', '2026-09-30',
+        10000, 2.5, 'Bank Mandiri', '1234567890', ?,
+        ?, NOW()
+      ) RETURNING id`
+    ).get<{ id: number | string }>(testEmployeeId, testName, adminId);
+    const disReqId = disRes!.id;
+
+    try {
+      const byId = await getEwaRequestById(db, String(disReqId));
+      expect(byId).not.toBeNull();
+      expect(byId!.disbursedBy).toBe(adminId);
+      expect(byId!.disbursedByName).toBe(adminEmail);
+      expect(byId!.status).toBe("PAID_SETTLED");
+
+      const listRes = await getEwaRequestsList(db, { search: testName });
+      const found = listRes.data.find((r) => String(r.id) === String(disReqId));
+      expect(found).toBeDefined();
+      expect(found!.disbursedByName).toBe(adminEmail);
+    } finally {
+      await db.run(`DELETE FROM withdrawal_requests WHERE id = ?`, [disReqId]);
+      await db.run(`DELETE FROM admins WHERE id = ?`, [adminId]);
+    }
+  });
 });

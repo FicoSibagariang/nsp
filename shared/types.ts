@@ -91,6 +91,7 @@ export interface EWARequest {
   rejectionReason?: string | null;
   disbursedAt?: string | null;
   disbursedBy?: string | null;
+  disbursedByName?: string | null;
   settledAt?: string | null;
   createdAt: string;
 }
