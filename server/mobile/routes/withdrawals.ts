@@ -181,15 +181,20 @@ withdrawalRouter.post("/", authMiddleware, zValidator("json", storeWithdrawalSch
     }
 
     // 6. Insert new withdrawal request
+    const feeAmount = Number(feeTier.fee);
+    const feePercentage = amount > 0 ? Math.round((feeAmount / amount) * 10000) / 100 : 0;
+    const totalPayrollDeduction = amount + feeAmount;
+    const periodMonth = period.end ? String(period.end).slice(0, 7) : null;
+
     const rows = await tx`
       INSERT INTO withdrawal_requests (
-        employee_id, employer_id, amount, fee, fee_tier_snapshot,
-        status, pay_period_start, pay_period_end,
+        employee_id, employer_id, amount, fee, fee_percentage, total_payroll_deduction, fee_tier_snapshot,
+        status, pay_period_start, pay_period_end, period_month,
         destination_bank_name, destination_account_number, destination_account_holder,
         requested_at, idempotency_key, created_at, updated_at
       ) VALUES (
-        ${lockedEmp.id}, ${lockedEmp.employer_id}, ${amount}, ${feeTier.fee}, ${JSON.stringify(feeTier.toArray())}::jsonb,
-        'pending_transfer', ${period.start}, ${period.end},
+        ${lockedEmp.id}, ${lockedEmp.employer_id}, ${amount}, ${feeAmount}, ${feePercentage}, ${totalPayrollDeduction}, ${JSON.stringify(feeTier.toArray())}::jsonb,
+        'pending_transfer', ${period.start}, ${period.end}, ${periodMonth},
         ${lockedEmp.bank_name}, ${lockedEmp.bank_account_number}, ${lockedEmp.bank_account_holder},
         NOW(), ${idempotency_key || null}, NOW(), NOW()
       )

@@ -1,6 +1,6 @@
 import { expect, test, describe, afterAll, beforeAll } from "bun:test";
 import db from "../db";
-import { getEwaRequestsList } from "./ewaService";
+import { getEwaRequestsList, getEwaRequestById } from "./ewaService";
 
 describe("getEwaRequestsList search filter", () => {
   let testEmployeeId: number | string;
@@ -68,5 +68,34 @@ describe("getEwaRequestsList search filter", () => {
     const res = await getEwaRequestsList(db, { search: `NON_EXISTENT_NAME_${uniqueSuffix}` });
     expect(res.data.length).toBe(0);
     expect(res.total).toBe(0);
+  });
+
+  test("calculates dynamic feePercentage when fee_percentage is NULL", async () => {
+    const nullFeeReq = await db.query(
+      `INSERT INTO withdrawal_requests (
+        employer_id, employee_id, amount, status, period_month, pay_period_start, pay_period_end,
+        fee, fee_percentage, destination_bank_name, destination_account_number, destination_account_holder
+      ) VALUES (
+        1, ?, 200000, 'pending_transfer', '2026-09', '2026-09-01', '2026-09-30',
+        12500, NULL, 'Bank Mandiri', '1234567890', ?
+      ) RETURNING id`
+    ).get<{ id: number | string }>(testEmployeeId, testName);
+
+    const nullFeeReqId = nullFeeReq!.id;
+
+    try {
+      const byId = await getEwaRequestById(db, String(nullFeeReqId));
+      expect(byId).not.toBeNull();
+      expect(byId!.feePercentage).toBe(6.25);
+      expect(byId!.totalPayrollDeduction).toBe(212500);
+
+      const listRes = await getEwaRequestsList(db, { search: testName });
+      const found = listRes.data.find((r) => String(r.id) === String(nullFeeReqId));
+      expect(found).toBeDefined();
+      expect(found!.feePercentage).toBe(6.25);
+      expect(found!.totalPayrollDeduction).toBe(212500);
+    } finally {
+      await db.run(`DELETE FROM withdrawal_requests WHERE id = ?`, [nullFeeReqId]);
+    }
   });
 });
