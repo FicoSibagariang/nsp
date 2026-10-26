@@ -5,6 +5,7 @@ import '@astryxdesign/core/reset.css'
 import '@astryxdesign/core/astryx.css'
 import './index.css'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { DemoModeProvider } from './contexts/DemoModeContext'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ThemeProvider, useThemeMode } from './contexts/ThemeContext'
 import { Theme } from '@astryxdesign/core/theme'
@@ -106,7 +107,9 @@ createRoot(document.getElementById('root')!).render(
         <ThemeProvider>
           <AppThemeProvider>
             <AuthProvider>
-              <LazyRoot />
+              <DemoModeProvider>
+                <LazyRoot />
+              </DemoModeProvider>
             </AuthProvider>
           </AppThemeProvider>
         </ThemeProvider>

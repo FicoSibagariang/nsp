@@ -20,6 +20,8 @@ import {
   SunIcon,
   MoonIcon,
   ChatBubbleLeftRightIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from '@heroicons/react/24/outline';
 import {HomeIcon} from '@heroicons/react/24/solid';
 import { Routes, Route, useLocation, useNavigate, Navigate } from 'react-router-dom';
@@ -30,6 +32,7 @@ import { useAuth } from '../hooks/useAuth';
 import type { Permission } from '../../shared/permissions';
 import type { SettingsData, PendingActionsData } from '../../shared/types';
 import { useThemeMode } from '../contexts/ThemeContext';
+import { useDemoMode } from '../contexts/DemoModeContext';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
 import { useApiQuery } from '../hooks/useApiQuery';
@@ -69,6 +72,7 @@ export default function Shell() {
   const location = useLocation();
   const { hasPermission, logout } = useAuth();
   const { mode, setMode } = useThemeMode();
+  const { isDemoMode, toggleDemoMode } = useDemoMode();
   const { data: settings, refetch: refetchSettings } = useApiQuery<SettingsData>('/api/settings');
   const { data: pendingActions, refetch: refetchPendingActions } = useApiQuery<PendingActionsData>('/api/v1/stats/pending-actions');
 
@@ -128,6 +132,12 @@ export default function Shell() {
           }
           endContent={
             <HStack gap={2} vAlign="center">
+              <IconButton
+                label={isDemoMode ? "Nonaktifkan Mode Demo / Privasi" : "Aktifkan Mode Demo / Privasi"}
+                icon={<Icon icon={isDemoMode ? EyeSlashIcon : EyeIcon} size="sm" />}
+                variant={isDemoMode ? "primary" : "ghost"}
+                onClick={toggleDemoMode}
+              />
               <NotificationBell
                 pendingActions={pendingActions}
                 onNavigate={(route) => navigate(route)}
@@ -286,6 +296,28 @@ export default function Shell() {
           </SideNavSection>
         </SideNav>
       }>
+      {isDemoMode && (
+        <div
+          role="status"
+          style={{
+            backgroundColor: 'var(--color-warning-100, #fef3c7)',
+            color: 'var(--color-warning-800, #92400e)',
+            borderBottom: '1px solid var(--color-warning-300, #fcd34d)',
+            padding: '6px 16px',
+            fontSize: '12px',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            width: '100%',
+            boxSizing: 'border-box',
+          }}
+        >
+          <span>🛡️</span>
+          <span>Mode Demo Aktif — Seluruh identitas pribadi disamarkan dengan nama fiktif</span>
+        </div>
+      )}
       <Suspense fallback={<Spinner size="lg" />}>
         <Routes>
           <Route path="/" element={<App />} />

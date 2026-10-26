@@ -1,9 +1,10 @@
 import { expect, test, describe, afterEach, spyOn } from "bun:test";
-import { render, screen, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Shell from "./Shell";
 import { AuthProvider } from "../contexts/AuthContext";
 import { ThemeProvider } from "../contexts/ThemeContext";
+import { DemoModeProvider } from "../contexts/DemoModeContext";
 import * as apiModule from "../services/api";
 
 function renderShell(initialEntries = ["/"]) {
@@ -11,7 +12,9 @@ function renderShell(initialEntries = ["/"]) {
     <MemoryRouter initialEntries={initialEntries}>
       <ThemeProvider>
         <AuthProvider>
-          <Shell />
+          <DemoModeProvider>
+            <Shell />
+          </DemoModeProvider>
         </AuthProvider>
       </ThemeProvider>
     </MemoryRouter>
@@ -96,5 +99,27 @@ describe("Shell Component", () => {
       expect(screen.getAllByText("3").length).toBeGreaterThan(0);
       expect(screen.getAllByText("4").length).toBeGreaterThan(0);
     });
+  });
+
+  test("toggles demo privacy mode and displays reminder banner", async () => {
+    localStorage.setItem("token", "test-token");
+    localStorage.setItem("role", "admin");
+    spyOn(apiModule.api, "get").mockResolvedValue({});
+    renderShell();
+
+    // Initially demo banner should not be present
+    expect(screen.queryByText(/Mode Demo Aktif/i)).toBeNull();
+
+    // Find and click the toggle button
+    const toggleButton = await waitFor(() => screen.getByLabelText(/Aktifkan Mode Demo/i));
+    fireEvent.click(toggleButton);
+
+    // Banner should appear
+    await waitFor(() => {
+      expect(screen.getByText(/Mode Demo Aktif — Seluruh identitas pribadi disamarkan dengan nama fiktif/i)).toBeTruthy();
+    });
+
+    // Button label updates to allow deactivation
+    expect(screen.getByLabelText(/Nonaktifkan Mode Demo/i)).toBeTruthy();
   });
 });

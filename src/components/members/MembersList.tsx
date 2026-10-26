@@ -10,6 +10,8 @@ import type { TableColumn } from '@astryxdesign/core/Table';
 import { formatRp } from '../../utils/format';
 import type { MemberRow } from '../../shared/types';
 import { MemberActions } from './MemberActions';
+import { useDemoMode } from '../../contexts/DemoModeContext';
+import { maskName, maskNik, hashString } from '../../utils/privacyMask';
 
 interface MembersListProps {
   members: MemberRow[];
@@ -41,45 +43,58 @@ export function MembersList({
   onShowHistory,
   onDelete,
 }: MembersListProps) {
+  const { isDemoMode } = useDemoMode();
+
   const columns: TableColumn<MemberRow>[] = useMemo(
     () => [
       {
         key: 'name',
         header: 'Nama',
         width: proportional(2),
-        renderCell: (item: MemberRow) => (
-          <HStack gap={3} vAlign="center">
-            <Avatar name={item.name} size="small" />
-            <VStack gap={0}>
-              <Text type="body">{item.name}</Text>
-              <Text type="supporting" color="secondary">{item.role}</Text>
-            </VStack>
-          </HStack>
-        ),
+        renderCell: (item: MemberRow) => {
+          const displayName = isDemoMode ? maskName(item.id, item.name) : item.name;
+          return (
+            <HStack gap={3} vAlign="center">
+              <Avatar name={displayName} size="small" />
+              <VStack gap={0}>
+                <Text type="body">{displayName}</Text>
+                <Text type="supporting" color="secondary">{item.role}</Text>
+              </VStack>
+            </HStack>
+          );
+        },
       },
       {
         key: 'nik',
         header: 'NIK',
         width: pixel(150),
-        renderCell: (item: MemberRow) => (
-          <Text
-            type="body"
-            color={item.nik ? undefined : 'secondary'}
-            style={{ fontFamily: 'var(--mono)' }}
-          >
-            {item.nik || '—'}
-          </Text>
-        ),
+        renderCell: (item: MemberRow) => {
+          const displayNik = isDemoMode ? maskNik(item.id, item.nik) : (item.nik || '—');
+          return (
+            <Text
+              type="body"
+              color={item.nik ? undefined : 'secondary'}
+              style={{ fontFamily: 'var(--mono)' }}
+            >
+              {displayNik}
+            </Text>
+          );
+        },
       },
       {
         key: 'phone',
         header: 'Telepon',
         width: pixel(130),
-        renderCell: (item: MemberRow) => (
-          <Text type="body" color={item.phone ? undefined : 'secondary'}>
-            {item.phone || '—'}
-          </Text>
-        ),
+        renderCell: (item: MemberRow) => {
+          const displayPhone = isDemoMode
+            ? (item.phone ? `0812${String(10000000 + (hashString(item.id) % 90000000))}` : '—')
+            : (item.phone || '—');
+          return (
+            <Text type="body" color={item.phone ? undefined : 'secondary'}>
+              {displayPhone}
+            </Text>
+          );
+        },
       },
       {
         key: 'status',
@@ -129,7 +144,7 @@ export function MembersList({
         ),
       },
     ],
-    [permissions, onEdit, onPreviewPortal, onPortalAccess, onUpdateSavings, onShowHistory, onDelete]
+    [isDemoMode, permissions, onEdit, onPreviewPortal, onPortalAccess, onUpdateSavings, onShowHistory, onDelete]
   );
 
   return (

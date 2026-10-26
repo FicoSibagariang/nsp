@@ -19,6 +19,8 @@ import {DataStateView} from '../components/DataStateView';
 import {StatusBadge} from '../components/common/StatusBadge';
 import {chartColors, getThemedGridProps, getThemedAxisProps, getThemedTooltipProps} from '../design/chartTheme';
 import type {ReportData} from '../shared/types';
+import {useDemoMode} from '../contexts/DemoModeContext';
+import {maskName} from '../utils/privacyMask';
 
 type ReportType = 'cooperative_summary' | 'savings_summary' | 'loans_summary' | 'revenue_projection' | 'ar_summary' | 'savings_member' | 'cashflow_statement' | 'income_statement' | 'balance_sheet';
 
@@ -53,6 +55,7 @@ export interface RevenueProjectionData {
 
 export default function ReportsTemplate() {
   const { hasPermission } = useAuth();
+  const { isDemoMode } = useDemoMode();
   const canExportReports = hasPermission('export:reports');
   const [selectedReport, setSelectedReport] = useState<ReportType>('cooperative_summary');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -161,13 +164,15 @@ export default function ReportsTemplate() {
         filename = "laporan_piutang_pinjaman.csv";
         csvContent += "Nama Anggota,Pokok Pinjaman,Total Tagihan,Telah Dibayar,Sisa Piutang,Status\r\n";
         for (const item of arRes) {
-          csvContent += `${item.memberName},${item.principal},${item.totalAmount},${item.paidAmount},${item.remainingAmount},${item.status}\r\n`;
+          const memberName = isDemoMode ? maskName(item.memberName, item.memberName) : item.memberName;
+          csvContent += `${memberName},${item.principal},${item.totalAmount},${item.paidAmount},${item.remainingAmount},${item.status}\r\n`;
         }
       } else if (selectedReport === 'savings_member' && savingsMemberRes) {
         filename = "laporan_rekap_simpanan_anggota.csv";
         csvContent += "Nama Anggota,Simpanan Pokok,Simpanan Wajib,Simpanan Sukarela,Total Simpanan\r\n";
         for (const item of savingsMemberRes) {
-          csvContent += `${item.memberName},${item.simpananPokok},${item.simpananWajib},${item.simpananSukarela},${item.totalSavings}\r\n`;
+          const memberName = isDemoMode ? maskName(item.memberName, item.memberName) : item.memberName;
+          csvContent += `${memberName},${item.simpananPokok},${item.simpananWajib},${item.simpananSukarela},${item.totalSavings}\r\n`;
         }
       } else if (selectedReport === 'cashflow_statement' && cashflowRes) {
         filename = "laporan_arus_kas.csv";
@@ -1105,7 +1110,7 @@ export default function ReportsTemplate() {
                             <tbody>
                               {arRes.map((item, idx) => (
                                 <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '12px 8px' }}>{item.memberName}</td>
+                                  <td style={{ padding: '12px 8px' }}>{isDemoMode ? maskName(item.memberName, item.memberName) : item.memberName}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.principal)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.totalAmount)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>{formatRp(item.paidAmount)}</td>
@@ -1150,7 +1155,7 @@ export default function ReportsTemplate() {
                             <tbody>
                               {savingsMemberRes.map((item, idx) => (
                                 <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '12px 8px' }}>{item.memberName}</td>
+                                  <td style={{ padding: '12px 8px' }}>{isDemoMode ? maskName(item.memberName, item.memberName) : item.memberName}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.simpananPokok)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.simpananWajib)}</td>
                                   <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.simpananSukarela)}</td>

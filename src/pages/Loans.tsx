@@ -33,6 +33,8 @@ import {Avatar} from '@astryxdesign/core/Avatar';
 import {Badge} from '@astryxdesign/core/Badge';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Selector} from '@astryxdesign/core/Selector';
+import { useDemoMode } from '../contexts/DemoModeContext';
+import { maskName } from '../utils/privacyMask';
 import {Table, proportional, pixel} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
 import {
@@ -68,6 +70,7 @@ export default function LoansTemplate() {
   const dialog = useA11yDialog({purpose: 'form', width: 520, maxHeight: '85vh'});
   const toast = useToast();
   const { hasPermission } = useAuth();
+  const { isDemoMode } = useDemoMode();
   const apiAction = useApiAction();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -258,42 +261,45 @@ export default function LoansTemplate() {
       key: 'name',
       header: 'Nama Peminjam',
       width: proportional(2),
-      renderCell: (item: LoanRow) => (
-        <HStack gap={3} vAlign="center">
-          <Avatar name={item.name} size="small" />
-          <VStack gap={0}>
-            <HStack vAlign="center" gap={2}>
-              <Text type="body" weight="semibold">{item.name}</Text>
-              {item.attachmentUrl && (
-                <a
-                  href={item.attachmentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  title={`Lampiran: ${item.attachmentName || 'Dokumen'}`}
-                  style={{
-                    fontSize: '11px',
-                    padding: '1px 6px',
-                    borderRadius: '4px',
-                    backgroundColor: 'var(--color-background-secondary)',
-                    border: '1px solid var(--color-border-primary)',
-                    color: 'var(--color-primary-500, #0171E3)',
-                    textDecoration: 'none',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '2px',
-                  }}
-                >
-                  📎 {item.attachmentName?.toLowerCase().endsWith('.pdf') ? 'PDF' : 'Lampiran'}
-                </a>
-              )}
-            </HStack>
-            <Text type="supporting" color="secondary">
-              {item.purpose}
-            </Text>
-          </VStack>
-        </HStack>
-      ),
+      renderCell: (item: LoanRow) => {
+        const displayName = isDemoMode ? maskName(item.memberId || item.id, item.name) : item.name;
+        return (
+          <HStack gap={3} vAlign="center">
+            <Avatar name={displayName} size="small" />
+            <VStack gap={0}>
+              <HStack vAlign="center" gap={2}>
+                <Text type="body" weight="semibold">{displayName}</Text>
+                {item.attachmentUrl && (
+                  <a
+                    href={item.attachmentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    title={`Lampiran: ${item.attachmentName || 'Dokumen'}`}
+                    style={{
+                      fontSize: '11px',
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      backgroundColor: 'var(--color-background-secondary)',
+                      border: '1px solid var(--color-border-primary)',
+                      color: 'var(--color-primary-500, #0171E3)',
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '2px',
+                    }}
+                  >
+                    📎 {item.attachmentName?.toLowerCase().endsWith('.pdf') ? 'PDF' : 'Lampiran'}
+                  </a>
+                )}
+              </HStack>
+              <Text type="supporting" color="secondary">
+                {item.purpose}
+              </Text>
+            </VStack>
+          </HStack>
+        );
+      },
     },
     {
       key: 'amount',
@@ -400,7 +406,7 @@ export default function LoansTemplate() {
         );
       },
     },
-  ], [hasPermission, handleUpdateStatus, handleApproveLoan, handleRejectLoan, dialog, fetchLoans, handleDeleteLoan]);
+  ], [isDemoMode, hasPermission, handleUpdateStatus, handleApproveLoan, handleRejectLoan, dialog, fetchLoans, handleDeleteLoan]);
 
   return (
     <>

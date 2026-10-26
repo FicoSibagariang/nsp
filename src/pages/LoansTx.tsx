@@ -26,6 +26,8 @@ import {useA11yDialog} from '../hooks/useA11yDialog';
 import {formatRp} from '../utils/format';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
+import {useDemoMode} from '../contexts/DemoModeContext';
+import {maskName} from '../utils/privacyMask';
 
 const ImportPaymentsDialogContent = lazy(() => import('../components/ImportPaymentsDialog').then(m => ({ default: m.ImportPaymentsDialogContent })));
 
@@ -51,6 +53,7 @@ export default function LoansTxTemplate() {
   const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Pinjaman');
   const { hasPermission } = useAuth();
+  const { isDemoMode } = useDemoMode();
   const dialog = useA11yDialog({ purpose: 'form', width: 560 });
   
   const [page, setPage] = useState(1);
@@ -85,9 +88,12 @@ export default function LoansTxTemplate() {
       key: 'borrowerName',
       header: 'Nama Peminjam',
       width: proportional(2),
-      renderCell: (item: LoanPaymentRow) => (
-        <Text type="body">{item.borrowerName || 'Anggota Koperasi'}</Text>
-      ),
+      renderCell: (item: LoanPaymentRow) => {
+        const displayName = isDemoMode
+          ? maskName(item.borrowerId || (item as any).memberId || item.borrowerName, item.borrowerName)
+          : (item.borrowerName || 'Anggota Koperasi');
+        return <Text type="body">{displayName}</Text>;
+      },
     },
     {
       key: 'type',
@@ -140,7 +146,7 @@ export default function LoansTxTemplate() {
         </Text>
       ),
     },
-  ], []);
+  ], [isDemoMode]);
 
   return (
     <>
