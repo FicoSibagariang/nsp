@@ -13,6 +13,8 @@ import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Text} from '@astryxdesign/core/Text';
 import type {MemberRow} from '../shared/types';
+import {useDemoMode} from '../contexts/DemoModeContext';
+import {maskName, maskNik, hashString} from '../utils/privacyMask';
 
 export function EditMemberDialogContent({
   onClose,
@@ -23,21 +25,30 @@ export function EditMemberDialogContent({
   onEdit: (m: MemberRow) => void;
   initialData: MemberRow;
 }) {
-  const [name, setName] = useState(initialData.name);
-  const [nik, setNik] = useState(initialData.nik || '');
-  const [phone, setPhone] = useState(initialData.phone || '');
+  const { isDemoMode } = useDemoMode();
+
+  const getInitialName = () => (isDemoMode ? maskName(initialData.id, initialData.name) : initialData.name);
+  const getInitialNik = () => (isDemoMode ? maskNik(initialData.id, initialData.nik) : (initialData.nik || ''));
+  const getInitialPhone = () => {
+    if (!initialData.phone) return '';
+    return isDemoMode ? `0812${String(10000000 + (hashString(initialData.id) % 90000000))}` : initialData.phone;
+  };
+
+  const [name, setName] = useState(getInitialName);
+  const [nik, setNik] = useState(getInitialNik);
+  const [phone, setPhone] = useState(getInitialPhone);
   const [role, setRole] = useState(initialData.role);
   const [status, setStatus] = useState(initialData.status);
   const [localError, setLocalError] = useState('');
 
   useEffect(() => {
-    setName(initialData.name);
-    setNik(initialData.nik || '');
-    setPhone(initialData.phone || '');
+    setName(getInitialName());
+    setNik(getInitialNik());
+    setPhone(getInitialPhone());
     setRole(initialData.role);
     setStatus(initialData.status);
     setLocalError('');
-  }, [initialData]);
+  }, [initialData, isDemoMode]);
 
   const handleSave = () => {
     setLocalError('');
@@ -80,7 +91,7 @@ export function EditMemberDialogContent({
       header={
         <DialogHeader
           title="Edit Anggota"
-          subtitle={`Ubah data untuk ${initialData.name}`}
+          subtitle={`Ubah data untuk ${getInitialName()}`}
           onOpenChange={() => onClose()}
         />
       }

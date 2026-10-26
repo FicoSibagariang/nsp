@@ -18,6 +18,8 @@ import {Center} from '@astryxdesign/core/Center';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {ExclamationCircleIcon, ClockIcon} from '@heroicons/react/24/outline';
 import type {MemberRow} from '../shared/types';
+import {useDemoMode} from '../contexts/DemoModeContext';
+import {maskName} from '../utils/privacyMask';
 
 interface Transaction {
   id: string;
@@ -37,6 +39,8 @@ export function TransactionHistoryDialogContent({
   onClose: () => void;
   member: MemberRow;
 }) {
+  const { isDemoMode } = useDemoMode();
+  const memberName = isDemoMode ? maskName(member.id, member.name) : member.name;
   const { data: transactions, isLoading, error } = useApiQuery<Transaction[]>(`/api/members/${member.id}/transactions`);
 
   const columns: TableColumn<Transaction>[] = useMemo(() => [
@@ -98,7 +102,7 @@ export function TransactionHistoryDialogContent({
       header={
         <DialogHeader
           title="Riwayat Transaksi"
-          subtitle={`Rekam jejak transaksi simpanan untuk ${member.name}`}
+          subtitle={`Rekam jejak transaksi simpanan untuk ${memberName}`}
           onOpenChange={() => onClose()}
         />
       }
@@ -111,13 +115,13 @@ export function TransactionHistoryDialogContent({
               </Center>
             ) : error ? (
               <EmptyState
-                icon={ExclamationCircleIcon}
+                icon={<ExclamationCircleIcon width={48} height={48} />}
                 title="Gagal Memuat"
                 description="Terjadi kesalahan saat mengambil riwayat transaksi."
               />
             ) : !transactions || transactions.length === 0 ? (
               <EmptyState
-                icon={ClockIcon}
+                icon={<ClockIcon width={48} height={48} />}
                 title="Belum Ada Transaksi"
                 description="Anggota ini belum memiliki riwayat transaksi simpanan."
               />

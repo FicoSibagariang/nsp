@@ -15,6 +15,8 @@ import { LoanInfoSection } from './loan/LoanInfoSection';
 import { LoanScheduleTable } from './loan/LoanScheduleTable';
 import { LoanPaymentSection } from './loan/LoanPaymentSection';
 import { CopyableAccountNumber } from './CopyableAccountNumber';
+import { useDemoMode } from '../contexts/DemoModeContext';
+import { maskName } from '../utils/privacyMask';
 
 interface Payment {
   id: string;
@@ -61,6 +63,9 @@ export function LoanDetailDialogContent({
 }) {
   const toast = useToast();
   const { hasPermission } = useAuth();
+  const { isDemoMode } = useDemoMode();
+
+  const displayName = isDemoMode ? maskName(loan.memberId || loan.id, loan.name) : loan.name;
 
   const [disbursementDate, setDisbursementDate] = useState(() =>
     toIsoDateInput(loan.approvedAt || loan.createdAt || todayIsoDate())
@@ -115,7 +120,7 @@ export function LoanDetailDialogContent({
     <Layout
       header={
         <DialogHeader
-          title={`Detail Pinjaman: ${loan.name}`}
+          title={`Detail Pinjaman: ${displayName}`}
           subtitle={`Tenor: ${loan.tenor} Bulan`}
           onOpenChange={() => onClose()}
         />

@@ -4,6 +4,8 @@ import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { formatRp } from '../utils/format';
 import type { SavingsDepositRow } from '../shared/types';
+import { useDemoMode } from '../contexts/DemoModeContext';
+import { maskName } from '../utils/privacyMask';
 
 interface Props {
   deposit: SavingsDepositRow;
@@ -18,6 +20,11 @@ export function RejectSavingsDepositDialogContent({
   onConfirm,
   isLoading = false,
 }: Props) {
+  const { isDemoMode } = useDemoMode();
+  const displayName = isDemoMode
+    ? maskName(deposit.memberId || deposit.memberName, deposit.memberName)
+    : (deposit.memberName || 'Anggota Koperasi');
+
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
@@ -65,7 +72,7 @@ export function RejectSavingsDepositDialogContent({
         >
           <HStack justify="space-between" vAlign="center">
             <Text type="supporting" color="secondary">Anggota:</Text>
-            <Text type="body" weight="semibold">{deposit.memberName || 'Anggota Koperasi'}</Text>
+            <Text type="body" weight="semibold">{displayName}</Text>
           </HStack>
           <HStack justify="space-between" vAlign="center">
             <Text type="supporting" color="secondary">Jenis Simpanan:</Text>

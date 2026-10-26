@@ -4,6 +4,8 @@ import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { formatRp } from '../utils/format';
 import type { SavingsWithdrawalRow } from '../shared/types';
+import { useDemoMode } from '../contexts/DemoModeContext';
+import { maskName } from '../utils/privacyMask';
 
 interface Props {
   withdrawal: SavingsWithdrawalRow;
@@ -18,6 +20,11 @@ export function RejectSavingsWithdrawalDialogContent({
   onConfirm,
   isLoading = false,
 }: Props) {
+  const { isDemoMode } = useDemoMode();
+  const displayName = isDemoMode
+    ? maskName(withdrawal.memberId || withdrawal.memberName, withdrawal.memberName)
+    : (withdrawal.memberName || 'Anggota Koperasi');
+
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
@@ -52,7 +59,7 @@ export function RejectSavingsWithdrawalDialogContent({
         >
           <HStack justify="space-between" vAlign="center">
             <Text type="supporting" color="secondary">Anggota:</Text>
-            <Text type="body" weight="semibold">{withdrawal.memberName || 'Anggota Koperasi'}</Text>
+            <Text type="body" weight="semibold">{displayName}</Text>
           </HStack>
           <HStack justify="space-between" vAlign="center">
             <Text type="supporting" color="secondary">Nominal Penarikan:</Text>
