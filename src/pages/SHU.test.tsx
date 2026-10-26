@@ -3,6 +3,9 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import SHU from './SHU';
 import * as authModule from '../hooks/useAuth';
 import * as apiQueryModule from '../hooks/useApiQuery';
+import * as exportUtils from '../utils/exportUtils';
+import { DemoModeProvider } from '../contexts/DemoModeContext';
+import { maskName } from '../utils/privacyMask';
 
 const defaultMockApiData = {
   year: '2026',
@@ -37,6 +40,7 @@ describe('SHU Page', () => {
   let apiQuerySpy: any;
 
   beforeEach(() => {
+    localStorage.clear();
     mockApiData = JSON.parse(JSON.stringify(defaultMockApiData));
     authSpy = spyOn(authModule, 'useAuth').mockReturnValue({
       hasPermission: () => true,
@@ -51,6 +55,7 @@ describe('SHU Page', () => {
 
   afterEach(() => {
     cleanup();
+    localStorage.clear();
     authSpy?.mockRestore?.();
     apiQuerySpy?.mockRestore?.();
   });
@@ -130,5 +135,76 @@ describe('SHU Page', () => {
 
     expect(screen.queryByRole('button', { name: 'Proyeksi Akhir Tahun' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Realisasi (YTD)' })).toBeNull();
+  });
+
+  describe('Demo Mode Privacy Masking', () => {
+    let excelSpy: any;
+    let pdfSpy: any;
+
+    beforeEach(() => {
+      excelSpy = spyOn(exportUtils, 'exportToExcel').mockImplementation(() => {});
+      pdfSpy = spyOn(exportUtils, 'exportToPDF').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      excelSpy?.mockRestore?.();
+      pdfSpy?.mockRestore?.();
+    });
+
+    it('masks member name in table and export files when Demo Mode is active', () => {
+      localStorage.setItem('demo-mode', 'true');
+      const expectedMaskedName = maskName('mem-1', 'Budi Santoso', true);
+
+      render(
+        <DemoModeProvider>
+          <SHU />
+        </DemoModeProvider>
+      );
+
+      // Masked name is displayed in table
+      expect(screen.getByText(expectedMaskedName)).toBeTruthy();
+      expect(screen.queryByText('Budi Santoso')).toBeNull();
+
+      // Export Excel uses masked data
+      const excelBtn = screen.getByRole('button', { name: 'Ekspor Excel' });
+      fireEvent.click(excelBtn);
+      expect(excelSpy).toHaveBeenCalled();
+      const excelPassedData = excelSpy.mock.calls[0][0];
+      expect(excelPassedData[0].name).toBe(expectedMaskedName);
+
+      // Export PDF uses masked data
+      const pdfBtn = screen.getByRole('button', { name: 'Ekspor PDF' });
+      fireEvent.click(pdfBtn);
+      expect(pdfSpy).toHaveBeenCalled();
+      const pdfPassedData = pdfSpy.mock.calls[0][0];
+      expect(pdfPassedData[0].name).toBe(expectedMaskedName);
+    });
+
+    it('shows real member name in table and export files when Demo Mode is inactive', () => {
+      localStorage.removeItem('demo-mode');
+
+      render(
+        <DemoModeProvider>
+          <SHU />
+        </DemoModeProvider>
+      );
+
+      // Real name is displayed in table
+      expect(screen.getByText('Budi Santoso')).toBeTruthy();
+
+      // Export Excel uses real name
+      const excelBtn = screen.getByRole('button', { name: 'Ekspor Excel' });
+      fireEvent.click(excelBtn);
+      expect(excelSpy).toHaveBeenCalled();
+      const excelPassedData = excelSpy.mock.calls[0][0];
+      expect(excelPassedData[0].name).toBe('Budi Santoso');
+
+      // Export PDF uses real name
+      const pdfBtn = screen.getByRole('button', { name: 'Ekspor PDF' });
+      fireEvent.click(pdfBtn);
+      expect(pdfSpy).toHaveBeenCalled();
+      const pdfPassedData = pdfSpy.mock.calls[0][0];
+      expect(pdfPassedData[0].name).toBe('Budi Santoso');
+    });
   });
 });

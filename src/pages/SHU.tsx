@@ -8,6 +8,8 @@ import { Table, proportional } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { useAuth } from '../hooks/useAuth';
+import { useDemoMode } from '../contexts/DemoModeContext';
+import { maskName } from '../utils/privacyMask';
 import { DataStateView } from '../components/DataStateView';
 import { formatRp } from '../utils/format';
 import { exportToExcel, exportToPDF } from '../utils/exportUtils';
@@ -51,6 +53,7 @@ export default function SHU() {
   const [mode, setMode] = useState<'realization' | 'projection'>('realization');
   const [showConfigModal, setShowConfigModal] = useState(false);
   const { hasPermission } = useAuth();
+  const { isDemoMode } = useDemoMode();
   
   const isPastYear = Number(year) < Number(currentYear);
   const activeMode = !isPastYear ? mode : 'realization';
@@ -95,14 +98,17 @@ export default function SHU() {
         key: 'name',
         header: 'Nama Anggota',
         width: proportional(2),
-        renderCell: (item) => (
-          <HStack gap={2} vAlign="center">
-            <Text type="body">{item.name}</Text>
-            {item.status && item.status.toLowerCase() !== 'aktif' && (
-              <Badge variant="neutral" label={item.status} size="sm" />
-            )}
-          </HStack>
-        ),
+        renderCell: (item) => {
+          const displayName = isDemoMode ? maskName(item.id, item.name) : item.name;
+          return (
+            <HStack gap={2} vAlign="center">
+              <Text type="body">{displayName}</Text>
+              {item.status && item.status.toLowerCase() !== 'aktif' && (
+                <Badge variant="neutral" label={item.status} size="sm" />
+              )}
+            </HStack>
+          );
+        },
       },
       {
         key: 'averageSavings',
@@ -149,7 +155,7 @@ export default function SHU() {
     });
 
     return cols;
-  }, [isProjection, hasSimpananShare, hasPinjamanShare]);
+  }, [isProjection, hasSimpananShare, hasPinjamanShare, isDemoMode]);
 
   const exportCols = useMemo(() => {
     const cols = [
@@ -183,6 +189,15 @@ export default function SHU() {
 
     return cols;
   }, [hasSimpananShare, hasPinjamanShare, isProjection]);
+
+  const exportData = useMemo(() => {
+    if (!data?.alokasiAnggota) return [];
+    if (!isDemoMode) return data.alokasiAnggota;
+    return data.alokasiAnggota.map((item) => ({
+      ...item,
+      name: maskName(item.id, item.name),
+    }));
+  }, [data?.alokasiAnggota, isDemoMode]);
 
   return (
     <Layout
@@ -407,13 +422,13 @@ export default function SHU() {
                   {hasPermission('export:reports') && (
                     <HStack gap={2}>
                       <Button label="Ekspor Excel" variant="ghost" onClick={() => {
-                        if (!data || data.alokasiAnggota.length === 0) return;
-                        exportToExcel(data.alokasiAnggota, exportCols, isProjection ? `Proyeksi_SHU_${year}` : `Alokasi_SHU_${year}`);
+                        if (!exportData || exportData.length === 0) return;
+                        exportToExcel(exportData, exportCols, isProjection ? `Proyeksi_SHU_${year}` : `Alokasi_SHU_${year}`);
                       }} />
                       <Button label="Ekspor PDF" variant="secondary" onClick={() => {
-                        if (!data || data.alokasiAnggota.length === 0) return;
+                        if (!exportData || exportData.length === 0) return;
                         const title = isProjection ? `PROYEKSI SISA HASIL USAHA (SHU) TAHUN ${year}` : `ALOKASI SISA HASIL USAHA (SHU) TAHUN ${year}`;
-                        exportToPDF(data.alokasiAnggota, exportCols, isProjection ? `Proyeksi_SHU_${year}` : `Laporan_SHU_${year}`, title);
+                        exportToPDF(exportData, exportCols, isProjection ? `Proyeksi_SHU_${year}` : `Laporan_SHU_${year}`, title);
                       }} />
                     </HStack>
                   )}
