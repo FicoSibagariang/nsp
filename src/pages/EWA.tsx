@@ -30,7 +30,15 @@ import type { CompanyEmployee, EWARequest, EwaFeeTier } from '../../shared/types
 
 export default function EWA() {
   const { hasPermission } = useAuth();
+  const canViewEmployees = hasPermission('approve:loans');
+  const canImportEmployees = hasPermission('create:members');
   const [activeTab, setActiveTab] = useState<'requests' | 'employees' | 'payroll' | 'fee-tiers'>('requests');
+
+  useEffect(() => {
+    if (!canViewEmployees && activeTab === 'employees') {
+      setActiveTab('requests');
+    }
+  }, [canViewEmployees, activeTab]);
 
   // Requests State
   const [requests, setRequests] = useState<EWARequest[]>([]);
@@ -143,6 +151,7 @@ export default function EWA() {
 
   // Fetch Employees
   const fetchEmployees = async () => {
+    if (!canViewEmployees) return;
     setEmpLoading(true);
     try {
       const q = new URLSearchParams();
@@ -199,8 +208,10 @@ export default function EWA() {
   }, [statusFilter, debouncedReqSearch, reqPage, reqLimit]);
 
   useEffect(() => {
-    fetchEmployees();
-  }, [empSearch, empPage, empLimit]);
+    if (canViewEmployees) {
+      fetchEmployees();
+    }
+  }, [canViewEmployees, empSearch, empPage, empLimit]);
 
   useEffect(() => {
     if (activeTab === 'payroll') fetchPayrollRecap();
@@ -1010,11 +1021,12 @@ export default function EWA() {
                 icon={<Icon icon={ArrowPathIcon} size="sm" />}
                 onClick={() => {
                   if (activeTab === 'requests') fetchRequests();
-                  if (activeTab === 'employees') fetchEmployees();
+                  if (activeTab === 'employees' && canViewEmployees) fetchEmployees();
                   if (activeTab === 'payroll') fetchPayrollRecap();
+                  if (activeTab === 'fee-tiers') fetchFeeTiers();
                 }}
               />
-              {activeTab === 'employees' && (
+              {activeTab === 'employees' && canViewEmployees && canImportEmployees && (
                 <Button
                   label="Import Data Karyawan (CSV)"
                   variant="primary"
@@ -1077,7 +1089,9 @@ export default function EWA() {
           >
             {[
               { id: 'requests' as const, label: 'Pengajuan & Pencairan', count: reqTotal || requests.length, icon: BanknotesIcon },
-              { id: 'employees' as const, label: 'Master Karyawan & Gaji', count: empTotal || employees.length, icon: UserGroupIcon },
+              ...(canViewEmployees
+                ? [{ id: 'employees' as const, label: 'Master Karyawan & Gaji', count: empTotal || employees.length, icon: UserGroupIcon }]
+                : []),
               { id: 'payroll' as const, label: 'Rekap Potongan Payroll (HRD)', count: payrollRecap?.totalEmployees || 0, icon: DocumentArrowDownIcon },
               { id: 'fee-tiers' as const, label: 'Tarif Biaya Admin', count: feeTiers.length, icon: TagIcon },
             ].map((tab) => {
@@ -1213,7 +1227,7 @@ export default function EWA() {
           )}
 
           {/* TAB 2: EMPLOYEES */}
-          {activeTab === 'employees' && (
+          {activeTab === 'employees' && canViewEmployees && (
             <Card>
               <VStack gap={4}>
                 <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
@@ -1793,7 +1807,7 @@ export default function EWA() {
           )}
 
           {/* Modal Import CSV */}
-          {showImportModal && (
+          {showImportModal && canImportEmployees && (
             <div
               role="dialog"
               aria-modal="true"
