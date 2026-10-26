@@ -159,7 +159,7 @@ ewa.post('/requests/:id/reject', requirePermission('approve:loans'), async (c) =
 // ---------------------------------------------------------------------------
 
 // 4. List Company Employees
-ewa.get('/employees', requirePermission('read:members'), async (c) => {
+ewa.get('/employees', requirePermission('approve:loans'), async (c) => {
   const search = c.req.query('search') || '';
   const status = c.req.query('status') || '';
   const page = Number(c.req.query('page') || 1);
@@ -237,7 +237,41 @@ ewa.get('/employees', requirePermission('read:members'), async (c) => {
   });
 });
 
-// 5. Batch Import Employees (CSV/Excel)
+// 5. Create / Upsert Single Employee
+ewa.post('/employees', requirePermission('create:members'), async (c) => {
+  const body = await c.req.json();
+  const parsed = ewaEmployeeSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400);
+  }
+
+  const actor = getActor(c);
+  const result = await batchImportEmployees(db, [parsed.data as any]);
+
+  if (result.errors.length > 0) {
+    return c.json({ success: false, message: result.errors[0].error }, 400);
+  }
+
+  await audit(db, {
+    actor,
+    action: 'create_company_employee' as any,
+    entity: 'company_employees',
+    after: parsed.data,
+    ip: getClientIp(c),
+  });
+
+  return c.json(
+    {
+      success: true,
+      message: 'Data karyawan berhasil disimpan',
+      data: result.created[0] || result.updated[0] || null,
+    },
+    201
+  );
+});
+
+// 6. Batch Import Employees (CSV/Excel)
 ewa.post('/employees/batch-import', requirePermission('create:members'), async (c) => {
   const body = await c.req.json();
   const parsed = batchEwaEmployeeImportSchema.safeParse(body);
