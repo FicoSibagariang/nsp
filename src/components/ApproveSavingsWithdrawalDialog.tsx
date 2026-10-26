@@ -6,6 +6,8 @@ import { useApiQuery } from '../hooks/useApiQuery';
 import { formatRp } from '../utils/format';
 import { CopyableAccountNumber } from './CopyableAccountNumber';
 import type { SavingsWithdrawalRow } from '../shared/types';
+import { useDemoMode } from '../contexts/DemoModeContext';
+import { maskName } from '../utils/privacyMask';
 
 interface Props {
   withdrawal: SavingsWithdrawalRow;
@@ -20,6 +22,11 @@ export function ApproveSavingsWithdrawalDialogContent({
   onConfirm,
   isLoading = false,
 }: Props) {
+  const { isDemoMode } = useDemoMode();
+  const displayName = isDemoMode
+    ? maskName(withdrawal.memberId || withdrawal.memberName, withdrawal.memberName)
+    : (withdrawal.memberName || 'Anggota Koperasi');
+
   const { data: paymentSourcesRes } = useApiQuery<{
     success: boolean;
     data: Array<{ id: string; code: string; name: string; type: string }>;
@@ -66,7 +73,7 @@ export function ApproveSavingsWithdrawalDialogContent({
         >
           <HStack justify="space-between" vAlign="center">
             <Text type="supporting" color="secondary">Anggota:</Text>
-            <Text type="body" weight="semibold">{withdrawal.memberName || 'Anggota Koperasi'}</Text>
+            <Text type="body" weight="semibold">{displayName}</Text>
           </HStack>
           <HStack justify="space-between" vAlign="center">
             <Text type="supporting" color="secondary">Nominal Penarikan:</Text>

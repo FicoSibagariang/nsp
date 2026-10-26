@@ -4,6 +4,8 @@ import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { formatRp } from '../utils/format';
 import type { LoanRow } from '../shared/types';
+import { useDemoMode } from '../contexts/DemoModeContext';
+import { maskName } from '../utils/privacyMask';
 
 interface Props {
   loan: LoanRow;
@@ -25,6 +27,8 @@ export function RejectLoanDialogContent({
   onConfirm,
   isLoading = false,
 }: Props) {
+  const { isDemoMode } = useDemoMode();
+  const displayName = isDemoMode ? maskName(loan.memberId || loan.id, loan.name) : (loan.name || 'Anggota Koperasi');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
 
@@ -59,7 +63,7 @@ export function RejectLoanDialogContent({
         >
           <HStack justify="space-between" vAlign="center">
             <Text type="supporting" color="secondary">Nama Peminjam:</Text>
-            <Text type="body" weight="semibold">{loan.name || 'Anggota Koperasi'}</Text>
+            <Text type="body" weight="semibold">{displayName}</Text>
           </HStack>
           <HStack justify="space-between" vAlign="center">
             <Text type="supporting" color="secondary">Nominal Pengajuan:</Text>

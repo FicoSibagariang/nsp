@@ -40,6 +40,8 @@ import {ImportMembersDialogContent} from '../components/ImportMembersDialog';
 import {MembersList} from '../components/members/MembersList';
 
 import type {MemberRow, PaginatedResponse} from '../shared/types';
+import {useDemoMode} from '../contexts/DemoModeContext';
+import {maskName} from '../utils/privacyMask';
 
 const statusOptions = [
   {value: '', label: 'Semua Status'},
@@ -59,6 +61,7 @@ export default function MembersTemplate() {
   const dialog = useA11yDialog({purpose: 'form', width: 480});
   const toast = useToast();
   const { hasPermission } = useAuth();
+  const { isDemoMode } = useDemoMode();
   const apiAction = useApiAction();
   const navigate = useNavigate();
   
@@ -100,7 +103,9 @@ export default function MembersTemplate() {
       <Card style={{ padding: '24px', width: '100%', boxSizing: 'border-box' }}>
         <VStack gap={4}>
           <Heading level={4}>Konfirmasi Hapus</Heading>
-          <Text type="body">Apakah Anda yakin ingin menghapus anggota {member.name}?</Text>
+          <Text type="body">
+            Apakah Anda yakin ingin menghapus anggota {isDemoMode ? maskName(member.id, member.name) : member.name}?
+          </Text>
           <HStack gap={2} hAlign="end">
             <Button variant="ghost" label="Batal" onClick={() => dialog.hide()} />
             <Button color="error" label="Hapus" onClick={() => {
@@ -123,7 +128,7 @@ export default function MembersTemplate() {
         </VStack>
       </Card>
     );
-  }, [dialog, apiAction]);
+  }, [isDemoMode, dialog, apiAction]);
 
   const handleUpdateSavings = useCallback((member: MemberRow) => {
     dialog.show(

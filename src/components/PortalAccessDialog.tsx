@@ -6,6 +6,8 @@ import {Text, Heading} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Button} from '@astryxdesign/core/Button';
 import type {MemberRow} from '../shared/types';
+import {useDemoMode} from '../contexts/DemoModeContext';
+import {maskName, maskEmail} from '../utils/privacyMask';
 
 export type PortalAccessPayload = {
   email?: string;
@@ -21,17 +23,21 @@ export function PortalAccessDialogContent({
   onClose: () => void;
   onSave: (payload: PortalAccessPayload) => void;
 }) {
-  const [email, setEmail] = useState(member.email || '');
+  const { isDemoMode } = useDemoMode();
+  const displayName = isDemoMode ? maskName(member.id, member.name) : member.name;
+  const displayEmail = isDemoMode ? maskEmail(member.id, member.email) : (member.email || '');
+
+  const [email, setEmail] = useState(() => (isDemoMode ? displayEmail : (member.email || '')));
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [localError, setLocalError] = useState('');
 
   useEffect(() => {
-    setEmail(member.email || '');
+    setEmail(isDemoMode ? displayEmail : (member.email || ''));
     setPassword('');
     setPasswordConfirm('');
     setLocalError('');
-  }, [member]);
+  }, [member, isDemoMode, displayEmail]);
 
   const handleSave = () => {
     setLocalError('');
@@ -70,12 +76,12 @@ export function PortalAccessDialogContent({
       <VStack gap={1}>
         <Heading level={3}>Akses Portal Anggota</Heading>
         <Text type="supporting" color="secondary">
-          Aktifkan login di /portal untuk {member.name}. Anggota dapat masuk dengan password atau
+          Aktifkan login di /portal untuk {displayName}. Anggota dapat masuk dengan password atau
           Google (email Google harus sama dengan email portal di bawah).
         </Text>
         {member.hasPortalAccess && (
           <Text type="supporting" color="secondary">
-            Status: portal sudah aktif{member.email ? ` (${member.email})` : ''}.
+            Status: portal sudah aktif{displayEmail ? ` (${displayEmail})` : ''}.
           </Text>
         )}
       </VStack>

@@ -231,7 +231,7 @@ export default function LoansTemplate() {
       <Card style={{ padding: '24px', width: '100%', boxSizing: 'border-box' }}>
         <VStack gap={4}>
           <Heading level={4}>Konfirmasi Hapus</Heading>
-          <Text type="body">Apakah Anda yakin ingin menghapus data pengajuan pinjaman untuk {loan.name} senilai {formatRp(loan.amount)}?</Text>
+          <Text type="body">Apakah Anda yakin ingin menghapus data pengajuan pinjaman untuk {isDemoMode ? maskName(loan.memberId || loan.id, loan.name) : loan.name} senilai {formatRp(loan.amount)}?</Text>
           <HStack gap={2} hAlign="end">
             <Button variant="ghost" label="Batal" onClick={() => dialog.hide()} />
             <Button color="error" label="Hapus" onClick={() => {
@@ -254,7 +254,7 @@ export default function LoansTemplate() {
         </VStack>
       </Card>
     );
-  }, [dialog, apiAction, fetchLoans]);
+  }, [isDemoMode, dialog, apiAction, fetchLoans]);
 
   const columns: TableColumn<LoanRow>[] = useMemo(() => [
     {

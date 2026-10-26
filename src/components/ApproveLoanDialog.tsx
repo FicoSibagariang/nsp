@@ -8,6 +8,8 @@ import {formatRp, formatDate} from '../utils/format';
 import {useApiQuery} from '../hooks/useApiQuery';
 import {CopyableAccountNumber} from './CopyableAccountNumber';
 import type {LoanRow, SettingsData} from '../shared/types';
+import {useDemoMode} from '../contexts/DemoModeContext';
+import {maskName} from '../utils/privacyMask';
 
 function todayIsoDate(): string {
   const d = new Date();
@@ -114,6 +116,8 @@ interface Props {
 }
 
 export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
+  const { isDemoMode } = useDemoMode();
+  const displayName = isDemoMode ? maskName(loan.memberId || loan.id, loan.name) : loan.name;
   const {data: settings} = useApiQuery<SettingsData>('/api/settings');
   const defaultRate = parseFloat(settings?.bungaPinjaman || '0') || 0;
 
@@ -170,7 +174,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
 
       <VStack gap={2}>
         <Text type="body" weight="semibold">
-          {loan.name}
+          {displayName}
         </Text>
         <Text type="supporting" color="secondary">
           Pokok {formatRp(loan.amount)} · Tenor {loan.tenor} bulan
