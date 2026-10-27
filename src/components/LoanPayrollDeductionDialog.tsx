@@ -16,6 +16,7 @@ import { Spinner } from '@astryxdesign/core/Spinner';
 import { Icon } from '@astryxdesign/core/Icon';
 import { DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import { api } from '../services/api';
+import { apiFetch } from '../config';
 import { formatRp } from '../utils/format';
 import {
   getIndonesianMonthName,
@@ -89,32 +90,57 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
     setIsDownloading(true);
     setDownloadError(null);
     try {
-      // Explicitly hit the backend to fetch fresh data for this month
-      const deductionData = await api.get<DeductionResponse>(
-        `/api/loans/payroll-deductions?month=${encodeURIComponent(month)}`
-      );
-
-      if (!deductionData || !deductionData.items || deductionData.items.length === 0) {
-        setDownloadError('Tidak ada data angsuran pinjaman untuk periode bulan yang dipilih.');
-        return;
-      }
-
-      setData(deductionData);
-
       const [yearStr, monthStr] = month.split('-');
       const monthNum = parseInt(monthStr, 10);
       const monthName = getIndonesianMonthName(monthNum);
       const filename = `potong_gaji_angsuran_${monthName}_${yearStr}.xlsx`;
 
-      const exportItems: LoanPayrollDeductionExportItem[] = deductionData.items.map((it) => ({
-        employeeId: isDemoMode ? maskNip(it.memberId || it.employeeId, it.employeeId) : it.employeeId,
-        name: isDemoMode ? maskName(it.memberId || it.employeeId, it.name) : it.name,
-        currentAmount: 0,
-        newAmount: it.newAmount,
-        note: it.note || '',
-      }));
+      // If Demo Mode is active, generate masked XLSX on client side
+      if (isDemoMode) {
+        const deductionData = await api.get<DeductionResponse>(
+          `/api/loans/payroll-deductions?month=${encodeURIComponent(month)}`
+        );
 
-      exportLoanPayrollDeductionsToExcel(exportItems, filename);
+        if (!deductionData || !deductionData.items || deductionData.items.length === 0) {
+          setDownloadError('Tidak ada data angsuran pinjaman untuk periode bulan yang dipilih.');
+          return;
+        }
+
+        setData(deductionData);
+
+        const exportItems: LoanPayrollDeductionExportItem[] = deductionData.items.map((it) => ({
+          employeeId: maskNip(it.memberId || it.employeeId, it.employeeId),
+          name: maskName(it.memberId || it.employeeId, it.name),
+          currentAmount: 0,
+          newAmount: it.newAmount,
+          note: it.note || '',
+        }));
+
+        exportLoanPayrollDeductionsToExcel(exportItems, filename);
+        return;
+      }
+
+      // Download actual XLSX file directly from backend endpoint
+      const res = await apiFetch(`/api/v1/loans/payroll-deductions?month=${encodeURIComponent(month)}&format=xlsx`);
+
+      if (!res.ok) {
+        let errMessage = 'Gagal mengunduh berkas XLSX dari server';
+        try {
+          const errJson = await res.json();
+          errMessage = errJson.message || errMessage;
+        } catch {}
+        throw new Error(errMessage);
+      }
+
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
     } catch (err: any) {
       setDownloadError(err?.message || 'Gagal mengunduh berkas XLSX potongan angsuran');
     } finally {
