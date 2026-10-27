@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DialogHeader } from '@astryxdesign/core/Dialog';
 import {
   Layout,
@@ -52,6 +52,7 @@ interface Props {
 }
 
 export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const { isDemoMode } = useDemoMode();
   const [month, setMonth] = useState<string>(() => {
     const d = new Date();
@@ -83,7 +84,7 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
   }, [month, fetchDeductions]);
 
   // Synchronous download matching /ewa export mechanism directly in user click gesture
-  const handleDownload = () => {
+  const handleDownload = (e?: React.MouseEvent) => {
     if (!data?.items || data.items.length === 0) return;
 
     const [yearStr, monthStr] = month.split('-');
@@ -99,14 +100,16 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
       note: it.note || '',
     }));
 
-    exportLoanPayrollDeductionsToExcel(exportItems, filename);
+    const target = (e?.currentTarget as HTMLElement) || containerRef.current || undefined;
+    exportLoanPayrollDeductionsToExcel(exportItems, filename, target);
   };
 
   const totalEmployees = data?.totalEmployees || 0;
   const totalAmount = data?.totalAmount || 0;
 
   return (
-    <Layout
+    <div ref={containerRef} style={{ display: 'contents' }}>
+      <Layout
       header={
         <DialogHeader
           title="Ekspor Potong Gaji Angsuran (HRIS)"
@@ -291,11 +294,12 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
               variant="primary"
               icon={<Icon icon={DocumentArrowDownIcon} size="sm" />}
               isDisabled={isLoading || !data || data.items.length === 0}
-              onClick={handleDownload}
+              onClick={(e) => handleDownload(e)}
             />
           </HStack>
         </LayoutFooter>
       }
     />
-  );
+  </div>
+);
 }

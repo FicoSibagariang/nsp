@@ -212,5 +212,43 @@ describe("EWA Payroll XLSX Export Utilities", () => {
         writeFileSpy.mockRestore();
       }
     });
+
+    test("appends download link to targetContainer when inside a modal dialog", () => {
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+
+      let clicked = false;
+      const originalCreateElement = document.createElement.bind(document);
+      const createElementSpy = spyOn(document, "createElement").mockImplementation((tag: string) => {
+        const el = originalCreateElement(tag);
+        if (tag === "a") {
+          el.click = () => {
+            clicked = true;
+          };
+        }
+        return el;
+      });
+
+      try {
+        const testItems: LoanPayrollDeductionExportItem[] = [
+          {
+            employeeId: "0202169",
+            name: "Abdul Aziz Laia",
+            currentAmount: 0,
+            newAmount: 548520,
+            note: "",
+          },
+        ];
+
+        exportLoanPayrollDeductionsToExcel(testItems, "potong_gaji_test.xlsx", container);
+
+        expect(clicked).toBe(true);
+      } finally {
+        createElementSpy.mockRestore();
+        if (document.body.contains(container)) {
+          document.body.removeChild(container);
+        }
+      }
+    });
   });
 });
