@@ -799,9 +799,11 @@ export async function getPayrollRecap(
   items: Array<{
     employeeId: string;
     nip: string;
+    nik?: string | null;
     name: string;
     department?: string | null;
     isMember: boolean;
+    txCount?: number;
     totalAdvances: number;
     totalFee: number;
     totalDeduction: number;
@@ -811,7 +813,8 @@ export async function getPayrollRecap(
   const rows = await db
     .query(
       `SELECT 
-        e.id as "employeeId", e.nip, e.name, e.department, e.is_member as "isMember",
+        e.id as "employeeId", e.nip, e.nik, e.name, e.department, e.is_member as "isMember",
+        COUNT(r.id) as "txCount",
         SUM(r.amount) as "totalAdvances",
         SUM(r.fee) as "totalFee",
         SUM(COALESCE(r.total_payroll_deduction, r.amount + r.fee)) as "totalDeduction",
@@ -820,7 +823,7 @@ export async function getPayrollRecap(
        JOIN employees e ON r.employee_id = e.id
        WHERE (r.period_month = ? OR (r.pay_period_start <= ?::date AND r.pay_period_end >= ?::date)) 
          AND r.status IN ('transferred', 'DISBURSED', 'settled', 'PAID_SETTLED')
-       GROUP BY e.id, e.nip, e.name, e.department, e.is_member
+       GROUP BY e.id, e.nip, e.nik, e.name, e.department, e.is_member
        ORDER BY e.name ASC`
     )
     .all(periodMonth, periodMonth + "-15", periodMonth + "-15");
@@ -828,9 +831,11 @@ export async function getPayrollRecap(
   const items = rows.map((r: any) => ({
     employeeId: r.employeeId,
     nip: r.nip,
+    nik: r.nik || null,
     name: r.name,
     department: r.department,
     isMember: Boolean(r.isMember),
+    txCount: Number(r.txCount || 1),
     totalAdvances: Number(r.totalAdvances || 0),
     totalFee: Number(r.totalFee || 0),
     totalDeduction: Number(r.totalDeduction || 0),
