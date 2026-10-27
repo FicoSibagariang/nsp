@@ -13,7 +13,7 @@ import {Text, Heading} from '@astryxdesign/core/Text';
 import {Badge} from '@astryxdesign/core/Badge';
 import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
-import {ArrowDownTrayIcon} from '@heroicons/react/24/outline';
+import {ArrowDownTrayIcon, DocumentArrowDownIcon} from '@heroicons/react/24/outline';
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {Center} from '@astryxdesign/core/Center';
 import {PowerSearch, usePowerSearchConfig} from '@astryxdesign/core/PowerSearch';
@@ -30,6 +30,7 @@ import {useDemoMode} from '../contexts/DemoModeContext';
 import {maskName} from '../utils/privacyMask';
 
 const ImportPaymentsDialogContent = lazy(() => import('../components/ImportPaymentsDialog').then(m => ({ default: m.ImportPaymentsDialogContent })));
+const LoanPayrollDeductionDialogContent = lazy(() => import('../components/LoanPayrollDeductionDialog').then(m => ({ default: m.LoanPayrollDeductionDialogContent })));
 
 import type {LoanPaymentRow, PaginatedResponse} from '../shared/types';
 
@@ -54,7 +55,7 @@ export default function LoansTxTemplate() {
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Pinjaman');
   const { hasPermission } = useAuth();
   const { isDemoMode } = useDemoMode();
-  const dialog = useA11yDialog({ purpose: 'form', width: 560 });
+  const dialog = useA11yDialog({ purpose: 'form', width: 620 });
   
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -67,6 +68,14 @@ export default function LoansTxTemplate() {
       setLocalPayments(paymentsResponse.data);
     }
   }, [paymentsResponse]);
+
+  const handleExportPayrollDeductions = useCallback(() => {
+    dialog.show(
+      <Suspense fallback={<Center style={{ padding: 40 }}><Spinner /></Center>}>
+        <LoanPayrollDeductionDialogContent onClose={() => dialog.hide()} />
+      </Suspense>
+    );
+  }, [dialog]);
 
   const handleImportPayments = useCallback(() => {
     dialog.show(
@@ -158,6 +167,14 @@ export default function LoansTxTemplate() {
               <StackItem size="fill">
                 <Heading level={1}>Riwayat Transaksi Pinjaman</Heading>
               </StackItem>
+              {(hasPermission('export:reports') || hasPermission('read:loans')) && (
+                <Button
+                  label="Ekspor Potong Gaji (HRIS)"
+                  icon={<Icon icon={DocumentArrowDownIcon} size="sm" />}
+                  variant="secondary"
+                  onClick={handleExportPayrollDeductions}
+                />
+              )}
               {hasPermission('create:payments') && (
                 <Button
                   label="Import Angsuran (CSV)"
