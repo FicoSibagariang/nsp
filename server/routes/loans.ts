@@ -243,6 +243,74 @@ loans.put('/:id/disbursement-date', requirePermission('approve:loans'), async (c
   }
 })
 
+// Get Monthly Loan Installment Payroll Deductions for HRIS Export
+loans.get('/payroll-deductions', requirePermission('read:loans'), async (c) => {
+  try {
+    const monthParam = c.req.query('month');
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : currentMonth;
+
+    const [yearStr, monthStr] = month.split('-');
+    const year = parseInt(yearStr, 10);
+    const m = parseInt(monthStr, 10);
+    const lastDay = new Date(year, m, 0).getDate();
+    const startDate = `${month}-01`;
+    const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
+
+    const rows = await db.query(
+      `SELECT 
+        COALESCE(e.nip, '') as "employeeId",
+        COALESCE(m.name, l.name) as "name",
+        COALESCE(m.id, l.memberid) as "memberId",
+        COUNT(ls.id) as "loanCount",
+        SUM(COALESCE(ls.principalamount, 0) + COALESCE(ls.interestamount, 0)) as "amount",
+        SUM(COALESCE(ls.principalamount, 0)) as "principalAmount",
+        SUM(COALESCE(ls.interestamount, 0)) as "interestAmount"
+      FROM loan_schedules ls
+      JOIN loans l ON l.id = ls.loanid
+      LEFT JOIN members m ON m.id = l.memberid
+      LEFT JOIN employees e ON (e.member_id = m.id OR (m.nik IS NOT NULL AND e.nik = m.nik) OR e.name ILIKE l.name)
+      WHERE ls.duedate >= ? AND ls.duedate <= ?
+        AND (l.deletedat IS NULL)
+      GROUP BY COALESCE(e.nip, ''), COALESCE(m.name, l.name), COALESCE(m.id, l.memberid)
+      ORDER BY COALESCE(m.name, l.name) ASC`
+    ).all(startDate, endDate);
+
+    const items = rows.map((r: any) => ({
+      employeeId: r.employeeId || '',
+      name: r.name,
+      memberId: r.memberId,
+      loanCount: Number(r.loanCount || 1),
+      amount: Math.round(Number(r.amount || 0)),
+      principalAmount: Math.round(Number(r.principalAmount || 0)),
+      interestAmount: Math.round(Number(r.interestAmount || 0)),
+      currentAmount: 0,
+      newAmount: Math.round(Number(r.amount || 0)),
+      note: '',
+    }));
+
+    const totalEmployees = items.length;
+    const totalAmount = items.reduce((sum: number, it: any) => sum + it.amount, 0);
+
+    return c.json({
+      success: true,
+      data: {
+        month,
+        startDate,
+        endDate,
+        totalEmployees,
+        totalAmount,
+        items,
+      },
+    });
+  } catch (err) {
+    const response = mapServiceError(c, err);
+    if (response) return response;
+    throw err;
+  }
+});
+
 loans.get('/payments', requirePermission('read:loans'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit

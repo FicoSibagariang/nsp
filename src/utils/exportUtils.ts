@@ -187,3 +187,53 @@ export function exportEwaPayrollToExcel(
   const finalFilename = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
   XLSX.writeFile(workbook, finalFilename);
 }
+
+/**
+ * Returns lowercase Indonesian month name for a 1-based month number.
+ */
+export function getIndonesianMonthName(monthNumber: number): string {
+  const months = [
+    'januari', 'februari', 'maret', 'april', 'mei', 'juni',
+    'juli', 'agustus', 'september', 'oktober', 'november', 'desember'
+  ];
+  return months[(monthNumber - 1) % 12] || '';
+}
+
+export interface LoanPayrollDeductionExportItem {
+  employeeId?: string;
+  name: string;
+  memberId?: string;
+  currentAmount?: number;
+  newAmount: number;
+  note?: string;
+}
+
+/**
+ * Exports monthly loan installment payroll deductions to an XLSX file in standard HRIS import format.
+ * Generates Sheet "Potong Gaji Angsuran" with columns: Employee ID, Name, Current Amount, New Amount, Note.
+ */
+export function exportLoanPayrollDeductionsToExcel(
+  items: LoanPayrollDeductionExportItem[],
+  filename: string
+) {
+  const rows: (string | number)[][] = [
+    ['Employee ID', 'Name', 'Current Amount', 'New Amount', 'Note'],
+  ];
+
+  for (const it of items) {
+    rows.push([
+      it.employeeId ? String(it.employeeId) : '',
+      it.name || '',
+      it.currentAmount ?? 0,
+      Number(it.newAmount || 0),
+      it.note ?? '',
+    ]);
+  }
+
+  const worksheet = XLSX.utils.aoa_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Potong Gaji Angsuran');
+
+  const finalFilename = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
+  XLSX.writeFile(workbook, finalFilename);
+}

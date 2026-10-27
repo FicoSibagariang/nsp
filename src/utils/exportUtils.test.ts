@@ -3,7 +3,10 @@ import * as XLSX from "xlsx";
 import {
   getEwaPaycycleDates,
   exportEwaPayrollToExcel,
+  getIndonesianMonthName,
+  exportLoanPayrollDeductionsToExcel,
   type EwaPayrollExportItem,
+  type LoanPayrollDeductionExportItem,
 } from "./exportUtils";
 
 describe("EWA Payroll XLSX Export Utilities", () => {
@@ -140,6 +143,71 @@ describe("EWA Payroll XLSX Export Utilities", () => {
         expect(rows[6][11]).toBe(2080000); // 1.035.000 + 1.045.000
         expect(rows[6][12]).toBe(2080000);
         expect(rows[6][13]).toBe(2080000);
+      } finally {
+        writeFileSpy.mockRestore();
+      }
+    });
+  });
+
+  describe("getIndonesianMonthName", () => {
+    test("returns correct month names in lowercase", () => {
+      expect(getIndonesianMonthName(1)).toBe("januari");
+      expect(getIndonesianMonthName(8)).toBe("agustus");
+      expect(getIndonesianMonthName(9)).toBe("september");
+      expect(getIndonesianMonthName(10)).toBe("oktober");
+      expect(getIndonesianMonthName(12)).toBe("desember");
+    });
+  });
+
+  describe("exportLoanPayrollDeductionsToExcel", () => {
+    test("creates workbook with exact HRIS Potong Gaji Angsuran format", () => {
+      let capturedWorkbook: XLSX.WorkBook | null = null;
+      let capturedFilename: string | null = null;
+
+      const writeFileSpy = spyOn(XLSX, "writeFile").mockImplementation((wb: any, fn: any) => {
+        capturedWorkbook = wb;
+        capturedFilename = fn;
+        return undefined as any;
+      });
+
+      try {
+        const testItems: LoanPayrollDeductionExportItem[] = [
+          {
+            employeeId: "0202169",
+            name: "Abdul Aziz Laia",
+            currentAmount: 0,
+            newAmount: 548520,
+            note: "",
+          },
+          {
+            employeeId: "02025118",
+            name: "Ahmad Iqrom Harahap",
+            currentAmount: 0,
+            newAmount: 596456,
+            note: "",
+          },
+        ];
+
+        exportLoanPayrollDeductionsToExcel(testItems, "potong_gaji_angsuran_september_2026.xlsx");
+
+        expect(writeFileSpy).toHaveBeenCalledTimes(1);
+        expect(capturedFilename).toBe("potong_gaji_angsuran_september_2026.xlsx");
+        expect(capturedWorkbook).not.toBeNull();
+
+        const sheetNames = capturedWorkbook!.SheetNames;
+        expect(sheetNames).toEqual(["Potong Gaji Angsuran"]);
+
+        const sheet = capturedWorkbook!.Sheets["Potong Gaji Angsuran"];
+        const rows: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+        // Row 0: Header
+        expect(rows[0]).toEqual(["Employee ID", "Name", "Current Amount", "New Amount", "Note"]);
+
+        // Row 1: Abdul Aziz Laia
+        expect(rows[1]).toEqual(["0202169", "Abdul Aziz Laia", 0, 548520, ""]);
+
+        // Row 2: Ahmad Iqrom Harahap
+        expect(rows[2]).toEqual(["02025118", "Ahmad Iqrom Harahap", 0, 596456, ""]);
       } finally {
         writeFileSpy.mockRestore();
       }
