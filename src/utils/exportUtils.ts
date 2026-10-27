@@ -9,7 +9,59 @@ interface ExportColumn<T> {
   render?: (item: T) => string | number;
 }
 
-export function exportToExcel<T>(data: T[], columns: ExportColumn<T>[], filename: string) {
+/**
+ * Safely saves and downloads an XLSX workbook in browser environments.
+ * If a native modal <dialog> is active or a targetContainer is provided,
+ * the download link is appended to that container rather than document.body
+ * because Chromium/Safari marks document.body as inert during showModal().
+ */
+export function saveWorkbook(
+  workbook: XLSX.WorkBook,
+  filename: string,
+  targetContainer?: HTMLElement | null
+) {
+  const finalFilename = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
+
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    const dialog =
+      targetContainer ||
+      document.querySelector('dialog[open]') ||
+      document.querySelector('[role="dialog"]');
+
+    if (dialog && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbout], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = finalFilename;
+      link.style.display = 'none';
+      link.addEventListener('click', (ev) => ev.stopPropagation());
+
+      dialog.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (dialog.contains(link)) {
+          dialog.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      }, 1000);
+      return;
+    }
+  }
+
+  // Fallback to standard XLSX.writeFile (for Node/Bun or top-level pages like /ewa)
+  XLSX.writeFile(workbook, finalFilename);
+}
+
+export function exportToExcel<T>(
+  data: T[],
+  columns: ExportColumn<T>[],
+  filename: string,
+  targetContainer?: HTMLElement | null
+) {
   const rowData = data.map((item) => {
     const row: Record<string, any> = {};
     columns.forEach((col) => {
@@ -22,7 +74,7 @@ export function exportToExcel<T>(data: T[], columns: ExportColumn<T>[], filename
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
   
-  XLSX.writeFile(workbook, `${filename}.xlsx`);
+  saveWorkbook(workbook, `${filename}.xlsx`, targetContainer);
 }
 
 export function exportToPDF<T>(data: T[], columns: ExportColumn<T>[], filename: string, title: string) {
@@ -89,6 +141,7 @@ export interface EwaPayrollExportOptions {
   companyName?: string;
   paycycleLabel?: string;
   filename?: string;
+  targetContainer?: HTMLElement | null;
 }
 
 /**
@@ -185,7 +238,7 @@ export function exportEwaPayrollToExcel(
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Repayment Summary Report');
 
   const finalFilename = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
-  XLSX.writeFile(workbook, finalFilename);
+  saveWorkbook(workbook, finalFilename, options?.targetContainer);
 }
 
 /**
@@ -214,7 +267,8 @@ export interface LoanPayrollDeductionExportItem {
  */
 export function exportLoanPayrollDeductionsToExcel(
   items: LoanPayrollDeductionExportItem[],
-  filename: string
+  filename: string,
+  targetContainer?: HTMLElement | null
 ) {
   const rows: (string | number)[][] = [
     ['Employee ID', 'Name', 'Current Amount', 'New Amount', 'Note'],
@@ -235,5 +289,5 @@ export function exportLoanPayrollDeductionsToExcel(
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Potong Gaji Angsuran');
 
   const finalFilename = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`;
-  XLSX.writeFile(workbook, finalFilename);
+  saveWorkbook(workbook, finalFilename, targetContainer);
 }
