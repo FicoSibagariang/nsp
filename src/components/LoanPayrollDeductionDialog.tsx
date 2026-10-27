@@ -15,7 +15,7 @@ import { Card } from '@astryxdesign/core/Card';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { Icon } from '@astryxdesign/core/Icon';
 import { DocumentArrowDownIcon } from '@heroicons/react/24/outline';
-import { apiFetch } from '../config';
+import { api } from '../services/api';
 import { formatRp } from '../utils/format';
 import {
   getIndonesianMonthName,
@@ -60,21 +60,22 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
 
   const [data, setData] = useState<DeductionResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const fetchDeductions = useCallback(async (selectedMonth: string) => {
     setIsLoading(true);
     setError(null);
+    setDownloadError(null);
     try {
-      const res = await apiFetch(`/api/v1/loans/payroll-deductions?month=${encodeURIComponent(selectedMonth)}`);
-      const json = await res.json();
-      if (json.success && json.data) {
-        setData(json.data);
-      } else {
-        setError(json.message || 'Gagal memuat data potongan payroll');
-      }
+      const res = await api.get<DeductionResponse>(
+        `/api/loans/payroll-deductions?month=${encodeURIComponent(selectedMonth)}`
+      );
+      setData(res);
     } catch (err: any) {
-      setError(err?.message || 'Terjadi kesalahan saat memuat data');
+      setError(err?.message || 'Gagal memuat data potongan payroll');
+      setData(null);
     } finally {
       setIsLoading(false);
     }
@@ -84,23 +85,41 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
     fetchDeductions(month);
   }, [month, fetchDeductions]);
 
-  const handleDownload = () => {
-    if (!data || data.items.length === 0) return;
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    setDownloadError(null);
+    try {
+      // Explicitly hit the backend to fetch fresh data for this month
+      const deductionData = await api.get<DeductionResponse>(
+        `/api/loans/payroll-deductions?month=${encodeURIComponent(month)}`
+      );
 
-    const [yearStr, monthStr] = month.split('-');
-    const monthNum = parseInt(monthStr, 10);
-    const monthName = getIndonesianMonthName(monthNum);
-    const filename = `potong_gaji_angsuran_${monthName}_${yearStr}.xlsx`;
+      if (!deductionData || !deductionData.items || deductionData.items.length === 0) {
+        setDownloadError('Tidak ada data angsuran pinjaman untuk periode bulan yang dipilih.');
+        return;
+      }
 
-    const exportItems: LoanPayrollDeductionExportItem[] = data.items.map((it) => ({
-      employeeId: isDemoMode ? maskNip(it.memberId || it.employeeId, it.employeeId) : it.employeeId,
-      name: isDemoMode ? maskName(it.memberId || it.employeeId, it.name) : it.name,
-      currentAmount: 0,
-      newAmount: it.newAmount,
-      note: it.note || '',
-    }));
+      setData(deductionData);
 
-    exportLoanPayrollDeductionsToExcel(exportItems, filename);
+      const [yearStr, monthStr] = month.split('-');
+      const monthNum = parseInt(monthStr, 10);
+      const monthName = getIndonesianMonthName(monthNum);
+      const filename = `potong_gaji_angsuran_${monthName}_${yearStr}.xlsx`;
+
+      const exportItems: LoanPayrollDeductionExportItem[] = deductionData.items.map((it) => ({
+        employeeId: isDemoMode ? maskNip(it.memberId || it.employeeId, it.employeeId) : it.employeeId,
+        name: isDemoMode ? maskName(it.memberId || it.employeeId, it.name) : it.name,
+        currentAmount: 0,
+        newAmount: it.newAmount,
+        note: it.note || '',
+      }));
+
+      exportLoanPayrollDeductionsToExcel(exportItems, filename);
+    } catch (err: any) {
+      setDownloadError(err?.message || 'Gagal mengunduh berkas XLSX potongan angsuran');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const totalEmployees = data?.totalEmployees || 0;
@@ -127,7 +146,10 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
                 <input
                   type="month"
                   value={month}
-                  onChange={(e) => setMonth(e.target.value)}
+                  onChange={(e) => {
+                    setMonth(e.target.value);
+                    setDownloadError(null);
+                  }}
                   style={{
                     padding: '6px 12px',
                     borderRadius: 6,
@@ -144,6 +166,15 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
                 </Text>
               )}
             </HStack>
+
+            {/* Error notifications */}
+            {downloadError && (
+              <Card style={{ padding: 12, backgroundColor: 'var(--color-critical-50, #fef2f2)', border: '1px solid var(--color-critical-200, #fecaca)' }}>
+                <Text color="critical" style={{ fontSize: 13 }}>
+                  {downloadError}
+                </Text>
+              </Card>
+            )}
 
             {/* Summary Cards */}
             <div
@@ -180,7 +211,22 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
               </div>
             ) : error ? (
               <Card style={{ padding: 16, backgroundColor: 'var(--color-critical-50, #fef2f2)' }}>
-                <Text color="critical">{error}</Text>
+                <VStack gap={2}>
+                  <Text color="critical" weight="medium">
+                    Gagal memuat pratinjau potongan payroll
+                  </Text>
+                  <Text type="supporting" color="critical">
+                    {error}
+                  </Text>
+                  <HStack justify="end">
+                    <Button
+                      size="sm"
+                      label="Coba Lagi"
+                      variant="secondary"
+                      onClick={() => fetchDeductions(month)}
+                    />
+                  </HStack>
+                </VStack>
               </Card>
             ) : totalEmployees === 0 ? (
               <Card style={{ padding: 24, textAlign: 'center' }}>
@@ -273,10 +319,11 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
           <HStack gap={2} hAlign="end">
             <Button label="Tutup" variant="secondary" onClick={onClose} />
             <Button
-              label="Unduh Berkas XLSX"
+              label={isDownloading ? 'Mengunduh...' : 'Unduh Berkas XLSX'}
               variant="primary"
               icon={<Icon icon={DocumentArrowDownIcon} size="sm" />}
-              disabled={isLoading || totalEmployees === 0}
+              isLoading={isDownloading}
+              isDisabled={isLoading || isDownloading || (data !== null && totalEmployees === 0)}
               onClick={handleDownload}
             />
           </HStack>
