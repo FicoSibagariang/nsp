@@ -16,7 +16,6 @@ import { Spinner } from '@astryxdesign/core/Spinner';
 import { Icon } from '@astryxdesign/core/Icon';
 import { DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import { api } from '../services/api';
-import { apiFetch } from '../config';
 import { formatRp } from '../utils/format';
 import {
   getIndonesianMonthName,
@@ -61,14 +60,11 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
 
   const [data, setData] = useState<DeductionResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const fetchDeductions = useCallback(async (selectedMonth: string) => {
     setIsLoading(true);
     setError(null);
-    setDownloadError(null);
     try {
       const res = await api.get<DeductionResponse>(
         `/api/loans/payroll-deductions?month=${encodeURIComponent(selectedMonth)}`
@@ -86,66 +82,24 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
     fetchDeductions(month);
   }, [month, fetchDeductions]);
 
-  const handleDownload = async () => {
-    setIsDownloading(true);
-    setDownloadError(null);
-    try {
-      const [yearStr, monthStr] = month.split('-');
-      const monthNum = parseInt(monthStr, 10);
-      const monthName = getIndonesianMonthName(monthNum);
-      const filename = `potong_gaji_angsuran_${monthName}_${yearStr}.xlsx`;
+  // Synchronous download matching /ewa export mechanism directly in user click gesture
+  const handleDownload = () => {
+    if (!data?.items || data.items.length === 0) return;
 
-      // If Demo Mode is active, generate masked XLSX on client side
-      if (isDemoMode) {
-        const deductionData = await api.get<DeductionResponse>(
-          `/api/loans/payroll-deductions?month=${encodeURIComponent(month)}`
-        );
+    const [yearStr, monthStr] = month.split('-');
+    const monthNum = parseInt(monthStr, 10);
+    const monthName = getIndonesianMonthName(monthNum);
+    const filename = `potong_gaji_angsuran_${monthName}_${yearStr}.xlsx`;
 
-        if (!deductionData || !deductionData.items || deductionData.items.length === 0) {
-          setDownloadError('Tidak ada data angsuran pinjaman untuk periode bulan yang dipilih.');
-          return;
-        }
+    const exportItems: LoanPayrollDeductionExportItem[] = data.items.map((it) => ({
+      employeeId: isDemoMode ? maskNip(it.memberId || it.employeeId, it.employeeId) : it.employeeId,
+      name: isDemoMode ? maskName(it.memberId || it.employeeId, it.name) : it.name,
+      currentAmount: 0,
+      newAmount: it.newAmount,
+      note: it.note || '',
+    }));
 
-        setData(deductionData);
-
-        const exportItems: LoanPayrollDeductionExportItem[] = deductionData.items.map((it) => ({
-          employeeId: maskNip(it.memberId || it.employeeId, it.employeeId),
-          name: maskName(it.memberId || it.employeeId, it.name),
-          currentAmount: 0,
-          newAmount: it.newAmount,
-          note: it.note || '',
-        }));
-
-        exportLoanPayrollDeductionsToExcel(exportItems, filename);
-        return;
-      }
-
-      // Download actual XLSX file directly from backend endpoint
-      const res = await apiFetch(`/api/v1/loans/payroll-deductions?month=${encodeURIComponent(month)}&format=xlsx`);
-
-      if (!res.ok) {
-        let errMessage = 'Gagal mengunduh berkas XLSX dari server';
-        try {
-          const errJson = await res.json();
-          errMessage = errJson.message || errMessage;
-        } catch {}
-        throw new Error(errMessage);
-      }
-
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
-    } catch (err: any) {
-      setDownloadError(err?.message || 'Gagal mengunduh berkas XLSX potongan angsuran');
-    } finally {
-      setIsDownloading(false);
-    }
+    exportLoanPayrollDeductionsToExcel(exportItems, filename);
   };
 
   const totalEmployees = data?.totalEmployees || 0;
@@ -172,10 +126,7 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
                 <input
                   type="month"
                   value={month}
-                  onChange={(e) => {
-                    setMonth(e.target.value);
-                    setDownloadError(null);
-                  }}
+                  onChange={(e) => setMonth(e.target.value)}
                   style={{
                     padding: '6px 12px',
                     borderRadius: 6,
@@ -192,15 +143,6 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
                 </Text>
               )}
             </HStack>
-
-            {/* Error notifications */}
-            {downloadError && (
-              <Card style={{ padding: 12, backgroundColor: 'var(--color-critical-50, #fef2f2)', border: '1px solid var(--color-critical-200, #fecaca)' }}>
-                <Text color="critical" style={{ fontSize: 13 }}>
-                  {downloadError}
-                </Text>
-              </Card>
-            )}
 
             {/* Summary Cards */}
             <div
@@ -345,11 +287,10 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
           <HStack gap={2} hAlign="end">
             <Button label="Tutup" variant="secondary" onClick={onClose} />
             <Button
-              label={isDownloading ? 'Mengunduh...' : 'Unduh Berkas XLSX'}
+              label="Unduh Berkas XLSX"
               variant="primary"
               icon={<Icon icon={DocumentArrowDownIcon} size="sm" />}
-              isLoading={isDownloading}
-              isDisabled={isLoading || isDownloading || (data !== null && totalEmployees === 0)}
+              isDisabled={isLoading || !data || data.items.length === 0}
               onClick={handleDownload}
             />
           </HStack>
