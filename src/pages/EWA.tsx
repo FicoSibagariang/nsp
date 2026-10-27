@@ -10,6 +10,7 @@ import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { formatRp } from '../utils/format';
+import { getEwaPaycycleDates, exportEwaPayrollToExcel } from '../utils/exportUtils';
 import { useAuth } from '../hooks/useAuth';
 import { apiFetch } from '../config';
 import {
@@ -354,28 +355,22 @@ export default function EWA() {
     }
   };
 
-  // Export Payroll CSV for HRD
-  const exportPayrollCsv = () => {
+  // Export Payroll XLSX for HRD
+  const exportPayrollXlsx = () => {
     if (!payrollRecap?.items || payrollRecap.items.length === 0) return;
-    const headers = ['NIP', 'Nama Karyawan', 'Status Koperasi', 'Total Kasbon EWA', 'Biaya Layanan (Fee)', 'Total Potongan Gaji'];
-    const rows = payrollRecap.items.map((it: any) => [
-      `"${it.nip}"`,
-      `"${it.name}"`,
-      `"${it.isMember ? 'Anggota' : 'Bukan Anggota'}"`,
-      it.totalAdvances,
-      it.totalFee,
-      it.totalDeduction,
-    ]);
+    const { startDate, endDate, label } = getEwaPaycycleDates(payrollMonth);
+    const exportItems = payrollRecap.items.map((it: any) => ({
+      ...it,
+      nip: isDemoMode ? maskNip(it.employeeId, it.nip) : it.nip,
+      nik: isDemoMode ? maskNik(it.employeeId, it.nik || '') : (it.nik || ''),
+      name: isDemoMode ? maskName(it.employeeId, it.name) : it.name,
+    }));
 
-    const csvContent = [headers.join(','), ...rows.map((r: any) => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Rekap_Potongan_Payroll_EWA_${payrollMonth}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportEwaPayrollToExcel(exportItems, {
+      companyName: 'PT Media Antar Nusa',
+      paycycleLabel: label,
+      filename: `ewa-repayment-${startDate}-sd-${endDate}.xlsx`,
+    });
   };
 
   // Handle CSV Import
@@ -1051,10 +1046,10 @@ export default function EWA() {
               )}
               {activeTab === 'payroll' && payrollRecap?.items?.length > 0 && (
                 <Button
-                  label="Ekspor CSV untuk HRD"
+                  label="Ekspor XLSX untuk HRD"
                   variant="primary"
                   icon={<Icon icon={DocumentArrowDownIcon} size="sm" />}
-                  onClick={exportPayrollCsv}
+                  onClick={exportPayrollXlsx}
                 />
               )}
               {activeTab === 'fee-tiers' && (
@@ -1301,7 +1296,7 @@ export default function EWA() {
                     <VStack gap={1}>
                       <Heading level={4}>Rekap Tagihan Potongan Gaji ke HRD</Heading>
                       <Text type="supporting" color="secondary">
-                        Rekapitulasi total dana kasbon & fee yang wajib dipotong dari slip gaji karyawan periode ini
+                        Rekapitulasi total dana kasbon & fee yang wajib dipotong dari slip gaji karyawan periode ini (Siklus Cut-off: {getEwaPaycycleDates(payrollMonth).label})
                       </Text>
                     </VStack>
 
@@ -1375,6 +1370,7 @@ export default function EWA() {
                               <th style={{ padding: '10px 12px' }}>Nama Karyawan</th>
                               <th style={{ padding: '10px 12px' }}>Status Anggota</th>
                               <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total Kasbon EWA</th>
+                              <th style={{ padding: '10px 12px', textAlign: 'center' }}>Transaksi</th>
                               <th style={{ padding: '10px 12px', textAlign: 'right' }}>Fee Layanan</th>
                               <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total Potong Gaji</th>
                             </tr>
@@ -1388,6 +1384,7 @@ export default function EWA() {
                                   <Badge variant={it.isMember ? 'success' : 'neutral'} size="sm" label={it.isMember ? 'Anggota' : 'Non-Anggota'} />
                                 </td>
                                 <td style={{ padding: '10px 12px', textAlign: 'right' }}>{formatRp(it.totalAdvances)}</td>
+                                <td style={{ padding: '10px 12px', textAlign: 'center' }}>{it.txCount ? `${it.txCount}x` : '1x'}</td>
                                 <td style={{ padding: '10px 12px', textAlign: 'right' }}>{formatRp(it.totalFee)}</td>
                                 <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 'bold' }}>
                                   {formatRp(it.totalDeduction)}
