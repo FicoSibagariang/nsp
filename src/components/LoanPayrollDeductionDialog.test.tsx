@@ -3,11 +3,15 @@ import { render, cleanup, screen, fireEvent, act } from "@testing-library/react"
 import { LoanPayrollDeductionDialogContent } from "./LoanPayrollDeductionDialog";
 import { DemoModeProvider } from "../contexts/DemoModeContext";
 import { api } from "../services/api";
+import * as configModule from "../config";
 import * as exportUtilsModule from "../utils/exportUtils";
 
 describe("LoanPayrollDeductionDialogComponent", () => {
   let apiGetSpy: any;
+  let apiFetchSpy: any;
   let exportSpy: any;
+  let originalCreateObjectURL: any;
+  let originalRevokeObjectURL: any;
 
   const mockData = {
     month: "2026-09",
@@ -44,11 +48,29 @@ describe("LoanPayrollDeductionDialogComponent", () => {
   };
 
   beforeEach(() => {
+    originalCreateObjectURL = global.URL.createObjectURL;
+    originalRevokeObjectURL = global.URL.revokeObjectURL;
+    global.URL.createObjectURL = () => "blob:mock-url";
+    global.URL.revokeObjectURL = () => {};
+
     apiGetSpy = spyOn(api, "get").mockImplementation((url: string) => {
       if (url.includes("/api/loans/payroll-deductions")) {
         return Promise.resolve(mockData as any);
       }
       return Promise.resolve([] as any);
+    });
+
+    apiFetchSpy = spyOn(configModule, "apiFetch").mockImplementation((url: string) => {
+      if (url.includes("format=xlsx")) {
+        return Promise.resolve({
+          ok: true,
+          blob: async () => new Blob(["mock-xlsx-data"], { type: "application/vnd.openxmlformats" }),
+        } as any);
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ success: true, data: [] }),
+      } as any);
     });
 
     exportSpy = spyOn(exportUtilsModule, "exportLoanPayrollDeductionsToExcel").mockImplementation(() => {});
@@ -57,7 +79,10 @@ describe("LoanPayrollDeductionDialogComponent", () => {
   afterEach(() => {
     cleanup();
     apiGetSpy?.mockRestore?.();
+    apiFetchSpy?.mockRestore?.();
     exportSpy?.mockRestore?.();
+    global.URL.createObjectURL = originalCreateObjectURL;
+    global.URL.revokeObjectURL = originalRevokeObjectURL;
   });
 
   test("renders preview table, summary cards, and allows downloading XLSX", async () => {
@@ -90,20 +115,10 @@ describe("LoanPayrollDeductionDialogComponent", () => {
       fireEvent.click(downloadBtn);
     });
 
-    // Verify api.get was called again on click
-    expect(apiGetSpy).toHaveBeenCalledTimes(2);
-
-    expect(exportSpy).toHaveBeenCalledTimes(1);
-    const callArgs = (exportSpy.mock.calls as any)[0];
-    const itemsArg = callArgs[0];
-    const filenameArg = callArgs[1];
-
-    expect(itemsArg.length).toBe(2);
-    expect(itemsArg[0].employeeId).toBe("0202169");
-    expect(itemsArg[0].name).toBe("Abdul Aziz Laia");
-    expect(itemsArg[0].newAmount).toBe(548520);
-    expect(filenameArg).toContain("potong_gaji_angsuran_");
-    expect(filenameArg).toContain(".xlsx");
+    // In non-demo mode, it fetches the XLSX file via apiFetch
+    expect(apiFetchSpy).toHaveBeenCalledTimes(1);
+    const fetchUrl = (apiFetchSpy.mock.calls as any)[0][0];
+    expect(fetchUrl).toContain("format=xlsx");
   });
 
   test("masks employee ID and name when Demo Mode is active", async () => {
@@ -123,7 +138,7 @@ describe("LoanPayrollDeductionDialogComponent", () => {
       expect(screen.queryByText("Abdul Aziz Laia")).toBeNull();
       expect(screen.queryByText("0202169")).toBeNull();
 
-      // Download must receive masked values
+      // Download must receive masked values via exportUtils
       const downloadBtn = screen.getByText("Unduh Berkas XLSX");
       await act(async () => {
         fireEvent.click(downloadBtn);
@@ -142,13 +157,11 @@ describe("LoanPayrollDeductionDialogComponent", () => {
   });
 
   test("displays error message when download fails", async () => {
-    let callCount = 0;
-    apiGetSpy.mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) {
-        return Promise.resolve(mockData);
-      }
-      return Promise.reject(new Error("Network connection error"));
+    apiFetchSpy.mockImplementation(() => {
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ message: "Network connection error" }),
+      } as any);
     });
 
     await act(async () => {
@@ -160,7 +173,6 @@ describe("LoanPayrollDeductionDialogComponent", () => {
       fireEvent.click(downloadBtn);
     });
 
-    expect(exportSpy).not.toHaveBeenCalled();
     expect(screen.getByText("Network connection error")).toBeDefined();
   });
 });

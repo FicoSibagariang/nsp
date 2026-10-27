@@ -53,4 +53,22 @@ describe("Loans Payroll Deductions API Endpoint", () => {
     expect(firstItem.currentAmount).toBe(0);
     expect(firstItem.note).toBe("");
   });
+
+  test("GET /api/v1/loans/payroll-deductions?format=xlsx returns binary spreadsheet", async () => {
+    const res = await server.fetch(
+      new Request("http://localhost:3000/api/v1/loans/payroll-deductions?month=2026-09&format=xlsx", {
+        headers: {
+          Authorization: `Bearer ${adminToken}`,
+        },
+      })
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe(
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    expect(res.headers.get("content-disposition")).toContain("potong_gaji_angsuran_september_2026.xlsx");
+    const arrayBuffer = await res.arrayBuffer();
+    expect(arrayBuffer.byteLength).toBeGreaterThan(5000);
+  });
 });

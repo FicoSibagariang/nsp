@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import * as XLSX from 'xlsx'
 import db from '../db'
 import type { LoanPaymentRow, LoanRow } from '../db/entities'
 import {
@@ -292,6 +293,43 @@ loans.get('/payroll-deductions', requirePermission('read:loans'), async (c) => {
 
     const totalEmployees = items.length;
     const totalAmount = items.reduce((sum: number, it: any) => sum + it.amount, 0);
+
+    const formatParam = c.req.query('format')?.toLowerCase();
+    const acceptHeader = c.req.header('accept') || '';
+    const wantsXlsx = formatParam === 'xlsx' || acceptHeader.includes('application/vnd.openxmlformats');
+
+    if (wantsXlsx) {
+      const rows: (string | number)[][] = [
+        ['Employee ID', 'Name', 'Current Amount', 'New Amount', 'Note'],
+      ];
+
+      for (const it of items) {
+        rows.push([
+          it.employeeId ? String(it.employeeId) : '',
+          it.name || '',
+          it.currentAmount ?? 0,
+          Number(it.newAmount || 0),
+          it.note ?? '',
+        ]);
+      }
+
+      const worksheet = XLSX.utils.aoa_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Potong Gaji Angsuran');
+
+      const buf = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+      const indonesianMonths = [
+        'januari', 'februari', 'maret', 'april', 'mei', 'juni',
+        'juli', 'agustus', 'september', 'oktober', 'november', 'desember'
+      ];
+      const monthName = indonesianMonths[(m - 1) % 12] || monthStr;
+      const filename = `potong_gaji_angsuran_${monthName}_${yearStr}.xlsx`;
+
+      c.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      c.header('Content-Disposition', `attachment; filename="${filename}"`);
+      return c.body(buf);
+    }
 
     return c.json({
       success: true,
