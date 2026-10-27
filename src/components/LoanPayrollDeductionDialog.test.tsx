@@ -2,11 +2,11 @@ import { expect, test, describe, beforeEach, afterEach, spyOn } from "bun:test";
 import { render, cleanup, screen, fireEvent, act } from "@testing-library/react";
 import { LoanPayrollDeductionDialogContent } from "./LoanPayrollDeductionDialog";
 import { DemoModeProvider } from "../contexts/DemoModeContext";
-import * as configModule from "../config";
+import { api } from "../services/api";
 import * as exportUtilsModule from "../utils/exportUtils";
 
 describe("LoanPayrollDeductionDialogComponent", () => {
-  let fetchSpy: any;
+  let apiGetSpy: any;
   let exportSpy: any;
 
   const mockData = {
@@ -44,20 +44,11 @@ describe("LoanPayrollDeductionDialogComponent", () => {
   };
 
   beforeEach(() => {
-    fetchSpy = spyOn(configModule, "apiFetch").mockImplementation((url: string) => {
-      if (url.includes("/api/v1/loans/payroll-deductions")) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({
-            success: true,
-            data: mockData,
-          }),
-        } as any);
+    apiGetSpy = spyOn(api, "get").mockImplementation((url: string) => {
+      if (url.includes("/api/loans/payroll-deductions")) {
+        return Promise.resolve(mockData as any);
       }
-      return Promise.resolve({
-        ok: true,
-        json: async () => ({ success: true, data: [] }),
-      } as any);
+      return Promise.resolve([] as any);
     });
 
     exportSpy = spyOn(exportUtilsModule, "exportLoanPayrollDeductionsToExcel").mockImplementation(() => {});
@@ -65,7 +56,7 @@ describe("LoanPayrollDeductionDialogComponent", () => {
 
   afterEach(() => {
     cleanup();
-    fetchSpy?.mockRestore?.();
+    apiGetSpy?.mockRestore?.();
     exportSpy?.mockRestore?.();
   });
 
@@ -88,6 +79,9 @@ describe("LoanPayrollDeductionDialogComponent", () => {
     expect(screen.getByText("Ahmad Iqrom Harahap")).toBeDefined();
     expect(screen.getByText("02025118")).toBeDefined();
 
+    // Verify api.get was called on mount
+    expect(apiGetSpy).toHaveBeenCalledTimes(1);
+
     // Click download button
     const downloadBtn = screen.getByText("Unduh Berkas XLSX");
     expect(downloadBtn).toBeDefined();
@@ -95,6 +89,9 @@ describe("LoanPayrollDeductionDialogComponent", () => {
     await act(async () => {
       fireEvent.click(downloadBtn);
     });
+
+    // Verify api.get was called again on click
+    expect(apiGetSpy).toHaveBeenCalledTimes(2);
 
     expect(exportSpy).toHaveBeenCalledTimes(1);
     const callArgs = (exportSpy.mock.calls as any)[0];
@@ -142,5 +139,28 @@ describe("LoanPayrollDeductionDialogComponent", () => {
     } finally {
       localStorage.removeItem("demo-mode");
     }
+  });
+
+  test("displays error message when download fails", async () => {
+    let callCount = 0;
+    apiGetSpy.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve(mockData);
+      }
+      return Promise.reject(new Error("Network connection error"));
+    });
+
+    await act(async () => {
+      render(<LoanPayrollDeductionDialogContent onClose={() => {}} />);
+    });
+
+    const downloadBtn = screen.getByText("Unduh Berkas XLSX");
+    await act(async () => {
+      fireEvent.click(downloadBtn);
+    });
+
+    expect(exportSpy).not.toHaveBeenCalled();
+    expect(screen.getByText("Network connection error")).toBeDefined();
   });
 });
