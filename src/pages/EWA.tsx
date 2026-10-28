@@ -1,16 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Layout, LayoutContent, LayoutHeader, StackItem } from '@astryxdesign/core/Layout';
 import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
 import { Button } from '@astryxdesign/core/Button';
 import { IconButton } from '@astryxdesign/core/IconButton';
-import { Table, proportional, pixel } from '@astryxdesign/core/Table';
-import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
-import { Spinner } from '@astryxdesign/core/Spinner';
-import { formatRp } from '../utils/format';
-import { getEwaPaycycleDates, exportEwaPayrollToExcel } from '../utils/exportUtils';
 import { useAuth } from '../hooks/useAuth';
 import { apiFetch } from '../config';
 import {
@@ -18,18 +13,28 @@ import {
   UserGroupIcon,
   DocumentArrowDownIcon,
   ArrowPathIcon,
-  CheckCircleIcon,
-  XCircleIcon,
   ArrowUpTrayIcon,
   TagIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline';
 import { Icon } from '@astryxdesign/core/Icon';
-import { Pagination } from '../components/Pagination';
-import { CopyableAccountNumber } from '../components/CopyableAccountNumber';
 import type { CompanyEmployee, EWARequest, EwaFeeTier } from '@shared/types';
 import { useDemoMode } from '../contexts/DemoModeContext';
-import { maskName, maskNip, maskNik, maskEmail, maskAccountNumber } from '../utils/privacyMask';
+import { formatRp } from '../utils/format';
+import { maskName, maskNip } from '../utils/privacyMask';
+import {
+  DisburseModal,
+  RejectModal,
+  FeeTierModal,
+  ImportEmployeesModal,
+  RequestsTab,
+  EmployeesTab,
+  PayrollTab,
+  FeeTiersTab,
+  exportPayrollXlsx,
+  type PaymentSourceAccount,
+  type PayrollRecapData,
+} from '../features/ewa';
 
 export default function EWA() {
   const { hasPermission } = useAuth();
@@ -51,77 +56,39 @@ export default function EWA() {
   const [reqSearch, setReqSearch] = useState('');
   const [debouncedReqSearch, setDebouncedReqSearch] = useState('');
   const [reqPage, setReqPage] = useState(1);
-  const [reqLimit, setReqLimit] = useState(20);
+  const reqLimit = 20;
   const [reqTotal, setReqTotal] = useState(0);
   const [selectedReq, setSelectedReq] = useState<EWARequest | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // Payment Sources State (Kas Kecil / Bank Mandiri)
-  const [paymentSources, setPaymentSources] = useState<Array<{ id: string; code: string; name: string; type: string }>>([]);
+  // Payment Sources & Disburse Modal
+  const [paymentSources, setPaymentSources] = useState<PaymentSourceAccount[]>([]);
   const [showDisburseModal, setShowDisburseModal] = useState(false);
   const [selectedDisburseReq, setSelectedDisburseReq] = useState<EWARequest | null>(null);
-  const [selectedPaymentSourceId, setSelectedPaymentSourceId] = useState<string>('');
 
   // Employees State
   const [employees, setEmployees] = useState<CompanyEmployee[]>([]);
   const [empLoading, setEmpLoading] = useState(false);
   const [empSearch, setEmpSearch] = useState('');
   const [empPage, setEmpPage] = useState(1);
-  const [empLimit, setEmpLimit] = useState(20);
+  const empLimit = 20;
   const [empTotal, setEmpTotal] = useState(0);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [importCsvText, setImportCsvText] = useState('');
-  const [importLoading, setImportLoading] = useState(false);
-  const [importError, setImportError] = useState('');
-  const [importSuccess, setImportSuccess] = useState('');
-
-  // Helper to resolve the default settlement date (last day of the payroll period month)
-  function getDefaultSettleDate(periodMonth: string): string {
-    if (!periodMonth) return new Date().toISOString().split('T')[0];
-    const parts = periodMonth.split('-');
-    if (parts.length < 2) return new Date().toISOString().split('T')[0];
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10);
-    if (isNaN(year) || isNaN(month)) return new Date().toISOString().split('T')[0];
-    const lastDay = new Date(year, month, 0).getDate();
-    return `${periodMonth}-${String(lastDay).padStart(2, '0')}`;
-  }
 
   // Payroll Recap State
   const [payrollMonth, setPayrollMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [settleDate, setSettleDate] = useState<string>(() => {
-    const d = new Date();
-    const curMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-    return `${curMonth}-${String(lastDay).padStart(2, '0')}`;
-  });
-  const [payrollRecap, setPayrollRecap] = useState<any>(null);
+  const [payrollRecap, setPayrollRecap] = useState<PayrollRecapData | null>(null);
   const [payrollLoading, setPayrollLoading] = useState(false);
-  const [settleLoading, setSettleLoading] = useState(false);
-
-  const handlePayrollMonthChange = (newMonth: string) => {
-    setPayrollMonth(newMonth);
-    setSettleDate(getDefaultSettleDate(newMonth));
-  };
 
   // Fee Tiers State
   const [feeTiers, setFeeTiers] = useState<EwaFeeTier[]>([]);
   const [feeTiersLoading, setFeeTiersLoading] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
-  const [editingTier, setEditingTier] = useState<Partial<EwaFeeTier> | null>(null);
-  const [tierMinInput, setTierMinInput] = useState('');
-  const [tierMaxInput, setTierMaxInput] = useState('');
-  const [tierNoMax, setTierNoMax] = useState(false);
-  const [tierMemberFeeInput, setTierMemberFeeInput] = useState('');
-  const [tierNonMemberFeeInput, setTierNonMemberFeeInput] = useState('');
-  const [saveTierLoading, setSaveTierLoading] = useState(false);
-  const [tierError, setTierError] = useState('');
+  const [editingTier, setEditingTier] = useState<EwaFeeTier | null>(null);
 
   // Debounce search for requests
   useEffect(() => {
@@ -132,7 +99,7 @@ export default function EWA() {
   }, [reqSearch]);
 
   // Fetch Requests
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     setReqLoading(true);
     try {
       const q = new URLSearchParams();
@@ -151,10 +118,10 @@ export default function EWA() {
     } finally {
       setReqLoading(false);
     }
-  };
+  }, [statusFilter, debouncedReqSearch, reqPage, reqLimit]);
 
   // Fetch Employees
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     if (!canViewEmployees) return;
     setEmpLoading(true);
     try {
@@ -173,10 +140,10 @@ export default function EWA() {
     } finally {
       setEmpLoading(false);
     }
-  };
+  }, [canViewEmployees, empSearch, empPage, empLimit]);
 
   // Fetch Payroll Recap
-  const fetchPayrollRecap = async () => {
+  const fetchPayrollRecap = useCallback(async () => {
     setPayrollLoading(true);
     try {
       const res = await apiFetch(`/api/v1/ewa/payroll/recap?periodMonth=${encodeURIComponent(payrollMonth)}`);
@@ -189,10 +156,10 @@ export default function EWA() {
     } finally {
       setPayrollLoading(false);
     }
-  };
+  }, [payrollMonth]);
 
   // Fetch Fee Tiers
-  const fetchFeeTiers = async () => {
+  const fetchFeeTiers = useCallback(async () => {
     setFeeTiersLoading(true);
     try {
       const res = await apiFetch('/api/v1/ewa/fee-tiers');
@@ -205,808 +172,51 @@ export default function EWA() {
     } finally {
       setFeeTiersLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchRequests();
-  }, [statusFilter, debouncedReqSearch, reqPage, reqLimit]);
+  }, [fetchRequests]);
 
   useEffect(() => {
     if (canViewEmployees) {
       fetchEmployees();
     }
-  }, [canViewEmployees, empSearch, empPage, empLimit]);
+  }, [canViewEmployees, fetchEmployees]);
 
   useEffect(() => {
     if (activeTab === 'payroll') fetchPayrollRecap();
-  }, [activeTab, payrollMonth]);
+  }, [activeTab, fetchPayrollRecap]);
 
   useEffect(() => {
     if (activeTab === 'fee-tiers') fetchFeeTiers();
-  }, [activeTab]);
+  }, [activeTab, fetchFeeTiers]);
 
-  // Fetch Payment Sources (Kas Kecil / Bank Mandiri)
-  const fetchPaymentSources = async () => {
+  // Fetch Payment Sources
+  const fetchPaymentSources = useCallback(async () => {
     try {
       const res = await apiFetch('/api/v1/ewa/payment-sources');
       const data = await res.json();
       if (data.success && Array.isArray(data.data)) {
         setPaymentSources(data.data);
-        const kasKecil = data.data.find((a: any) => a.code === '11101');
-        if (kasKecil) {
-          setSelectedPaymentSourceId(kasKecil.id);
-        } else if (data.data.length > 0) {
-          setSelectedPaymentSourceId(data.data[0].id);
-        }
       }
     } catch (err) {
       console.error('Gagal mengambil sumber dana EWA:', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchPaymentSources();
-  }, []);
+  }, [fetchPaymentSources]);
 
-  // Open Disburse Modal
-  const openDisburseModal = (req: EWARequest) => {
-    setSelectedDisburseReq(req);
-    // Prioritize Kas Kecil (11101) if available
-    const kasKecil = paymentSources.find((a) => a.code === '11101');
-    if (kasKecil) {
-      setSelectedPaymentSourceId(kasKecil.id);
-    } else if (paymentSources.length > 0) {
-      setSelectedPaymentSourceId(paymentSources[0].id);
-    }
-    setShowDisburseModal(true);
-  };
-
-  // Submit Disburse
-  const handleConfirmDisburse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDisburseReq) return;
-    setActionLoading(true);
-    setActionMessage(null);
-    try {
-      const res = await apiFetch(`/api/v1/ewa/requests/${selectedDisburseReq.id}/disburse`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          paymentSourceAccountId: selectedPaymentSourceId || undefined,
-        }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setActionMessage({ text: data.message || 'Dana berhasil dicairkan!', type: 'success' });
-        setShowDisburseModal(false);
-        setSelectedDisburseReq(null);
-        fetchRequests();
-      } else {
-        setActionMessage({ text: data.message || 'Gagal mencairkan EWA', type: 'error' });
-      }
-    } catch (err: any) {
-      setActionMessage({ text: err?.message || 'Terjadi kesalahan jaringan', type: 'error' });
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Handle Reject
-  const handleReject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedReq) return;
-    setActionLoading(true);
-    setActionMessage(null);
-    try {
-      const res = await apiFetch(`/api/v1/ewa/requests/${selectedReq.id}/reject`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: rejectReason }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setActionMessage({ text: 'Permohonan EWA telah ditolak', type: 'success' });
-        setShowRejectModal(false);
-        setRejectReason('');
-        setSelectedReq(null);
-        fetchRequests();
-      } else {
-        setActionMessage({ text: data.message || 'Gagal menolak EWA', type: 'error' });
-      }
-    } catch (err: any) {
-      setActionMessage({ text: err?.message || 'Terjadi kesalahan jaringan', type: 'error' });
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  // Handle Settle Payroll
-  const handleSettlePayroll = async () => {
-    if (!payrollRecap || payrollRecap.totalEmployees === 0) return;
-    const effectiveDate = settleDate || getDefaultSettleDate(payrollMonth);
-    if (!confirm(`Konfirmasi pembukuan pelunasan payroll periode ${payrollMonth} sebesar ${formatRp(payrollRecap.totalDeduction)} dengan tanggal transaksi jurnal ${effectiveDate}? Seluruh tagihan piutang EWA periode ini akan ditutup lunas.`)) {
-      return;
-    }
-    setSettleLoading(true);
-    setActionMessage(null);
-    try {
-      const res = await apiFetch('/api/v1/ewa/payroll/settle', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          periodMonth: payrollMonth,
-          transactionDate: effectiveDate,
-        }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setActionMessage({ text: data.message || 'Pelunasan payroll berhasil dibukukan!', type: 'success' });
-        fetchPayrollRecap();
-      } else {
-        setActionMessage({ text: data.message || 'Gagal memproses pelunasan payroll', type: 'error' });
-      }
-    } catch (err: any) {
-      setActionMessage({ text: err?.message || 'Terjadi kesalahan jaringan', type: 'error' });
-    } finally {
-      setSettleLoading(false);
-    }
-  };
-
-  // Export Payroll XLSX for HRD
-  const exportPayrollXlsx = () => {
-    if (!payrollRecap?.items || payrollRecap.items.length === 0) return;
-    const { startDate, endDate, label } = getEwaPaycycleDates(payrollMonth);
-    const exportItems = payrollRecap.items.map((it: any) => ({
-      ...it,
-      nip: isDemoMode ? maskNip(it.employeeId, it.nip) : it.nip,
-      nik: isDemoMode ? maskNik(it.employeeId, it.nik || '') : (it.nik || ''),
-      name: isDemoMode ? maskName(it.employeeId, it.name) : it.name,
-    }));
-
-    exportEwaPayrollToExcel(exportItems, {
-      companyName: 'PT Media Antar Nusa',
-      paycycleLabel: label,
-      filename: `ewa-repayment-${startDate}-sd-${endDate}.xlsx`,
-    });
-  };
-
-  // Handle CSV Import
-  function parseCSVLine(text: string): string[] {
-    const result: string[] = [];
-    let cur = '';
-    let inQuotes = false;
-    for (let i = 0; i < text.length; i++) {
-      const c = text[i];
-      if (c === '"') {
-        if (inQuotes && text[i + 1] === '"') {
-          cur += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (c === ',' && !inQuotes) {
-        result.push(cur.trim());
-        cur = '';
-      } else {
-        cur += c;
-      }
-    }
-    result.push(cur.trim());
-    return result;
-  }
-
-  // Handle CSV File Upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const text = evt.target?.result as string;
-      if (text) setImportCsvText(text);
-    };
-    reader.readAsText(file);
-  };
-
-  // Handle CSV Import
-  const handleImportCsv = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setImportLoading(true);
-    setImportError('');
-    setImportSuccess('');
-
-    try {
-      const cleanText = importCsvText.replace(/^\uFEFF/, '').trim();
-      const lines = cleanText.split(/\r?\n/);
-      if (lines.length < 2) {
-        setImportError('Data CSV kosong atau tidak memiliki baris data');
-        setImportLoading(false);
-        return;
-      }
-
-      const headers = parseCSVLine(lines[0]).map((h) =>
-        h.trim().toLowerCase().replace(/^"|"$/g, '').replace(/[\u200B-\u200D\uFEFF]/g, '')
-      );
-      const items: any[] = [];
-
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (!line) continue;
-        const vals = parseCSVLine(line);
-        const obj: Record<string, string> = {};
-        headers.forEach((h, idx) => {
-          obj[h] = (vals[idx] || '').trim().replace(/^"|"$/g, '');
-        });
-
-        const rawSalaryStr =
-          obj['jumlah gaji'] || obj['gaji_pokok'] || obj['gaji'] || obj['basesalary'] || obj['salary'] || '0';
-        const rawLoanStr =
-          obj['jumlah potongan pinjaman (jika ada)'] ||
-          obj['jumlah potongan pinjaman'] ||
-          obj['potongan_pinjaman'] ||
-          obj['potongan_gaji'] ||
-          obj['potongan'] ||
-          '0';
-
-        const rawSalary = parseFloat(rawSalaryStr.replace(/[^\d.]/g, '')) || 0;
-        const rawLoanDeduction = parseFloat(rawLoanStr.replace(/[^\d.]/g, '')) || 0;
-
-        // Net base salary = Gaji - Potongan Pinjaman
-        let netSalary = Math.max(0, rawSalary - rawLoanDeduction);
-
-        // Cap with env limit if configured (e.g. VITE_EWA_MAX_BASE_SALARY = 10000000)
-        const maxCapEnv = (import.meta as any).env?.VITE_EWA_MAX_BASE_SALARY;
-        if (maxCapEnv) {
-          const cap = parseFloat(maxCapEnv);
-          if (!isNaN(cap) && cap > 0) {
-            netSalary = Math.min(netSalary, cap);
-          }
-        }
-
-        const rawContractEnd =
-          obj['tanggal berakhir kontrak'] ||
-          obj['tanggal_berakhir_kontrak'] ||
-          obj['contract_end_date'] ||
-          obj['tgl_kontrak_berakhir'] ||
-          obj['berakhir_kontrak'] ||
-          '';
-        const contractEndDate = rawContractEnd ? rawContractEnd.trim().slice(0, 10) : null;
-
-        const nip = obj['emp. id'] || obj['nip'] || obj['no_karyawan'] || obj['employee_id'] || '';
-        const name = obj['nama lengkap karyawan'] || obj['nama'] || obj['name'] || '';
-        const email = obj['email'] || '';
-
-        if (!nip || !name || !email) {
-          continue; // Skip invalid row
-        }
-
-        items.push({
-          nip,
-          nik: obj['no. ktp'] || obj['nik'] || obj['ktp'] || null,
-          name,
-          email,
-          phone: obj['no. hp'] || obj['telepon'] || obj['phone'] || obj['no_hp'] || null,
-          department: obj['departemen'] || obj['department'] || obj['divisi'] || null,
-          position: obj['posisi/jabatan'] || obj['jabatan'] || obj['position'] || null,
-          baseSalary: netSalary,
-          bankName: obj['bank payroll'] || obj['bank'] || obj['nama_bank'] || null,
-          bankAccountNumber: obj['no. rekening'] || obj['rekening'] || obj['no_rekening'] || null,
-          bankAccountName:
-            obj['nama di rekening'] ||
-            obj['nama_rekening'] ||
-            obj['atas_nama'] ||
-            name,
-          contractEndDate,
-        });
-      }
-
-      if (items.length === 0) {
-        setImportError('Tidak ada data karyawan yang valid untuk diimpor. Pastikan kolom NIP, Nama, dan Email terisi.');
-        setImportLoading(false);
-        return;
-      }
-
-      const res = await apiFetch('/api/v1/ewa/employees/batch-import', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ items }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setImportSuccess(`Berhasil memproses ${data.data?.processedCount ?? items.length} karyawan!`);
-        setTimeout(() => {
-          setShowImportModal(false);
-          setImportCsvText('');
-          setImportSuccess('');
-          setActiveTab('employees');
-          fetchEmployees();
-        }, 1500);
-      } else {
-        const errorMsg =
-          data.message ||
-          data.error ||
-          (data.errors ? 'Validasi data gagal: periksa format email dan data baris' : 'Gagal mengimpor data karyawan');
-        setImportError(errorMsg);
-      }
-    } catch (err: any) {
-      console.error('Import CSV error:', err);
-      setImportError(err?.message || 'Format CSV tidak valid atau terjadi kegagalan jaringan');
-    } finally {
-      setImportLoading(false);
-    }
-  };
-
-  const formatDisbursedDateTime = (dateStr?: string | null) => {
-    if (!dateStr) return '';
-    try {
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return dateStr;
-      const datePart = d.toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        timeZone: 'Asia/Jakarta',
-      });
-      const timePart = d.toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-        timeZone: 'Asia/Jakarta',
-      }).replace('.', ':');
-      return `${datePart}, ${timePart} WIB`;
-    } catch {
-      return dateStr;
-    }
-  };
-
-  // Table Columns - Requests
-  const requestColumns: TableColumn<EWARequest>[] = useMemo(
-    () => [
-      {
-        key: 'date',
-        header: 'Tanggal',
-        width: pixel(110),
-        renderCell: (r: EWARequest) => (
-          <Text type="supporting">
-            {new Date(r.createdAt).toLocaleDateString('id-ID', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-            })}
-          </Text>
-        ),
-      },
-      {
-        key: 'employee',
-        header: 'Karyawan',
-        width: proportional(1.5),
-        renderCell: (r: EWARequest) => {
-          const empName = isDemoMode ? maskName(r.employeeId || r.id, r.employeeName) : r.employeeName;
-          const empNip = isDemoMode ? maskNip(r.employeeId || r.id, r.employeeNip) : (r.employeeNip || '-');
-          return (
-            <VStack gap={0}>
-              <Text type="body" weight="medium">
-                {empName}
-              </Text>
-              <HStack gap={1} vAlign="center">
-                <Text type="supporting" color="secondary">
-                  NIP: {empNip}
-                </Text>
-                <Badge variant={r.isMember ? 'success' : 'neutral'} label={r.isMember ? 'Anggota' : 'Non-Anggota'} />
-              </HStack>
-            </VStack>
-          );
-        },
-      },
-      {
-        key: 'amount',
-        header: 'Nominal Tarik',
-        width: proportional(1.2),
-        renderCell: (r: EWARequest) => (
-          <VStack gap={0}>
-            <Text type="body" weight="semibold" color="primary">
-              {formatRp(r.disbursedAmount)}
-            </Text>
-            <Text type="supporting" color="secondary">
-              Fee: {formatRp(r.feeAmount)} ({r.feePercentage}%)
-            </Text>
-          </VStack>
-        ),
-      },
-      {
-        key: 'deduction',
-        header: 'Potong Payroll',
-        width: proportional(1.2),
-        renderCell: (r: EWARequest) => (
-          <Text type="body" weight="bold">
-            {formatRp(r.totalPayrollDeduction)}
-          </Text>
-        ),
-      },
-      {
-        key: 'bank',
-        header: 'Rekening Tujuan',
-        width: proportional(1.5),
-        renderCell: (r: EWARequest) => (
-          <CopyableAccountNumber
-            bankName={r.destinationBank}
-            accountNumber={r.destinationAccount}
-            accountHolder={r.destinationName}
-          />
-        ),
-      },
-      {
-        key: 'status',
-        header: 'Status',
-        width: pixel(180),
-        renderCell: (r: EWARequest) => {
-          let variant: any = 'neutral';
-          let label: string = r.status;
-          if (r.status === 'PENDING') {
-            variant = 'warning';
-            label = 'Menunggu Cair';
-          } else if (r.status === 'DISBURSED') {
-            variant = 'info';
-            label = 'Sudah Cair';
-          } else if (r.status === 'PAID_SETTLED') {
-            variant = 'success';
-            label = 'Lunas Payroll';
-          } else if (r.status === 'REJECTED') {
-            variant = 'error';
-            label = 'Ditolak';
-          }
-          const reason = r.rejectionReason || (r as any).rejection_reason;
-          const isDisbursedOrSettled = r.status === 'DISBURSED' || r.status === 'PAID_SETTLED';
-          return (
-            <VStack gap={1} hAlign="start">
-              <Badge variant={variant} label={label} />
-              {isDisbursedOrSettled && (
-                <>
-                  {r.disbursedByName && (
-                    <Text type="supporting" color="secondary" style={{ fontSize: 11, lineHeight: 1.2 }}>
-                      oleh {isDemoMode ? maskName(r.disbursedBy || r.disbursedByName, r.disbursedByName) : r.disbursedByName}
-                    </Text>
-                  )}
-                  {r.disbursedAt && (
-                    <Text type="supporting" color="secondary" style={{ fontSize: 11, lineHeight: 1.2 }}>
-                      {formatDisbursedDateTime(r.disbursedAt)}
-                    </Text>
-                  )}
-                </>
-              )}
-              {r.status === 'REJECTED' && reason && (
-                <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontSize: 11, lineHeight: 1.2  }}>
-                  Alasan: {reason}
-                </Text>
-              )}
-            </VStack>
-          );
-        },
-      },
-      {
-        key: 'action',
-        header: 'Aksi',
-        width: pixel(180),
-        renderCell: (r: EWARequest) =>
-          r.status === 'PENDING' && (
-            <HStack gap={2}>
-              <Button
-                label="Cairkan"
-                variant="primary"
-                size="sm"
-                isDisabled={actionLoading}
-                onClick={() => openDisburseModal(r)}
-              />
-              <Button
-                label="Tolak"
-                variant="ghost"
-                size="sm"
-                isDisabled={actionLoading}
-                onClick={() => {
-                  setSelectedReq(r);
-                  setShowRejectModal(true);
-                }}
-              />
-            </HStack>
-          ),
-      },
-    ],
-    [isDemoMode, actionLoading, paymentSources]
-  );
-
-  // Table Columns - Employees
-  const employeeColumns: TableColumn<CompanyEmployee>[] = useMemo(
-    () => [
-      {
-        key: 'nip',
-        header: 'NIP / NIK',
-        width: pixel(140),
-        renderCell: (e: CompanyEmployee) => {
-          const displayNip = isDemoMode ? maskNip(e.id, e.nip) : e.nip;
-          const displayNik = isDemoMode ? maskNik(e.id, e.nik) : (e.nik || '-');
-          return (
-            <VStack gap={0}>
-              <Text type="body" weight="medium">{displayNip}</Text>
-              <Text type="supporting" color="secondary">{displayNik}</Text>
-            </VStack>
-          );
-        },
-      },
-      {
-        key: 'name',
-        header: 'Nama & Email',
-        width: proportional(1.5),
-        renderCell: (e: CompanyEmployee) => {
-          const displayName = isDemoMode ? maskName(e.id, e.name) : e.name;
-          const displayEmail = isDemoMode ? maskEmail(e.id, e.email) : e.email;
-          return (
-            <VStack gap={0}>
-              <Text type="body" weight="semibold">{displayName}</Text>
-              <Text type="supporting" color="secondary">{displayEmail}</Text>
-            </VStack>
-          );
-        },
-      },
-      {
-        key: 'salary',
-        header: 'Plafon EWA',
-        width: proportional(1.5),
-        renderCell: (e: CompanyEmployee) => {
-          const effective = e.effectiveSalary ?? e.baseSalary;
-          const dailyLimit = e.dailyAccumulatedLimit ?? Math.floor(effective * 0.5);
-          const maxMonthly = Math.floor(effective * 0.5);
-          return (
-            <VStack gap={0}>
-              <Text type="body" weight="bold" color="primary">
-                {formatRp(dailyLimit)}
-              </Text>
-              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-                Plafon Hari Ini (Maks. Sebulan: {formatRp(maxMonthly)})
-              </Text>
-            </VStack>
-          );
-        },
-      },
-      {
-        key: 'status',
-        header: 'Status Koperasi',
-        width: pixel(140),
-        renderCell: (e: CompanyEmployee) => (
-          <Badge variant={e.isMember ? 'success' : 'neutral'} label={e.isMember ? 'Anggota Koperasi' : 'Bukan Anggota'} />
-        ),
-      },
-      {
-        key: 'contract',
-        header: 'Masa Kontrak',
-        width: pixel(140),
-        renderCell: (e: CompanyEmployee) => {
-          if (!e.contractEndDate) {
-            return <Badge variant="neutral" label="Karyawan Tetap" />;
-          }
-          const today = new Date().toISOString().slice(0, 10);
-          const endStr = String(e.contractEndDate).slice(0, 10);
-          const isExpired = today > endStr;
-          return (
-            <VStack gap={0}>
-              <Badge variant={isExpired ? 'error' : 'warning'} label={isExpired ? 'Kontrak Berakhir' : 'Kontrak Aktif'} />
-              <Text type="supporting" color={isExpired ? undefined : 'secondary'} style={{ fontSize: 11, ...(isExpired ? { color: 'var(--color-text-error)' } : {}) }}>
-                s/d {endStr}
-              </Text>
-            </VStack>
-          );
-        },
-      },
-      {
-        key: 'bank',
-        header: 'Rekening Payroll',
-        width: proportional(1.5),
-        renderCell: (e: CompanyEmployee) => (
-          <Text type="supporting">
-            {e.bankName ? `${e.bankName} - ${isDemoMode ? maskAccountNumber(e.id, e.bankAccountNumber) : e.bankAccountNumber}` : 'Belum diatur'}
-          </Text>
-        ),
-      },
-    ],
-    [isDemoMode]
-  );
-
-  const openAddTier = () => {
-    setEditingTier(null);
-    const lastTier = feeTiers[feeTiers.length - 1];
-    const defaultMin = lastTier && lastTier.maxAmount != null ? lastTier.maxAmount + 1 : 0;
-    setTierMinInput(defaultMin > 0 ? defaultMin.toLocaleString('id-ID') : '0');
-    setTierMaxInput('');
-    setTierNoMax(false);
-    setTierMemberFeeInput('');
-    setTierNonMemberFeeInput('');
-    setTierError('');
-    setShowTierModal(true);
-  };
-
-  const openEditTier = (tier: EwaFeeTier) => {
-    setEditingTier(tier);
-    setTierMinInput(tier.minAmount.toLocaleString('id-ID'));
-    setTierMaxInput(tier.maxAmount != null ? tier.maxAmount.toLocaleString('id-ID') : '');
-    setTierNoMax(tier.maxAmount == null);
-    setTierMemberFeeInput(tier.memberFee.toLocaleString('id-ID'));
-    setTierNonMemberFeeInput(tier.nonMemberFee.toLocaleString('id-ID'));
-    setTierError('');
-    setShowTierModal(true);
-  };
-
-  const handleSaveTierSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setTierError('');
-
-    const minAmount = Number(tierMinInput.replace(/\D/g, '') || 0);
-    const maxAmount = tierNoMax ? null : Number(tierMaxInput.replace(/\D/g, '') || 0);
-    const memberFee = Number(tierMemberFeeInput.replace(/\D/g, '') || 0);
-    const nonMemberFee = Number(tierNonMemberFeeInput.replace(/\D/g, '') || 0);
-
-    if (!tierNoMax && (maxAmount == null || maxAmount <= minAmount)) {
-      setTierError('Batas atas nominal harus lebih besar dari batas bawah nominal');
-      return;
-    }
-
-    setSaveTierLoading(true);
-    try {
-      let updatedList = [...feeTiers];
-      if (editingTier && editingTier.id) {
-        updatedList = updatedList.map((t) =>
-          t.id === editingTier.id
-            ? { ...t, minAmount, maxAmount, memberFee, nonMemberFee }
-            : t
-        );
-      } else {
-        updatedList.push({
-          id: crypto.randomUUID(),
-          minAmount,
-          maxAmount,
-          memberFee,
-          nonMemberFee,
-          tierOrder: updatedList.length + 1,
-        });
-      }
-
-      // Sort by minAmount
-      updatedList.sort((a, b) => a.minAmount - b.minAmount);
-      updatedList = updatedList.map((t, idx) => ({ ...t, tierOrder: idx + 1 }));
-
-      const res = await apiFetch('/api/v1/ewa/fee-tiers', {
-        method: 'PUT',
-        body: JSON.stringify({ tiers: updatedList }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.message || 'Gagal menyimpan tabel tarif');
-      }
-
-      setFeeTiers(data.data || []);
-      setShowTierModal(false);
-      setActionMessage({ text: 'Tabel tarif biaya admin berhasil diperbarui!', type: 'success' });
-      setTimeout(() => setActionMessage(null), 5000);
-    } catch (err: any) {
-      setTierError(err?.message || 'Terjadi kesalahan saat menyimpan tarif');
-    } finally {
-      setSaveTierLoading(false);
-    }
-  };
-
-  const handleDeleteTier = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus rentang tarif ini?')) return;
-    try {
-      let remaining = feeTiers.filter((t) => t.id !== id);
-      if (remaining.length === 0) {
-        alert('Minimal harus ada 1 rentang tarif dalam tabel.');
-        return;
-      }
-      remaining.sort((a, b) => a.minAmount - b.minAmount);
-      remaining = remaining.map((t, idx) => ({ ...t, tierOrder: idx + 1 }));
-
-      const res = await apiFetch('/api/v1/ewa/fee-tiers', {
-        method: 'PUT',
-        body: JSON.stringify({ tiers: remaining }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setFeeTiers(data.data || []);
-        setActionMessage({ text: 'Rentang tarif berhasil dihapus!', type: 'success' });
-        setTimeout(() => setActionMessage(null), 5000);
-      }
-    } catch (err: any) {
-      alert(err?.message || 'Gagal menghapus tarif');
-    }
-  };
-
-  // Fee Tier Columns
-  const feeTierColumns: TableColumn<EwaFeeTier>[] = useMemo(
-    () => [
-      {
-        key: 'order',
-        header: 'Tingkat / Tier',
-        width: pixel(130),
-        renderCell: (t: EwaFeeTier) => (
-          <Text type="body" weight="semibold">
-            Tier {t.tierOrder}
-          </Text>
-        ),
-      },
-      {
-        key: 'range',
-        header: 'Rentang Nominal Penarikan',
-        width: proportional(1.5),
-        renderCell: (t: EwaFeeTier) => (
-          <VStack gap={0}>
-            <Text type="body" weight="semibold">
-              {formatRp(t.minAmount)} s/d {t.maxAmount != null ? formatRp(t.maxAmount) : 'Tanpa Batas (Diatasnya)'}
-            </Text>
-            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-              {t.maxAmount != null
-                ? `Untuk nominal penarikan ${formatRp(t.minAmount)} – ${formatRp(t.maxAmount)}`
-                : `Untuk semua nominal penarikan di atas ${formatRp(t.minAmount)}`}
-            </Text>
-          </VStack>
-        ),
-      },
-      {
-        key: 'memberFee',
-        header: 'Biaya Admin (Anggota Koperasi)',
-        width: proportional(1.2),
-        renderCell: (t: EwaFeeTier) => (
-          <VStack gap={0}>
-            <Text type="body" weight="bold" style={{ color: 'var(--color-text-success)' }}>
-              {formatRp(t.memberFee)}
-            </Text>
-            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-              Tarif flat per penarikan
-            </Text>
-          </VStack>
-        ),
-      },
-      {
-        key: 'nonMemberFee',
-        header: 'Biaya Admin (Non-Anggota)',
-        width: proportional(1.2),
-        renderCell: (t: EwaFeeTier) => (
-          <VStack gap={0}>
-            <Text type="body" weight="bold" color="primary">
-              {formatRp(t.nonMemberFee)}
-            </Text>
-            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-              Tarif flat per penarikan
-            </Text>
-          </VStack>
-        ),
-      },
-      {
-        key: 'actions',
-        header: 'Aksi',
-        width: pixel(160),
-        renderCell: (t: EwaFeeTier) => (
-          <HStack gap={2}>
-            <Button
-              label="Edit"
-              variant="secondary"
-              size="sm"
-              onClick={() => openEditTier(t)}
-            />
-            <Button
-              label="Hapus"
-              variant="ghost"
-              size="sm"
-              onClick={() => handleDeleteTier(t.id)}
-            />
-          </HStack>
-        ),
-      },
-    ],
-    [feeTiers]
-  );
+  const tabsConfig = [
+    { id: 'requests' as const, label: 'Pengajuan & Pencairan', count: reqTotal || requests.length, icon: BanknotesIcon },
+    ...(canViewEmployees
+      ? [{ id: 'employees' as const, label: 'Master Karyawan & Gaji', count: empTotal || employees.length, icon: UserGroupIcon }]
+      : []),
+    { id: 'payroll' as const, label: 'Rekap Potongan Payroll (HRD)', count: payrollRecap?.totalEmployees || 0, icon: DocumentArrowDownIcon },
+    { id: 'fee-tiers' as const, label: 'Tarif Biaya Admin', count: feeTiers.length, icon: TagIcon },
+  ];
 
   return (
     <Layout
@@ -1044,12 +254,12 @@ export default function EWA() {
                   onClick={() => setShowImportModal(true)}
                 />
               )}
-              {activeTab === 'payroll' && payrollRecap?.items?.length > 0 && (
+              {activeTab === 'payroll' && payrollRecap?.items && payrollRecap.items.length > 0 && (
                 <Button
                   label="Ekspor XLSX untuk HRD"
                   variant="primary"
                   icon={<Icon icon={DocumentArrowDownIcon} size="sm" />}
-                  onClick={exportPayrollXlsx}
+                  onClick={() => exportPayrollXlsx(payrollRecap, payrollMonth, isDemoMode)}
                 />
               )}
               {activeTab === 'fee-tiers' && (
@@ -1057,7 +267,10 @@ export default function EWA() {
                   label="Tambah Rentang Tarif"
                   variant="primary"
                   icon={<Icon icon={PlusIcon} size="sm" />}
-                  onClick={openAddTier}
+                  onClick={() => {
+                    setEditingTier(null);
+                    setShowTierModal(true);
+                  }}
                 />
               )}
             </HStack>
@@ -1097,14 +310,7 @@ export default function EWA() {
               width: 'fit-content',
             }}
           >
-            {[
-              { id: 'requests' as const, label: 'Pengajuan & Pencairan', count: reqTotal || requests.length, icon: BanknotesIcon },
-              ...(canViewEmployees
-                ? [{ id: 'employees' as const, label: 'Master Karyawan & Gaji', count: empTotal || employees.length, icon: UserGroupIcon }]
-                : []),
-              { id: 'payroll' as const, label: 'Rekap Potongan Payroll (HRD)', count: payrollRecap?.totalEmployees || 0, icon: DocumentArrowDownIcon },
-              { id: 'fee-tiers' as const, label: 'Tarif Biaya Admin', count: feeTiers.length, icon: TagIcon },
-            ].map((tab) => {
+            {tabsConfig.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
                 <button
@@ -1138,776 +344,143 @@ export default function EWA() {
 
           {/* TAB 1: REQUESTS */}
           {activeTab === 'requests' && (
-            <Card>
-              <VStack gap={4}>
-                <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
-                  <Heading level={4}>Daftar Pengajuan Penarikan Gaji Awal</Heading>
-                  <HStack gap={3} vAlign="center" wrap="wrap">
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <input
-                        type="text"
-                        placeholder="Cari nama karyawan / NIP..."
-                        value={reqSearch}
-                        onChange={(e) => {
-                          setReqSearch(e.target.value);
-                          setReqPage(1);
-                        }}
-                        style={{
-                          padding: '6px 30px 6px 12px',
-                          borderRadius: 6,
-                          border: '1px solid var(--color-border-primary)',
-                          backgroundColor: 'var(--color-background-primary)',
-                          color: 'var(--color-text-primary)',
-                          width: 240,
-                          fontSize: 13,
-                        }}
-                      />
-                      {reqSearch && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setReqSearch('');
-                            setReqPage(1);
-                          }}
-                          style={{
-                            position: 'absolute',
-                            right: 8,
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            color: 'var(--color-text-secondary)',
-                            padding: 0,
-                            fontSize: 14,
-                            lineHeight: 1,
-                          }}
-                          title="Hapus pencarian"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                    <HStack gap={2} vAlign="center">
-                      <Text type="supporting">Status:</Text>
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => {
-                          setStatusFilter(e.target.value);
-                          setReqPage(1);
-                        }}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: 6,
-                          border: '1px solid var(--color-border-primary)',
-                          backgroundColor: 'var(--color-background-primary)',
-                          color: 'var(--color-text-primary)',
-                          fontSize: 13,
-                        }}
-                      >
-                        <option value="">Semua Status</option>
-                        <option value="PENDING">Menunggu Cair</option>
-                        <option value="DISBURSED">Sudah Cair</option>
-                        <option value="PAID_SETTLED">Lunas Payroll</option>
-                        <option value="REJECTED">Ditolak</option>
-                      </select>
-                    </HStack>
-                  </HStack>
-                </HStack>
-
-                {reqLoading ? (
-                  <Spinner size="md" />
-                ) : requests.length > 0 ? (
-                  <VStack gap={3}>
-                    <Table data={requests} columns={requestColumns} idKey="id" density="balanced" />
-                    <Pagination
-                      page={reqPage}
-                      limit={reqLimit}
-                      total={reqTotal}
-                      onPageChange={setReqPage}
-                    />
-                  </VStack>
-                ) : (
-                  <Text type="supporting" color="secondary">
-                    {reqSearch || statusFilter
-                      ? 'Tidak ditemukan pengajuan EWA yang sesuai dengan filter pencarian.'
-                      : 'Belum ada data pengajuan EWA'}
-                  </Text>
-                )}
-              </VStack>
-            </Card>
+            <RequestsTab
+              requests={requests}
+              reqLoading={reqLoading}
+              reqSearch={reqSearch}
+              setReqSearch={setReqSearch}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              reqPage={reqPage}
+              reqLimit={reqLimit}
+              reqTotal={reqTotal}
+              setReqPage={setReqPage}
+              isDemoMode={isDemoMode}
+              actionLoading={false}
+              onDisburse={(req) => {
+                setSelectedDisburseReq(req);
+                setShowDisburseModal(true);
+              }}
+              onReject={(req) => {
+                setSelectedReq(req);
+                setShowRejectModal(true);
+              }}
+            />
           )}
 
           {/* TAB 2: EMPLOYEES */}
           {activeTab === 'employees' && canViewEmployees && (
-            <Card>
-              <VStack gap={4}>
-                <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
-                  <VStack gap={0}>
-                    <Heading level={4}>Master Data Karyawan Perusahaan Induk</Heading>
-                    <Text type="supporting" color="secondary">
-                      Total: {empTotal} Karyawan terdaftar
-                    </Text>
-                  </VStack>
-                  <input
-                    type="text"
-                    placeholder="Cari nama / NIP / email..."
-                    value={empSearch}
-                    onChange={(e) => {
-                      setEmpSearch(e.target.value);
-                      setEmpPage(1);
-                    }}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: 6,
-                      border: '1px solid var(--color-border-primary)',
-                      backgroundColor: 'var(--color-background-primary)',
-                      color: 'var(--color-text-primary)',
-                      width: 250,
-                    }}
-                  />
-                </HStack>
-
-                {empLoading ? (
-                  <Spinner size="md" />
-                ) : employees.length > 0 ? (
-                  <VStack gap={3}>
-                    <Table data={employees} columns={employeeColumns} idKey="id" density="balanced" />
-                    <Pagination
-                      page={empPage}
-                      limit={empLimit}
-                      total={empTotal}
-                      onPageChange={setEmpPage}
-                    />
-                  </VStack>
-                ) : (
-                  <Text type="supporting" color="secondary">
-                    Belum ada data karyawan. Gunakan tombol "Import Data Karyawan (CSV)" untuk menambahkan.
-                  </Text>
-                )}
-              </VStack>
-            </Card>
+            <EmployeesTab
+              empTotal={empTotal}
+              empSearch={empSearch}
+              setEmpSearch={setEmpSearch}
+              empLoading={empLoading}
+              employees={employees}
+              empPage={empPage}
+              empLimit={empLimit}
+              setEmpPage={setEmpPage}
+              isDemoMode={isDemoMode}
+            />
           )}
 
           {/* TAB 3: PAYROLL RECAP */}
           {activeTab === 'payroll' && (
-            <VStack gap={4}>
-              <Card>
-                <VStack gap={4}>
-                  <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
-                    <VStack gap={1}>
-                      <Heading level={4}>Rekap Tagihan Potongan Gaji ke HRD</Heading>
-                      <Text type="supporting" color="secondary">
-                        Rekapitulasi total dana kasbon & fee yang wajib dipotong dari slip gaji karyawan periode ini (Siklus Cut-off: {getEwaPaycycleDates(payrollMonth).label})
-                      </Text>
-                    </VStack>
-
-                    <HStack gap={3} vAlign="center">
-                      <Text type="supporting">Pilih Periode:</Text>
-                      <input
-                        type="month"
-                        value={payrollMonth}
-                        onChange={(e) => handlePayrollMonthChange(e.target.value)}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: 6,
-                          border: '1px solid var(--color-border-primary)',
-                          backgroundColor: 'var(--color-background-primary)',
-                          color: 'var(--color-text-primary)',
-                        }}
-                      />
-                    </HStack>
-                  </HStack>
-
-                  {/* Summary Metric Cards */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                      gap: 16,
-                    }}
-                  >
-                    <Card style={{ padding: 16 }}>
-                      <VStack gap={1}>
-                        <Text type="supporting">Total Karyawan Menggunakan EWA</Text>
-                        <Heading level={3}>{payrollRecap?.totalEmployees || 0} Orang</Heading>
-                      </VStack>
-                    </Card>
-                    <Card style={{ padding: 16 }}>
-                      <VStack gap={1}>
-                        <Text type="supporting">Total Pokok Kasbon EWA</Text>
-                        <Heading level={3}>{formatRp(payrollRecap?.totalDisbursed || 0)}</Heading>
-                      </VStack>
-                    </Card>
-                    <Card style={{ padding: 16 }}>
-                      <VStack gap={1}>
-                        <Text type="supporting">Total Fee Administrasi EWA</Text>
-                        <Heading level={3} color="primary">{formatRp(payrollRecap?.totalFee || 0)}</Heading>
-                      </VStack>
-                    </Card>
-                    <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
-                      <VStack gap={1}>
-                        <Text type="supporting">Total Tagihan Potong Payroll</Text>
-                        <Heading level={3} color="primary">{formatRp(payrollRecap?.totalDeduction || 0)}</Heading>
-                      </VStack>
-                    </Card>
-                  </div>
-
-                  {payrollLoading ? (
-                    <Spinner size="md" />
-                  ) : payrollRecap?.items?.length > 0 ? (
-                    <VStack gap={4}>
-                      <div style={{ overflowX: 'auto' }}>
-                        <table
-                          style={{
-                            width: '100%',
-                            borderCollapse: 'collapse',
-                            fontSize: '14px',
-                            textAlign: 'left',
-                          }}
-                        >
-                          <thead>
-                            <tr style={{ borderBottom: '2px solid var(--color-border-primary)' }}>
-                              <th style={{ padding: '10px 12px' }}>NIP</th>
-                              <th style={{ padding: '10px 12px' }}>Nama Karyawan</th>
-                              <th style={{ padding: '10px 12px' }}>Status Anggota</th>
-                              <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total Kasbon EWA</th>
-                              <th style={{ padding: '10px 12px', textAlign: 'center' }}>Transaksi</th>
-                              <th style={{ padding: '10px 12px', textAlign: 'right' }}>Fee Layanan</th>
-                              <th style={{ padding: '10px 12px', textAlign: 'right' }}>Total Potong Gaji</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {payrollRecap.items.map((it: any) => (
-                              <tr key={it.employeeId} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '10px 12px' }}>{isDemoMode ? maskNip(it.employeeId, it.nip) : it.nip}</td>
-                                <td style={{ padding: '10px 12px', fontWeight: 600 }}>{isDemoMode ? maskName(it.employeeId, it.name) : it.name}</td>
-                                <td style={{ padding: '10px 12px' }}>
-                                  <Badge variant={it.isMember ? 'success' : 'neutral'} label={it.isMember ? 'Anggota' : 'Non-Anggota'} />
-                                </td>
-                                <td style={{ padding: '10px 12px', textAlign: 'right' }}>{formatRp(it.totalAdvances)}</td>
-                                <td style={{ padding: '10px 12px', textAlign: 'center' }}>{it.txCount ? `${it.txCount}x` : '1x'}</td>
-                                <td style={{ padding: '10px 12px', textAlign: 'right' }}>{formatRp(it.totalFee)}</td>
-                                <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 'bold' }}>
-                                  {formatRp(it.totalDeduction)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <HStack justify="end" gap={3} vAlign="center" wrap="wrap">
-                        {payrollRecap.isFullySettled ? (
-                          <Badge variant="success" label="✅ Periode Ini Sudah Lunas Payroll" />
-                        ) : (
-                          <>
-                            <HStack gap={2} vAlign="center">
-                              <Text type="supporting" weight="medium">
-                                Tanggal Transaksi:
-                              </Text>
-                              <input
-                                type="date"
-                                value={settleDate}
-                                onChange={(e) => setSettleDate(e.target.value)}
-                                style={{
-                                  padding: '6px 10px',
-                                  borderRadius: 6,
-                                  border: '1px solid var(--color-border-primary)',
-                                  backgroundColor: 'var(--color-background-primary)',
-                                  color: 'var(--color-text-primary)',
-                                  fontSize: '13px',
-                                }}
-                              />
-                            </HStack>
-                            <Button
-                              label={settleLoading ? 'Memproses...' : 'Bukukan Pelunasan Payroll Dari Perusahaan'}
-                              variant="primary"
-                              isDisabled={settleLoading || !settleDate}
-                              onClick={handleSettlePayroll}
-                            />
-                          </>
-                        )}
-                      </HStack>
-                    </VStack>
-                  ) : (
-                    <Text type="supporting" color="secondary">
-                      Tidak ada tagihan penarikan EWA untuk periode {payrollMonth}.
-                    </Text>
-                  )}
-                </VStack>
-              </Card>
-            </VStack>
+            <PayrollTab
+              payrollMonth={payrollMonth}
+              handlePayrollMonthChange={setPayrollMonth}
+              payrollRecap={payrollRecap}
+              payrollLoading={payrollLoading}
+              formatRp={formatRp}
+              isDemoMode={isDemoMode}
+              maskNip={maskNip}
+              maskName={maskName}
+              onPayrollSettled={(msg) => {
+                setActionMessage({ text: msg, type: 'success' });
+                fetchPayrollRecap();
+              }}
+              onError={(msg) => {
+                setActionMessage({ text: msg, type: 'error' });
+              }}
+            />
           )}
 
           {/* TAB 4: FEE TIERS */}
           {activeTab === 'fee-tiers' && (
-            <Card>
-              <VStack gap={4}>
-                <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
-                  <VStack gap={1}>
-                    <Heading level={4}>Skema Tabel Tarif Biaya Admin EWA</Heading>
-                    <Text type="supporting" color="secondary">
-                      Biaya admin flat per transaksi penarikan berdasarkan kelompok rentang nominal. Karyawan yang terdaftar sebagai anggota koperasi mendapatkan tarif khusus lebih hemat.
-                    </Text>
-                  </VStack>
-                  <Button
-                    label="Tambah Rentang Tarif"
-                    variant="primary"
-                    icon={<Icon icon={PlusIcon} size="sm" />}
-                    onClick={openAddTier}
-                  />
-                </HStack>
-
-                {feeTiersLoading ? (
-                  <HStack justify="center" style={{ padding: 40 }}>
-                    <Spinner size="md" />
-                  </HStack>
-                ) : (
-                  <Table<EwaFeeTier>
-                    data={feeTiers}
-                    columns={feeTierColumns}
-                  />
-                )}
-              </VStack>
-            </Card>
-          )}
-
-          {/* Modal Disburse */}
-          {showDisburseModal && selectedDisburseReq && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Konfirmasi Pencairan Dana EWA"
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '16px',
+            <FeeTiersTab
+              openAddTier={() => {
+                setEditingTier(null);
+                setShowTierModal(true);
               }}
-            >
-              <Card style={{ width: 480, padding: 24, maxWidth: '90%' }}>
-                <form onSubmit={handleConfirmDisburse}>
-                  <VStack gap={4}>
-                    <Heading level={4}>Konfirmasi Pencairan Dana EWA</Heading>
-                    
-                    <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
-                      <VStack gap={2}>
-                        <HStack justify="between">
-                          <Text type="supporting">Karyawan:</Text>
-                          <Text type="body" weight="semibold">
-                            {isDemoMode ? maskName(selectedDisburseReq.employeeId || selectedDisburseReq.id, selectedDisburseReq.employeeName) : selectedDisburseReq.employeeName}
-                          </Text>
-                        </HStack>
-                        <HStack justify="between">
-                          <Text type="supporting">NIP / NIK:</Text>
-                          <Text type="body">
-                            {isDemoMode ? maskNip(selectedDisburseReq.employeeId || selectedDisburseReq.id, selectedDisburseReq.employeeNip) : (selectedDisburseReq.employeeNip || '-')}
-                          </Text>
-                        </HStack>
-                        <HStack justify="between">
-                          <Text type="supporting">Nominal Dicairkan:</Text>
-                          <Text type="body" weight="bold" style={{ color: 'var(--color-text-success)' }}>
-                            {formatRp(selectedDisburseReq.disbursedAmount)}
-                          </Text>
-                        </HStack>
-                        <HStack justify="between">
-                          <Text type="supporting">Biaya Admin EWA:</Text>
-                          <Text type="body">{formatRp(selectedDisburseReq.feeAmount)}</Text>
-                        </HStack>
-                        <HStack justify="between">
-                          <Text type="supporting">Total Potong Payroll:</Text>
-                          <Text type="body" weight="bold">
-                            {formatRp(selectedDisburseReq.totalPayrollDeduction)}
-                          </Text>
-                        </HStack>
-                        <HStack justify="between" vAlign="center">
-                          <Text type="supporting">Tujuan Transfer:</Text>
-                          <CopyableAccountNumber
-                            bankName={selectedDisburseReq.destinationBank}
-                            accountNumber={selectedDisburseReq.destinationAccount}
-                            showHolder={false}
-                          />
-                        </HStack>
-                        <HStack justify="between">
-                          <Text type="supporting">Atas Nama:</Text>
-                          <Text type="body">{selectedDisburseReq.destinationName}</Text>
-                        </HStack>
-                      </VStack>
-                    </Card>
-
-                    <VStack gap={2}>
-                      <Text type="body" weight="semibold">Sumber Dana Pencairan:</Text>
-                      <select
-                        value={selectedPaymentSourceId}
-                        onChange={(e) => setSelectedPaymentSourceId(e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '10px 12px',
-                          borderRadius: 6,
-                          border: '1px solid var(--color-border-primary)',
-                          backgroundColor: 'var(--color-background-primary)',
-                          color: 'var(--color-text-primary)',
-                          fontSize: 14,
-                          boxSizing: 'border-box',
-                        }}
-                      >
-                        {paymentSources.map((acc) => (
-                          <option key={acc.id} value={acc.id}>
-                            {acc.name} ({acc.code})
-                          </option>
-                        ))}
-                        {paymentSources.length === 0 && (
-                          <>
-                            <option value="64fa79d2-cd8f-414a-80ac-7daae0e3fd1f">Kas Kecil (11101)</option>
-                            <option value="ed0ad424-aff5-4a79-8fa2-24eaa541d6fc">Bank Mandiri (11102)</option>
-                          </>
-                        )}
-                      </select>
-                      <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>
-                        Akun kas/bank yang dipilih akan dikreditkan secara otomatis pada Jurnal Akuntansi.
-                      </Text>
-                    </VStack>
-
-                    <HStack justify="end" gap={2}>
-                      <Button
-                        label="Batal"
-                        variant="ghost"
-                        type="button"
-                        onClick={() => {
-                          setShowDisburseModal(false);
-                          setSelectedDisburseReq(null);
-                        }}
-                      />
-                      <Button
-                        label={actionLoading ? 'Memproses...' : 'Konfirmasi Pencairan'}
-                        variant="primary"
-                        type="submit"
-                        isDisabled={actionLoading}
-                      />
-                    </HStack>
-                  </VStack>
-                </form>
-              </Card>
-            </div>
-          )}
-
-          {/* Modal Reject */}
-          {showRejectModal && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Tolak Pengajuan Pencairan EWA"
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '16px',
+              feeTiersLoading={feeTiersLoading}
+              feeTiers={feeTiers}
+              onEditTier={(tier) => {
+                setEditingTier(tier);
+                setShowTierModal(true);
               }}
-            >
-              <Card style={{ width: 450, padding: 24, maxWidth: '90%' }}>
-                <form onSubmit={handleReject}>
-                  <VStack gap={4}>
-                    <Heading level={4}>Tolak Permohonan EWA</Heading>
-                    <Text type="supporting">
-                      Karyawan: <b>{isDemoMode ? maskName(selectedReq?.employeeId || selectedReq?.id, selectedReq?.employeeName) : selectedReq?.employeeName}</b> (Nominal: {formatRp(selectedReq?.disbursedAmount || 0)})
-                    </Text>
-                    <VStack gap={2}>
-                      <Text type="supporting">Alasan Penolakan:</Text>
-                      <textarea
-                        rows={3}
-                        required
-                        value={rejectReason}
-                        onChange={(e) => setRejectReason(e.target.value)}
-                        placeholder="Contoh: Melebihi batas hari kerja / dalam masa pengunduran diri"
-                        style={{
-                          width: '100%',
-                          padding: 10,
-                          borderRadius: 6,
-                          border: '1px solid var(--color-border-primary)',
-                          backgroundColor: 'var(--color-background-primary)',
-                          color: 'var(--color-text-primary)',
-                          boxSizing: 'border-box',
-                        }}
-                      />
-                    </VStack>
-                    <HStack justify="end" gap={2}>
-                      <Button
-                        label="Batal"
-                        variant="ghost"
-                        type="button"
-                        onClick={() => setShowRejectModal(false)}
-                      />
-                      <Button
-                        label={actionLoading ? 'Menolak...' : 'Konfirmasi Tolak'}
-                        variant="destructive"
-                        type="submit"
-                        isDisabled={actionLoading}
-                      />
-                    </HStack>
-                  </VStack>
-                </form>
-              </Card>
-            </div>
-          )}
-
-          {/* Modal Add/Edit Fee Tier */}
-          {showTierModal && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Atur Rentang Biaya Admin EWA"
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '16px',
+              onTiersUpdated={(updatedList, msg) => {
+                setFeeTiers(updatedList);
+                setActionMessage({ text: msg, type: 'success' });
+                setTimeout(() => setActionMessage(null), 5000);
               }}
-            >
-              <Card style={{ width: 500, padding: 24, maxWidth: '90%' }}>
-                <form onSubmit={handleSaveTierSubmit}>
-                  <VStack gap={4}>
-                    <Heading level={4}>{editingTier ? 'Edit Rentang Tarif Biaya Admin' : 'Tambah Rentang Tarif Biaya Admin'}</Heading>
-                    <Text type="supporting" color="secondary">
-                      Atur batas nominal penarikan serta besaran biaya admin flat untuk anggota dan non-anggota.
-                    </Text>
-
-                    {tierError && (
-                      <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
-                        ⚠️ {tierError}
-                      </Text>
-                    )}
-
-                    <VStack gap={3}>
-                      <VStack gap={1}>
-                        <Text type="supporting" style={{ fontWeight: 500 }}>Batas Bawah Nominal (Rp):</Text>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          required
-                          value={tierMinInput}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '');
-                            setTierMinInput(digits !== '' ? Number(digits).toLocaleString('id-ID') : '');
-                          }}
-                          placeholder="Contoh: 100.000"
-                          style={{
-                            width: '100%',
-                            padding: 10,
-                            borderRadius: 6,
-                            border: '1px solid var(--color-border-primary)',
-                            backgroundColor: 'var(--color-background-primary)',
-                            color: 'var(--color-text-primary)',
-                            boxSizing: 'border-box',
-                          }}
-                        />
-                      </VStack>
-
-                      <VStack gap={1}>
-                        <HStack justify="between" vAlign="center">
-                          <Text type="supporting" style={{ fontWeight: 500 }}>Batas Atas Nominal (Rp):</Text>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-                            <input
-                              type="checkbox"
-                              checked={tierNoMax}
-                              onChange={(e) => {
-                                setTierNoMax(e.target.checked);
-                                if (e.target.checked) setTierMaxInput('');
-                              }}
-                            />
-                            <span>Tanpa Batas Atas (Tier Tertinggi)</span>
-                          </label>
-                        </HStack>
-                        {!tierNoMax && (
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            required={!tierNoMax}
-                            value={tierMaxInput}
-                            onChange={(e) => {
-                              const digits = e.target.value.replace(/\D/g, '');
-                              setTierMaxInput(digits !== '' ? Number(digits).toLocaleString('id-ID') : '');
-                            }}
-                            placeholder="Contoh: 500.000"
-                            style={{
-                              width: '100%',
-                              padding: 10,
-                              borderRadius: 6,
-                              border: '1px solid var(--color-border-primary)',
-                              backgroundColor: 'var(--color-background-primary)',
-                              color: 'var(--color-text-primary)',
-                              boxSizing: 'border-box',
-                            }}
-                          />
-                        )}
-                      </VStack>
-
-                      <VStack gap={1}>
-                        <Text type="supporting" style={{ fontWeight: 500 }}>Biaya Admin - Anggota Koperasi (Rp):</Text>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          required
-                          value={tierMemberFeeInput}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '');
-                            setTierMemberFeeInput(digits !== '' ? Number(digits).toLocaleString('id-ID') : '');
-                          }}
-                          placeholder="Contoh: 10.000"
-                          style={{
-                            width: '100%',
-                            padding: 10,
-                            borderRadius: 6,
-                            border: '1px solid var(--color-border-primary)',
-                            backgroundColor: 'var(--color-background-primary)',
-                            color: 'var(--color-text-primary)',
-                            boxSizing: 'border-box',
-                          }}
-                        />
-                      </VStack>
-
-                      <VStack gap={1}>
-                        <Text type="supporting" style={{ fontWeight: 500 }}>Biaya Admin - Bukan Anggota (Rp):</Text>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          required
-                          value={tierNonMemberFeeInput}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '');
-                            setTierNonMemberFeeInput(digits !== '' ? Number(digits).toLocaleString('id-ID') : '');
-                          }}
-                          placeholder="Contoh: 15.000"
-                          style={{
-                            width: '100%',
-                            padding: 10,
-                            borderRadius: 6,
-                            border: '1px solid var(--color-border-primary)',
-                            backgroundColor: 'var(--color-background-primary)',
-                            color: 'var(--color-text-primary)',
-                            boxSizing: 'border-box',
-                          }}
-                        />
-                      </VStack>
-                    </VStack>
-
-                    <HStack justify="end" gap={2}>
-                      <Button
-                        label="Batal"
-                        variant="ghost"
-                        type="button"
-                        onClick={() => setShowTierModal(false)}
-                      />
-                      <Button
-                        label={saveTierLoading ? 'Menyimpan...' : 'Simpan Tarif'}
-                        variant="primary"
-                        type="submit"
-                        isDisabled={saveTierLoading}
-                      />
-                    </HStack>
-                  </VStack>
-                </form>
-              </Card>
-            </div>
+            />
           )}
 
-          {/* Modal Import CSV */}
-          {showImportModal && canImportEmployees && (
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Import Data Karyawan (CSV)"
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '16px',
-              }}
-            >
-              <Card style={{ width: 550, padding: 24, maxWidth: '90%' }}>
-                <form onSubmit={handleImportCsv}>
-                  <VStack gap={4}>
-                    <Heading level={4}>Import Data Karyawan (CSV)</Heading>
-                    <Text type="supporting" color="secondary">
-                      Mendukung format ekspor HRIS / Wagely (<code>Nama Lengkap Karyawan, No. KTP, Emp. ID, Jumlah Gaji, dll.</code>) maupun format standar.
-                    </Text>
+          {/* Modals */}
+          <DisburseModal
+            isOpen={showDisburseModal}
+            onClose={() => {
+              setShowDisburseModal(false);
+              setSelectedDisburseReq(null);
+            }}
+            request={selectedDisburseReq}
+            paymentSources={paymentSources}
+            isDemoMode={isDemoMode}
+            onSuccess={(msg) => {
+              setActionMessage({ text: msg, type: 'success' });
+              fetchRequests();
+            }}
+            onError={(msg) => {
+              setActionMessage({ text: msg, type: 'error' });
+            }}
+          />
 
-                    {importError && (
-                      <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
-                        ⚠️ {importError}
-                      </Text>
-                    )}
-                    {importSuccess && (
-                      <Text type="supporting" style={{ color: 'var(--color-text-success)' }}>
-                        ✅ {importSuccess}
-                      </Text>
-                    )}
+          <RejectModal
+            isOpen={showRejectModal}
+            onClose={() => {
+              setShowRejectModal(false);
+              setSelectedReq(null);
+            }}
+            request={selectedReq}
+            isDemoMode={isDemoMode}
+            onSuccess={(msg) => {
+              setActionMessage({ text: msg, type: 'success' });
+              fetchRequests();
+            }}
+            onError={(msg) => {
+              setActionMessage({ text: msg, type: 'error' });
+            }}
+          />
 
-                    <VStack gap={2}>
-                      <HStack gap={2} vAlign="center">
-                        <Text type="supporting" style={{ fontWeight: 500 }}>Pilih File CSV:</Text>
-                        <input
-                          type="file"
-                          accept=".csv,text/csv"
-                          onChange={handleFileUpload}
-                          style={{ fontSize: 13 }}
-                        />
-                      </HStack>
-                      <Text type="supporting" color="secondary">atau tempel isi teks CSV di bawah ini:</Text>
-                    </VStack>
+          <FeeTierModal
+            isOpen={showTierModal}
+            onClose={() => setShowTierModal(false)}
+            editingTier={editingTier}
+            feeTiers={feeTiers}
+            onSuccess={(updatedList) => {
+              setFeeTiers(updatedList);
+              setActionMessage({ text: 'Tabel tarif biaya admin berhasil diperbarui!', type: 'success' });
+              setTimeout(() => setActionMessage(null), 5000);
+            }}
+          />
 
-                    <textarea
-                      rows={8}
-                      required
-                      placeholder={`Nama Lengkap Karyawan,No. KTP,Emp. ID,Email,No. HP,Bank Payroll,No. Rekening,Nama di rekening,Posisi/Jabatan,Jumlah Gaji\nBudi Santoso,1271111310970003,0202169,budi@nusa.id,6282370071235,Bank Mandiri,1060015016754,Budi Santoso,Engineer,"3,219,069"`}
-                      value={importCsvText}
-                      onChange={(e) => setImportCsvText(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: 10,
-                        fontFamily: 'monospace',
-                        fontSize: 12,
-                        borderRadius: 6,
-                        border: '1px solid var(--color-border-primary)',
-                        backgroundColor: 'var(--color-background-primary)',
-                        color: 'var(--color-text-primary)',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-
-                    <HStack justify="end" gap={2}>
-                      <Button
-                        label="Batal"
-                        variant="ghost"
-                        type="button"
-                        onClick={() => setShowImportModal(false)}
-                      />
-                      <Button
-                        label={importLoading ? 'Mengimpor...' : 'Proses Import'}
-                        variant="primary"
-                        type="submit"
-                        isDisabled={importLoading}
-                      />
-                    </HStack>
-                  </VStack>
-                </form>
-              </Card>
-            </div>
-          )}
+          <ImportEmployeesModal
+            isOpen={showImportModal && canImportEmployees}
+            onClose={() => setShowImportModal(false)}
+            onSuccess={() => {
+              setActiveTab('employees');
+              fetchEmployees();
+            }}
+          />
         </VStack>
       </LayoutContent>
     </Layout>
