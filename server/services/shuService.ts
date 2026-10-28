@@ -2,6 +2,7 @@ import db, { type Db } from '../db'
 import type { ShuCloseRow, ShuAllocationRow, InterestPaymentRow, MemberRow, SettingRow } from '../db/entities'
 import { calculateLoanInterest } from './loanService'
 import { ServiceError } from './errors'
+import { calculateShuDistribution } from '../lib/calculations'
 
 /**
  * Get SHU configuration from settings table.
@@ -387,52 +388,25 @@ export async function calculateSHU(year: string, options?: CalculateSHUOptions) 
     }
   }
 
-  const shuNetto = Math.max(0, totalPendapatan - biayaOperasional);
-
-  // Calculate distribution based on configurable percentages
-  const distribusi = {
-    anggota: Math.round(shuNetto * (config.anggotaPct / 100)),
-    cadangan: Math.round(shuNetto * (config.cadanganPct / 100)),
-    pengurus: Math.round(shuNetto * (config.pengurusPct / 100)),
-    sosial: Math.round(shuNetto * (config.sosialPct / 100)),
-    pembangunan: Math.round(shuNetto * (config.pembangunanPct / 100)),
-  };
-
-  // Split anggota allocation between Jasa Simpanan and Jasa Pinjaman
-  const totalJasaSimpananPool = Math.round(distribusi.anggota * (config.jasaSimpananPct / 100));
-  const totalJasaPinjamanPool = Math.round(distribusi.anggota * (config.jasaPinjamanPct / 100));
-
   // Get all members with their time-weighted average savings (ADB)
   const memberSavingsMap = await calculateMemberAverageSavings(year, config.includeInactiveMembers);
   const eligibleMembers = Object.values(memberSavingsMap);
 
-  const totalSimpananSeluruhAnggota = eligibleMembers.reduce((sum, m) => sum + m.averageSavings, 0);
-  const totalBungaDibayarSeluruhAnggota = Object.values(memberInterestPaid).reduce((sum, val) => sum + val, 0);
+  const memberParticipation = eligibleMembers.map((m) => ({
+    memberId: m.memberId,
+    name: m.name,
+    status: m.status,
+    totalSavings: m.totalSavings,
+    averageSavings: m.averageSavings,
+    interestPaid: memberInterestPaid[m.memberId] || 0,
+  }));
 
-  const alokasiAnggota = eligibleMembers.map(m => {
-    const savings = m.totalSavings;
-    const avgSavings = m.averageSavings;
-    const interestPaid = memberInterestPaid[m.memberId] || 0;
-
-    // Calculate proportion for each component: Jasa Simpanan uses averageSavings
-    const porsiSimpanan = totalSimpananSeluruhAnggota > 0 ? avgSavings / totalSimpananSeluruhAnggota : 0;
-    const porsiPinjaman = totalBungaDibayarSeluruhAnggota > 0 ? interestPaid / totalBungaDibayarSeluruhAnggota : 0;
-
-    // Calculate share amounts
-    const savingsShare = Math.round(totalJasaSimpananPool * porsiSimpanan);
-    const loansShare = Math.round(totalJasaPinjamanPool * porsiPinjaman);
-
-    return {
-      id: m.memberId,
-      name: m.name,
-      status: m.status,
-      totalSavings: savings,
-      averageSavings: avgSavings,
-      savingsShare,
-      loansShare,
-      shu: savingsShare + loansShare
-    };
-  }).sort((a, b) => b.shu - a.shu);
+  const calcResult = calculateShuDistribution(
+    totalPendapatan,
+    biayaOperasional,
+    config,
+    memberParticipation
+  );
 
   return {
     year,
@@ -442,9 +416,9 @@ export async function calculateSHU(year: string, options?: CalculateSHUOptions) 
     realizedPendapatan: totalRealizedPendapatan,
     projectedPendapatan: totalProjectedInterest,
     biayaOperasional,
-    shuNetto,
-    distribusi,
-    alokasiAnggota,
+    shuNetto: calcResult.shuNetto,
+    distribusi: calcResult.distribusi,
+    alokasiAnggota: calcResult.alokasiAnggota,
     config
   };
 }

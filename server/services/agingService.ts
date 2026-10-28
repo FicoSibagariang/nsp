@@ -18,7 +18,6 @@ export async function checkAndApplyAging(): Promise<{
   updatedToLate: number;
 }> {
   const today = new Date();
-  const ninetyDaysAgo = new Date(today.getTime() - (90 * 24 * 60 * 60 * 1000));
   const tolerance = getPaymentTolerance();
 
   // Find all loans with pending installments that are overdue beyond tolerance

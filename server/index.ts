@@ -31,19 +31,23 @@ import { serveStatic } from 'hono/bun'
 
 import { HTTPException } from 'hono/http-exception'
 import { logger } from 'hono/logger'
+import { ServiceError } from './services/errors'
 
 const app = new Hono()
 
 app.use('*', logger())
 
 app.onError((err, c) => {
-  console.error(err)
   if (err instanceof SyntaxError) {
     return c.json({ success: false, message: 'Invalid JSON payload' }, 400)
+  }
+  if (err instanceof ServiceError) {
+    return c.json({ success: false, message: err.message }, err.status)
   }
   if (err instanceof HTTPException) {
     return c.json({ success: false, message: err.message }, err.status)
   }
+  console.error(err)
   return c.json({ success: false, message: 'Internal Server Error' }, 500)
 })
 

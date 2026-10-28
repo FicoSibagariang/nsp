@@ -14,7 +14,7 @@ import {
   getTrialBalanceReport,
   getGeneralLedgerReport,
 } from '../services/accountingService'
-import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
+import { requireRouteParam } from '../lib/serviceResponse'
 import { audit, getActor, getClientIp, getJwtPayload } from '../lib/audit'
 
 const accounting = new Hono()
@@ -40,24 +40,18 @@ accounting.post('/accounts', requirePermission('manage:accounting'), async (c) =
   const parsed = accountSchema.safeParse(body)
   if (!parsed.success) return c.json({ success: false, errors: parsed.error.format() }, 400)
 
-  try {
-    const newId = await createAccount(db, parsed.data)
+  const newId = await createAccount(db, parsed.data)
 
-    await audit(db, {
-      actor: getActor(c),
-      action: 'create_account',
-      entity: 'accounts',
-      entityId: newId,
-      after: parsed.data,
-      ip: getClientIp(c),
-    })
+  await audit(db, {
+    actor: getActor(c),
+    action: 'create_account',
+    entity: 'accounts',
+    entityId: newId,
+    after: parsed.data,
+    ip: getClientIp(c),
+  })
 
-    return c.json({ success: true, message: 'Akun berhasil dibuat', id: newId }, 201)
-  } catch (err) {
-    const response = mapServiceError(c, err)
-    if (response) return response
-    throw err
-  }
+  return c.json({ success: true, message: 'Akun berhasil dibuat', id: newId }, 201)
 })
 
 // ---------------------------------------------------------------------------
@@ -108,33 +102,26 @@ accounting.post('/journals', requirePermission('create:accounting'), async (c) =
   if (!parsed.success) return c.json({ success: false, errors: parsed.error.format() }, 400)
 
   const data = parsed.data
+  const actor = getActor(c)
+  const adminId = getJwtPayload(c)?.sub || null
 
-  try {
-    const actor = getActor(c)
-    const adminId = getJwtPayload(c)?.sub || null
+  const entryId = await createManualJournalEntry(db, data, adminId)
 
-    const entryId = await createManualJournalEntry(db, data, adminId)
+  const totalDebit = data.lines.reduce((sum, line) => sum + (line.debit || 0), 0)
 
-    const totalDebit = data.lines.reduce((sum, line) => sum + (line.debit || 0), 0)
+  await audit(db, {
+    actor,
+    action: 'create_journal',
+    entity: 'journal_entries',
+    entityId: entryId,
+    after: {
+      ...data,
+      total_amount: totalDebit
+    },
+    ip: getClientIp(c),
+  })
 
-    await audit(db, {
-      actor,
-      action: 'create_journal',
-      entity: 'journal_entries',
-      entityId: entryId,
-      after: {
-        ...data,
-        total_amount: totalDebit
-      },
-      ip: getClientIp(c),
-    })
-
-    return c.json({ success: true, message: 'Jurnal berhasil dicatat', id: entryId }, 201)
-  } catch (err) {
-    const response = mapServiceError(c, err)
-    if (response) return response
-    throw err
-  }
+  return c.json({ success: true, message: 'Jurnal berhasil dicatat', id: entryId }, 201)
 })
 
 // ---------------------------------------------------------------------------
@@ -146,24 +133,18 @@ accounting.post('/journals/:id/reverse', requirePermission('create:accounting'),
   const actor = getActor(c)
   const adminId = getJwtPayload(c)?.sub || null
 
-  try {
-    const reversalId = await reverseJournalEntry(db, id, adminId)
+  const reversalId = await reverseJournalEntry(db, id, adminId)
 
-    await audit(db, {
-      actor,
-      action: 'reverse_journal',
-      entity: 'journal_entries',
-      entityId: reversalId,
-      after: { reversed_entry_id: id },
-      ip: getClientIp(c),
-    })
+  await audit(db, {
+    actor,
+    action: 'reverse_journal',
+    entity: 'journal_entries',
+    entityId: reversalId,
+    after: { reversed_entry_id: id },
+    ip: getClientIp(c),
+  })
 
-    return c.json({ success: true, message: 'Jurnal koreksi berhasil dibuat', id: reversalId }, 201)
-  } catch (err) {
-    const response = mapServiceError(c, err)
-    if (response) return response
-    throw err
-  }
+  return c.json({ success: true, message: 'Jurnal koreksi berhasil dibuat', id: reversalId }, 201)
 })
 
 // ---------------------------------------------------------------------------
@@ -174,24 +155,18 @@ accounting.delete('/journals/:id', requirePermission('delete:accounting'), async
   const id = requireRouteParam(c, 'id')
   const actor = getActor(c)
 
-  try {
-    const entry = await deleteJournalEntry(db, id)
+  const entry = await deleteJournalEntry(db, id)
 
-    await audit(db, {
-      actor,
-      action: 'delete_journal',
-      entity: 'journal_entries',
-      entityId: id,
-      before: { description: entry.description, reference_type: entry.reference_type },
-      ip: getClientIp(c),
-    })
+  await audit(db, {
+    actor,
+    action: 'delete_journal',
+    entity: 'journal_entries',
+    entityId: id,
+    before: { description: entry.description, reference_type: entry.reference_type },
+    ip: getClientIp(c),
+  })
 
-    return c.json({ success: true, message: 'Jurnal berhasil dihapus' })
-  } catch (err) {
-    const response = mapServiceError(c, err)
-    if (response) return response
-    throw err
-  }
+  return c.json({ success: true, message: 'Jurnal berhasil dihapus' })
 })
 
 // ---------------------------------------------------------------------------

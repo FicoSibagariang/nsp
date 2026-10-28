@@ -42,7 +42,6 @@ import {
   getMemberCashflowStatement,
   getMemberShuPortal,
 } from '../services/memberPortalService';
-import { mapServiceError } from '../lib/serviceResponse';
 
 const memberSelfService = new Hono();
 
@@ -360,8 +359,7 @@ const handleLoanApplication = async (c: any) => {
     return c.json({ success: false, message: 'Lampiran dokumen pendukung wajib diunggah' }, 400);
   }
 
-  try {
-    const result = await applyMemberLoan(db, memberId, {
+  const result = await applyMemberLoan(db, memberId, {
       amount,
       tenor,
       purpose,
@@ -390,11 +388,6 @@ const handleLoanApplication = async (c: any) => {
         attachmentName,
       },
     });
-  } catch (err: any) {
-    const res = mapServiceError(c, err);
-    if (res) return res;
-    return c.json({ success: false, message: err.message || 'Gagal mengajukan pinjaman' }, 400);
-  }
 };
 
 memberSelfService.post('/loans/apply', handleLoanApplication);
