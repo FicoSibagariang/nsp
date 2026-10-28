@@ -1,6 +1,7 @@
-import db from '../db'
+import db, { type Db } from '../db'
 import type { ShuCloseRow, ShuAllocationRow, InterestPaymentRow, MemberRow, SettingRow } from '../db/entities'
 import { calculateLoanInterest } from './loanService'
+import { ServiceError } from './errors'
 
 /**
  * Get SHU configuration from settings table.
@@ -23,7 +24,7 @@ export async function calculateMemberAverageSavings(
   includeInactive: boolean = true
 ): Promise<Record<string, MemberSavingsStats>> {
   const yearNum = parseInt(year, 10);
-  const isLeap = (yearNum % 4 === 0 && yearNum % 100 !== 0) || (yearNum % 400 === 0);
+  const _isLeap = (yearNum % 4 === 0 && yearNum % 100 !== 0) || (yearNum % 400 === 0);
 
   const startOfYearISO = `${year}-01-01T00:00:00.000Z`;
   const endOfYearISO = `${year}-12-31T23:59:59.999Z`;
@@ -446,4 +447,89 @@ export async function calculateSHU(year: string, options?: CalculateSHUOptions) 
     alokasiAnggota,
     config
   };
+}
+
+export async function saveShuConfig(
+  database: Db,
+  updates: Record<string, string>
+): Promise<void> {
+  await database.transaction(async () => {
+    for (const [k, v] of Object.entries(updates)) {
+      await database.run(
+        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+        [k, v]
+      );
+    }
+  })();
+}
+
+export async function closeShuPeriod(
+  database: Db,
+  year: string,
+  userEmail: string,
+  biayaOperasional?: number
+): Promise<{ pendapatan: number; shuNetto: number }> {
+  const check = await database.query("SELECT 1 FROM shu_closes WHERE year = ?").get(year);
+  if (check) {
+    throw new ServiceError(`Tahun ${year} sudah ditutup`, 409);
+  }
+
+  if (biayaOperasional !== undefined) {
+    await database.run(
+      "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+      [`biaya_operasional_${year}`, biayaOperasional.toString()]
+    );
+  }
+
+  const result = await calculateSHU(year, { mode: "realization" });
+
+  await database.transaction(async () => {
+    await database.run(
+      `
+      INSERT INTO shu_closes (year, pendapatan, biayaOperasional, shuNetto, distribusi, closedBy)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `,
+      [
+        year,
+        result.pendapatan,
+        result.biayaOperasional,
+        result.shuNetto,
+        JSON.stringify(result.distribusi),
+        userEmail,
+      ]
+    );
+
+    for (const a of result.alokasiAnggota) {
+      await database.run(
+        `
+        INSERT INTO shu_member_allocations (year, memberId, savingsShare, loansShare, totalSHU, averageSavings)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `,
+        [year, a.id, a.savingsShare, a.loansShare, a.shu, a.averageSavings ?? a.totalSavings]
+      );
+    }
+  })();
+
+  return { pendapatan: result.pendapatan, shuNetto: result.shuNetto };
+}
+
+export async function reopenShuPeriod(
+  database: Db,
+  year: string
+): Promise<{ year: string; pendapatan: number; shuNetto: number } | null> {
+  const check = await database.query("SELECT 1 FROM shu_closes WHERE year = ?").get(year);
+  if (!check) {
+    throw new ServiceError(`Tahun ${year} belum ditutup`, 400);
+  }
+
+  const beforeClose = await database
+    .query("SELECT year, pendapatan, shuNetto FROM shu_closes WHERE year = ?")
+    .get<{ year: string; pendapatan: number; shuNetto: number }>(year);
+
+  await database.transaction(async () => {
+    await database.run("DELETE FROM shu_member_allocations WHERE year = ?", [year]);
+    await database.run("DELETE FROM shu_closes WHERE year = ?", [year]);
+  });
+
+  return beforeClose;
 }

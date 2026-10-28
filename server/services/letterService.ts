@@ -226,3 +226,42 @@ export async function getLettersList(
     },
   };
 }
+
+export async function getLetterById(db: Db, id: string): Promise<any | null> {
+  return db.query("SELECT * FROM official_letters WHERE id = ?").get<any>(id);
+}
+
+export async function updateLetter(
+  db: Db,
+  id: string,
+  data: {
+    partyName: string;
+    subject: string;
+    description: string | null;
+    amount: number | null;
+    attachmentUrl: string | null;
+    attachmentName: string | null;
+    status: string;
+  }
+): Promise<void> {
+  await db.run(
+    `UPDATE official_letters SET
+      party_name = ?, subject = ?, description = ?, amount = ?,
+      attachment_url = ?, attachment_name = ?, status = ?, updated_at = NOW()
+     WHERE id = ?`,
+    [
+      data.partyName,
+      data.subject,
+      data.description,
+      data.amount,
+      data.attachmentUrl,
+      data.attachmentName,
+      data.status,
+      id,
+    ]
+  );
+}
+
+export async function deleteLetter(db: Db, id: string): Promise<void> {
+  await db.run("DELETE FROM official_letters WHERE id = ?", [id]);
+}

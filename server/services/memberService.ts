@@ -1,5 +1,5 @@
 import type { Db } from "../db";
-import type { MemberRow } from "../db/entities";
+import type { MemberRow, TransactionRow } from "../db/entities";
 import { isForeignKeyError, ServiceError } from "./errors";
 import { recordAutoJournal } from "./accountingService";
 
@@ -467,4 +467,113 @@ export async function batchImportMembers(
     failedCount: errors.length,
     errors,
   };
+}
+
+export type ListMembersFilter = {
+  page: number;
+  limit: number;
+  includeArchived?: boolean;
+  search?: string;
+  status?: string;
+  role?: string;
+  unpaidPokokOnly?: boolean;
+  fetchAll?: boolean;
+};
+
+export async function listMembers(
+  database: Db,
+  filter: ListMembersFilter
+): Promise<{ rows: MemberRow[]; total: number }> {
+  const { page, limit, includeArchived, search, status, role, unpaidPokokOnly, fetchAll } = filter;
+  const offset = (page - 1) * limit;
+
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (!includeArchived) {
+    conditions.push("deletedAt IS NULL");
+  }
+
+  if (search) {
+    conditions.push("(LOWER(name) LIKE ? OR LOWER(nik) LIKE ? OR phone LIKE ?)");
+    const pattern = `%${search.toLowerCase()}%`;
+    params.push(pattern, pattern, `%${search}%`);
+  }
+
+  if (status) {
+    conditions.push("status = ?");
+    params.push(status);
+  }
+
+  if (role) {
+    conditions.push("role = ?");
+    params.push(role);
+  }
+
+  if (unpaidPokokOnly) {
+    conditions.push("simpananPokok = 0");
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const limitClause = fetchAll ? "" : "LIMIT ? OFFSET ?";
+  const queryParams = fetchAll ? params : [...params, limit, offset];
+
+  const rows = await database
+    .query(`
+      SELECT
+        id, name, role, status, joinDate, nik, phone,
+        simpananPokok, simpananWajib, simpananSukarela, totalSavings,
+        email,
+        CASE WHEN password IS NOT NULL AND password <> '' THEN TRUE ELSE FALSE END AS "hasPortalAccess"
+      FROM members
+      ${whereClause}
+      ORDER BY name ASC, id DESC
+      ${limitClause}
+    `)
+    .all<MemberRow>(...queryParams);
+
+  const totalRes = await database
+    .query(`SELECT COUNT(*) as count FROM members ${whereClause}`)
+    .get<{ count: number | string }>(...params);
+
+  return {
+    rows,
+    total: Number(totalRes?.count ?? 0),
+  };
+}
+
+export async function getMemberForImpersonation(
+  database: Db,
+  id: string
+): Promise<{ id: string; name: string; email: string | null; status: string } | null> {
+  return database
+    .query(`SELECT id, name, email, status FROM members WHERE id = ? AND deletedAt IS NULL`)
+    .get<{ id: string; name: string; email: string | null; status: string }>(id);
+}
+
+export async function getMemberTransactions(
+  database: Db,
+  memberId: string
+): Promise<TransactionRow[]> {
+  return database
+    .query("SELECT * FROM transactions WHERE memberId = ? ORDER BY seq DESC")
+    .all<TransactionRow>(memberId);
+}
+
+export async function findMemberByEmailOrId(
+  database: Db,
+  identifier: string
+): Promise<MemberRow | null> {
+  return database
+    .query("SELECT * FROM members WHERE (email = ? OR id = ?) AND deletedAt IS NULL")
+    .get<MemberRow>(identifier, identifier);
+}
+
+export async function findMemberById(
+  database: Db,
+  id: string
+): Promise<MemberRow | null> {
+  return database
+    .query("SELECT * FROM members WHERE id = ? AND deletedAt IS NULL")
+    .get<MemberRow>(id);
 }

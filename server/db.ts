@@ -53,9 +53,11 @@ export class Statement {
     schema: S,
     ...args: unknown[]
   ): Promise<z.infer<S> | null> {
-    const row = await this.get<Record<string, unknown>>(...args);
-    if (!row) return null;
-    return schema.parse(row);
+    const rows = await getSql().unsafe(this.getPgQuery(), args as never[]);
+    if (!rows || rows.length === 0) return null;
+    const mapped = mapRow(rows[0] as Record<string, unknown>, schema);
+    if (!mapped) return null;
+    return schema.parse(mapped);
   }
 
   /** Fetch all rows and parse each with a Zod schema. */
@@ -63,8 +65,10 @@ export class Statement {
     schema: S,
     ...args: unknown[]
   ): Promise<Array<z.infer<S>>> {
-    const rows = await this.all<Record<string, unknown>>(...args);
-    return rows.map((r) => schema.parse(r));
+    const res = await getSql().unsafe(this.getPgQuery(), args as never[]);
+    const rawRows = Array.isArray(res) ? (res as Array<Record<string, unknown>>) : [];
+    const mappedRows = mapRows(rawRows, schema);
+    return mappedRows.map((r) => schema.parse(r));
   }
 
   async run(...args: unknown[]): Promise<void> {

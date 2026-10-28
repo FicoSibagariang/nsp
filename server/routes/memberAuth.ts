@@ -8,6 +8,7 @@ import { loginSchema } from '../schemas';
 import { secretKey, checkRateLimit } from '../middleware';
 import { getClientIp } from '../lib/audit';
 import { verifyGoogleToken } from '../google-auth';
+import { findMemberByEmailOrId, findMemberById } from '../services/memberService';
 import {
   accessTokenExpUnix,
   refreshTokenExpUnix,
@@ -112,7 +113,7 @@ memberAuth.post('/login', async (c) => {
     const { email, password } = parsed.data;
 
     // A member can log in using their email or their ID (NIP) mapped to the email field in the login form
-    const member = await db.query("SELECT * FROM members WHERE (email = ? OR id = ?) AND deletedAt IS NULL").get<MemberRow>(email, email);
+    const member = await findMemberByEmailOrId(db, email);
     
     if (!member || !member.password) {
       return c.json({ success: false, message: 'Invalid credentials' }, 401);
@@ -244,7 +245,7 @@ memberAuth.post('/refresh', async (c) => {
       return c.json({ success: false, message: 'Invalid refresh token role' }, 401);
     }
 
-    const member = await db.query("SELECT * FROM members WHERE id = ? AND deletedAt IS NULL").get<MemberRow>(memberId);
+    const member = await findMemberById(db, memberId);
     if (!member || member.status !== 'Aktif') {
       return c.json({ success: false, message: 'User no longer valid' }, 401);
     }

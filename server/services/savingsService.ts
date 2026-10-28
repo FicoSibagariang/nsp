@@ -1,5 +1,5 @@
 import type { Db } from "../db";
-import type { MemberSavingsCols } from "../db/entities";
+import type { MemberSavingsCols, TransactionRow } from "../db/entities";
 import { resolveCalendarDateIso } from "../lib/dates";
 import { ServiceError } from "./errors";
 import { recordAutoJournal } from "./accountingService";
@@ -231,4 +231,56 @@ export async function batchImportSavings(
     failedCount: errors.length,
     errors,
   };
+}
+
+export async function getSavingsTransactions(
+  database: Db,
+  page: number,
+  limit: number
+): Promise<{ rows: TransactionRow[]; total: number }> {
+  const offset = (page - 1) * limit;
+
+  const rows = await database
+    .query(`
+      SELECT t.*, m.name as "memberName" 
+      FROM transactions t
+      LEFT JOIN members m ON t.memberId = m.id
+      ORDER BY t.createdAt DESC 
+      LIMIT ? OFFSET ?
+    `)
+    .all<TransactionRow>(limit, offset);
+
+  const totalRes = (await database
+    .query("SELECT COUNT(*) as count FROM transactions")
+    .get()) as { count: number } | null;
+
+  return {
+    rows,
+    total: totalRes?.count ?? 0,
+  };
+}
+
+export async function getUnpaidPokokMembers(
+  database: Db
+): Promise<Array<{ nik: string | null; name: string }>> {
+  return database
+    .query(`
+      SELECT nik, name FROM members
+      WHERE simpananPokok = 0 AND deletedAt IS NULL
+      ORDER BY name ASC
+    `)
+    .all<{ nik: string | null; name: string }>();
+}
+
+export async function getSavingsPaymentSources(
+  database: Db
+): Promise<Array<{ id: string; code: string; name: string; type: string }>> {
+  return database
+    .query(`
+      SELECT id, code, name, type 
+      FROM accounts 
+      WHERE code LIKE '111%'
+      ORDER BY code ASC
+    `)
+    .all<{ id: string; code: string; name: string; type: string }>();
 }

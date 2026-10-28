@@ -53,8 +53,12 @@ type AppDb = {
   ) => (...args: TArgs) => Promise<TResult>;
 };
 
-/** Ordered forward-only migrations for this app. */
-export function buildMigrations(db: AppDb): Migration[] {
+/**
+ * Pure DDL Schema Migrations.
+ * These create and alter tables, constraints, and indexes without incidental production data hotfixes.
+ * Guaranteed to execute cleanly on fresh databases without requiring specific user/record IDs.
+ */
+export function buildSchemaMigrations(db: AppDb): Migration[] {
   return [
     createBaselineMigration(db),
     createConvertCurrencyMigration(db),
@@ -70,7 +74,6 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddMemberLoginMigration(db),
     createAddNotificationLogsMigration(db),
     createAddExpensesMigration(db),
-    createRegenerateLoanSchedulesAnnuityMigration(db),
     createAddMemberNikMigration(db),
     createAddMemberPhoneMigration(db),
     createAddAccountingMigration(db),
@@ -90,15 +93,42 @@ export function buildMigrations(db: AppDb): Migration[] {
     createAddShuAverageSavingsMigration(db),
     createAddLoanRejectionReasonMigration(db),
     createAddUserFeedbacksMigration(db),
+    createSetDefaultBungaPinjamanMigration(db),
+  ];
+}
+
+/**
+ * Production Data Hotfixes & Incidental Patches.
+ * Separated from DDL schema to avoid polluting clean dev/test environments
+ * with specific user/transaction data assumptions.
+ */
+export function buildDataPatches(db: AppDb): Migration[] {
+  return [
+    createRegenerateLoanSchedulesAnnuityMigration(db),
     createSyncLetterSequencesMigration(db),
     createSetEwaJournalCreatorSystemMigration(db),
     createFixDidiIrawanJournalDateMigration(db),
-    createSetDefaultBungaPinjamanMigration(db),
     createFixEwaSeptemberPayrollJournalDateMigration(db),
     createFixEwaNullFeePercentageMigration(db),
   ];
 }
 
+/** Ordered forward-only migrations (combining DDL schema and legacy data hotfixes for backward compatibility). */
+export function buildMigrations(db: AppDb): Migration[] {
+  return [...buildSchemaMigrations(db), ...buildDataPatches(db)];
+}
+
+/** Run pure DDL schema migrations only (ideal for clean database setups and test runs). */
+export async function applySchemaMigrations(db: AppDb): Promise<string[]> {
+  return runMigrations(db, buildSchemaMigrations(db));
+}
+
+/** Run production data patches only. */
+export async function applyDataPatches(db: AppDb): Promise<string[]> {
+  return runMigrations(db, buildDataPatches(db));
+}
+
+/** Run all migrations (schema + patches). */
 export async function applyAllMigrations(db: AppDb): Promise<string[]> {
   return runMigrations(db, buildMigrations(db));
 }

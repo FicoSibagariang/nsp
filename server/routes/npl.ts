@@ -1,181 +1,19 @@
 import { Hono } from 'hono'
 import db from '../db'
-import type { LoanRow, GroupCount } from '../db/entities'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
-import { calculateLoanInterest, getPaymentTolerance } from '../services/loanService'
+import { getNplReport } from '../services/nplService'
 
 const npl = new Hono()
 
 npl.get('/', requirePermission('read:npl'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
-  const offset = (page - 1) * limit
 
-  const bungaSetting = await db.query("SELECT value FROM settings WHERE key = 'bungaPinjaman'").get<{ value: string }>();
-  const bungaRate = parseFloat(bungaSetting?.value || '0');
-  const tolerance = getPaymentTolerance();
-
-  // Optional filter by collectibility bucket
-  const filterBucket = c.req.query('bucket'); // 'Lancar' | 'DPK' | 'Kurang Lancar' | 'Diragukan' | 'Macet'
-
-  // Get all active loans with their DPD (Days Past Due) based on schedules
-  const rows = await db.query(`
-    SELECT l.*,
-           COALESCE(SUM(p.amount), 0) as "paidAmount",
-           (SELECT MIN(ls.dueDate) 
-            FROM loan_schedules ls 
-            WHERE ls.loanId = l.id 
-              AND ls.status != 'Paid' 
-              AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
-              AND ls.dueDate < CURRENT_DATE
-           ) as oldestOverdueDate
-    FROM loans l
-    LEFT JOIN loan_payments p ON l.id = p.loanId
-    WHERE l.status IN ('Disetujui', 'Macet')
-    GROUP BY l.id
-    ORDER BY COALESCE((
-      SELECT MIN(ls.dueDate) 
-      FROM loan_schedules ls 
-      WHERE ls.loanId = l.id 
-        AND ls.status != 'Paid' 
-        AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
-        AND ls.dueDate < CURRENT_DATE
-    )::text, l.createdAt) DESC NULLS LAST
-    LIMIT ? OFFSET ?
-  `).all<LoanRow & { oldestOverdueDate: string | null }>(tolerance, tolerance, limit, offset)
-
-  const mappedLoans = rows.map(loan => {
-    // Calculate DPD based on oldest overdue schedule
-    let dpd = 0;
-    if (loan.oldestOverdueDate) {
-      const oldestDueDate = new Date(loan.oldestOverdueDate);
-      const today = new Date();
-      dpd = Math.max(0, Math.floor((today.getTime() - oldestDueDate.getTime()) / (1000 * 60 * 60 * 24)));
-    }
-
-    // Determine Kolektibilitas Standar (Kol 1 - Kol 5)
-    let collectibility = 'Lancar';
-    let agingBucket = 'Current';
-
-    if (loan.status === 'Macet' || dpd > 90) {
-      collectibility = 'Macet';
-      agingBucket = '90+';
-    } else if (dpd >= 61) {
-      collectibility = 'Diragukan';
-      agingBucket = '60-90';
-    } else if (dpd >= 31) {
-      collectibility = 'Kurang Lancar';
-      agingBucket = '30-60';
-    } else if (dpd >= 1) {
-      collectibility = 'Dalam Perhatian Khusus';
-      agingBucket = '1-30';
-    }
-
-    // Use snapshot values for approved loans (historical consistency)
-    let totalAmount: number;
-    if (loan.approvedAt && loan.totalAmount !== null) {
-      totalAmount = Number(loan.totalAmount);
-    } else {
-      ({ totalAmount } = calculateLoanInterest(loan.amount, loan.tenor, bungaRate));
-    }
-
-    const remainingAmount = Math.max(0, Number(totalAmount) - Number(loan.paidAmount || 0));
-
-    return {
-      ...loan,
-      interestAmount: Number(loan.interestAmount || 0),
-      totalAmount: Number(totalAmount),
-      remainingAmount,
-      dpd, // Days Past Due
-      agingBucket,
-      collectibility,
-    }
-  })
-
-  const totalRes = await db.query("SELECT COUNT(*) as count FROM loans WHERE status IN ('Disetujui', 'Macet')").get() as { count: number }
-
-  // NPL calculation based on actual DPD (not just manual status)
-  const [activeLoansRes, badLoansByStatusRes, badLoansByDPDRes] = await Promise.all([
-    db.query("SELECT SUM(amount) as s FROM loans WHERE status IN ('Disetujui', 'Macet')").get<{ s: number | null }>(),
-    db.query("SELECT SUM(amount) as s FROM loans WHERE status = 'Macet'").get<{ s: number | null }>(),
-    // Loans with DPD >= 90 are considered NPL regardless of manual status
-    db.query(`
-      SELECT SUM(l.amount) as s
-      FROM loans l
-      JOIN loan_schedules ls ON l.id = ls.loanId
-      WHERE ls.status != 'Paid' 
-        AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
-        AND ls.dueDate < CURRENT_DATE - INTERVAL '90 days'
-      GROUP BY l.id
-    `).all<{ s: number | null }>(tolerance)
-  ])
-
-  // Calculate total NPL by DPD (loans with any installment overdue > 90 days)
-  const nplLoansByDPD = await db.query(`
-    SELECT l.id, l.amount
-    FROM loans l
-    WHERE l.status IN ('Disetujui', 'Macet')
-    AND EXISTS (
-      SELECT 1 FROM loan_schedules ls
-      WHERE ls.loanId = l.id
-      AND ls.status != 'Paid'
-      AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
-      AND ls.dueDate < CURRENT_DATE - INTERVAL '90 days'
-    )
-  `).all<Pick<LoanRow, 'id' | 'amount'>>(tolerance);
-
-  const totalNPLByDPD = nplLoansByDPD.reduce((sum, loan) => sum + Number(loan.amount || 0), 0);
-
-  const totalActivePrincipal = activeLoansRes?.s || 0
-  const totalBadPrincipalByStatus = badLoansByStatusRes?.s || 0
-  const totalNPLByDPDNum = totalNPLByDPD; // Already a number from reduce
-
-  const nplRatioByStatus = totalActivePrincipal > 0 ? (totalBadPrincipalByStatus / totalActivePrincipal) * 100 : 0;
-  const nplRatioByDPD = totalActivePrincipal > 0 ? (totalNPLByDPDNum / totalActivePrincipal) * 100 : 0;
-
-  // Count accounts by aging bucket
-  const agingBuckets = await db.query(`
-    SELECT
-      CASE
-        WHEN oldestDueDate IS NULL OR oldestDueDate >= CURRENT_DATE THEN 'Current'
-        WHEN oldestDueDate >= CURRENT_DATE - INTERVAL '30 days' THEN '30-60'
-        WHEN oldestDueDate >= CURRENT_DATE - INTERVAL '60 days' THEN '60-90'
-        ELSE '90+'
-      END as bucket,
-      COUNT(*) as count
-    FROM (
-      SELECT l.id,
-             (SELECT MIN(ls.dueDate) 
-              FROM loan_schedules ls 
-              WHERE ls.loanId = l.id 
-                AND ls.status != 'Paid'
-                AND (COALESCE(ls.principalAmount, 0) + COALESCE(ls.interestAmount, 0) + COALESCE(ls.lateFee, 0) - COALESCE(ls.paidAmount, 0)) > ?
-             ) as oldestDueDate
-      FROM loans l
-      WHERE l.status IN ('Disetujui', 'Macet')
-    ) sub
-    GROUP BY 1
-  `).all<GroupCount>(tolerance);
+  const result = await getNplReport(db, page, limit)
 
   return c.json({
     success: true,
-    data: {
-      data: mappedLoans,
-      total: totalRes?.count ?? 0,
-      page,
-      limit,
-      summary: {
-        totalActivePrincipal,
-        totalBadPrincipal: totalBadPrincipalByStatus,
-        totalBadPrincipalByStatus,
-        totalNPLByDPD: totalNPLByDPDNum,
-        nplRatio: nplRatioByStatus,
-        nplRatioByStatus,
-        nplRatioByDPD,
-        agingBuckets: Object.fromEntries(agingBuckets.map(b => [b.bucket, Number(b.count || 0)])),
-        badAccountsCount: nplLoansByDPD.length
-      }
-    }
+    data: result,
   })
 })
 

@@ -29,6 +29,11 @@ import {
   batchImportLoans,
   batchImportPayments,
   batchImportSchedules,
+  getLoansList,
+  getLoanPaymentSources,
+  getLoanPayrollDeductions,
+  getLoanPaymentsLedger,
+  getLoanPaymentsByLoanId,
 } from '../services/loanService'
 import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
 import { clearStatsCache } from './stats'
@@ -39,80 +44,22 @@ const loans = new Hono()
 
 loans.get('/', requirePermission('read:loans'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
-  const offset = (page - 1) * limit
-  const includeArchived = c.req.query('includeArchived') === 'true'
-  const search = c.req.query('search')?.trim() || ''
-  const status = c.req.query('status')?.trim() || ''
   const fetchAll = c.req.query('all') === 'true'
 
-  const conditions: string[] = []
-  const params: unknown[] = []
-
-  if (!includeArchived) {
-    conditions.push('l.deletedAt IS NULL')
-  }
-
-  if (search) {
-    conditions.push('(LOWER(COALESCE(m.name, l.name)) LIKE ? OR LOWER(l.purpose) LIKE ? OR LOWER(COALESCE(e.bank_name, \'\')) LIKE ? OR LOWER(COALESCE(e.bank_account_number, \'\')) LIKE ?)')
-    const pattern = `%${search.toLowerCase()}%`
-    params.push(pattern, pattern, pattern, pattern)
-  }
-
-  if (status) {
-    conditions.push('l.status = ?')
-    params.push(status)
-  }
-
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-  const limitClause = fetchAll ? '' : 'LIMIT ? OFFSET ?'
-  const queryParams = fetchAll ? params : [...params, limit, offset]
-
-  const rows = await db.query(`
-    SELECT 
-      l.*, 
-      COALESCE(m.name, l.name) as name, 
-      COALESCE(SUM(p.amount), 0) as paidAmount,
-      e.bank_name as "destinationBank",
-      e.bank_account_number as "destinationAccount",
-      COALESCE(e.bank_account_holder, e.name, m.name) as "destinationName",
-      l.rejection_reason as "rejectionReason"
-    FROM loans l
-    LEFT JOIN members m ON m.id = l.memberId
-    LEFT JOIN loan_payments p ON l.id = p.loanId
-    LEFT JOIN employees e ON (e.member_id = m.id OR (m.nik IS NOT NULL AND e.nik = m.nik))
-    ${whereClause}
-    GROUP BY l.id, m.name, e.bank_name, e.bank_account_number, e.bank_account_holder, e.name
-    ORDER BY 
-      CASE l.status
-        WHEN 'Menunggu' THEN 1
-        WHEN 'Disetujui' THEN 2
-        WHEN 'Lunas' THEN 3
-        WHEN 'Macet' THEN 4
-        WHEN 'Ditolak' THEN 5
-        ELSE 6
-      END ASC,
-      l.createdat DESC,
-      l.id DESC
-    ${limitClause}
-  `).all<LoanRow & { paidAmount?: number }>(...queryParams)
-
-  const bungaRate = await getBungaRatePercent(db)
-  const mappedLoans = rows.map((loan) => enrichLoanForList(loan, bungaRate))
-
-  const countQuery = `
-    SELECT COUNT(DISTINCT l.id) as count
-    FROM loans l
-    LEFT JOIN members m ON m.id = l.memberId
-    LEFT JOIN employees e ON (e.member_id = m.id OR (m.nik IS NOT NULL AND e.nik = m.nik))
-    ${whereClause}
-  `
-  const totalRes = await db.query(countQuery).get(...params) as { count: number }
+  const { data: mappedLoans, total } = await getLoansList(db, {
+    page,
+    limit,
+    includeArchived: c.req.query('includeArchived') === 'true',
+    search: c.req.query('search')?.trim(),
+    status: c.req.query('status')?.trim(),
+    fetchAll,
+  })
 
   return c.json({
     success: true,
     data: {
       data: mappedLoans,
-      total: totalRes?.count ? Number(totalRes.count) : 0,
+      total,
       page,
       limit
     }
@@ -157,13 +104,7 @@ loans.post('/', requirePermission('create:loans'), async (c) => {
 
 // Get Available Payment Sources (Cash/Bank accounts) for Loan Disbursement
 loans.get('/payment-sources', requirePermission('approve:loans'), async (c) => {
-  const accounts = await db.query(`
-    SELECT id, code, name, type 
-    FROM accounts 
-    WHERE code LIKE '111%'
-    ORDER BY code ASC
-  `).all<any>();
-
+  const accounts = await getLoanPaymentSources(db);
   return c.json({ success: true, data: accounts });
 });
 
@@ -259,24 +200,7 @@ loans.get('/payroll-deductions', requirePermission('read:loans'), async (c) => {
     const startDate = `${month}-01`;
     const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
 
-    const rows = await db.query(
-      `SELECT 
-        COALESCE(e.nip, '') as "employeeId",
-        COALESCE(m.name, l.name) as "name",
-        COALESCE(m.id, l.memberid) as "memberId",
-        COUNT(ls.id) as "loanCount",
-        SUM(COALESCE(ls.principalamount, 0) + COALESCE(ls.interestamount, 0)) as "amount",
-        SUM(COALESCE(ls.principalamount, 0)) as "principalAmount",
-        SUM(COALESCE(ls.interestamount, 0)) as "interestAmount"
-      FROM loan_schedules ls
-      JOIN loans l ON l.id = ls.loanid
-      LEFT JOIN members m ON m.id = l.memberid
-      LEFT JOIN employees e ON (e.member_id = m.id OR (m.nik IS NOT NULL AND e.nik = m.nik) OR e.name ILIKE l.name)
-      WHERE ls.duedate >= ? AND ls.duedate <= ?
-        AND (l.deletedat IS NULL)
-      GROUP BY COALESCE(e.nip, ''), COALESCE(m.name, l.name), COALESCE(m.id, l.memberid)
-      ORDER BY COALESCE(m.name, l.name) ASC`
-    ).all(startDate, endDate);
+    const rows = await getLoanPayrollDeductions(db, startDate, endDate);
 
     const items = rows.map((r: any) => ({
       employeeId: r.employeeId || '',
@@ -353,54 +277,13 @@ loans.get('/payments', requirePermission('read:loans'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 
-  // Soft-deleted loans (deletedAt set) must not appear as pencairan / angsuran ledger rows.
-  // Prefer live members.name so renames show up even if loans.name snapshot is stale.
-  const rows = await db.query(`
-    SELECT * FROM (
-      SELECT
-        'pencairan' as "type",
-        l.id || '-disburse' as "id",
-        l.id as "loanId",
-        l.amount as "amount",
-        COALESCE(l.approvedAt::text, l.createdAt::text) as "paymentDate",
-        'Transfer' as "method",
-        COALESCE(m.name, l.name) as "borrowerName"
-      FROM loans l
-      LEFT JOIN members m ON m.id = l.memberId
-      WHERE l.status IN ('Disetujui', 'Lunas', 'Macet')
-        AND l.deletedAt IS NULL
-
-      UNION ALL
-
-      SELECT
-        'angsuran' as "type",
-        p.id as "id",
-        p.loanId as "loanId",
-        p.amount as "amount",
-        p.paymentDate as "paymentDate",
-        p.method as "method",
-        COALESCE(m.name, l.name) as "borrowerName"
-      FROM loan_payments p
-      INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
-      LEFT JOIN members m ON m.id = l.memberId
-    ) combined
-    ORDER BY "paymentDate" DESC
-    LIMIT ? OFFSET ?
-  `).all<LoanPaymentRow>(limit, offset)
-
-  const totalRes = await db.query(`
-    SELECT (
-      (SELECT COUNT(*) FROM loans WHERE status IN ('Disetujui', 'Lunas', 'Macet') AND deletedAt IS NULL) +
-      (SELECT COUNT(*) FROM loan_payments p
-       INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL)
-    ) as count
-  `).get<{ count: number }>()
+  const { rows, total } = await getLoanPaymentsLedger(db, limit, offset)
 
   return c.json({
     success: true,
     data: {
       data: rows,
-      total: totalRes?.count ?? 0,
+      total,
       page,
       limit
     }
@@ -501,7 +384,7 @@ loans.put('/:id/schedule', requirePermission('approve:loans'), async (c) => {
 loans.get('/:id/payments', requirePermission('read:loans'), async (c) => {
   try {
     const id = requireRouteParam(c, 'id')
-    const payments = await db.query("SELECT * FROM loan_payments WHERE loanId = ? ORDER BY paymentDate DESC").all(id)
+    const payments = await getLoanPaymentsByLoanId(db, id)
     return c.json({ success: true, data: payments })
   } catch (err) {
     const response = mapServiceError(c, err)
