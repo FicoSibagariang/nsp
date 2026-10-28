@@ -3,6 +3,24 @@ import { sign, verify, decode } from 'hono/jwt'
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
 import db from '../db'
 import type { AdminRow, SettingRow } from '../db/entities'
+import {
+  findAdminByEmail,
+  findAdminById,
+  findAdminByGoogleOrEmail,
+  getSsoAutoRegisterSetting,
+  createSsoAdmin,
+  linkGoogleAccount,
+  checkRefreshTokenRevoked,
+  revokeAllAdminRefreshTokens,
+  blacklistRefreshToken,
+  blacklistAccessToken,
+  getTotpStatus,
+  saveTotpSetup,
+  getAdminTotpData,
+  enableTotp,
+  disableTotp,
+  updateRecoveryCodes,
+} from '../services/authService'
 import { loginSchema } from '../schemas'
 import { secretKey, checkRateLimit, rateLimitLogin } from '../middleware'
 import { verifyGoogleToken } from '../google-auth'
@@ -37,7 +55,7 @@ auth.post('/login', async (c) => {
 
     const { email, password } = parsed.data
 
-    const admin = await db.query("SELECT * FROM admins WHERE email = ?").get<AdminRow>(email)
+    const admin = await findAdminByEmail(db, email)
     if (!admin) {
       return c.json({ success: false, message: 'Invalid credentials' }, 401)
     }
@@ -140,24 +158,22 @@ auth.post('/google', async (c) => {
     }
 
     // Look up admin by google_id or email
-    let admin = await db.query(
-      "SELECT * FROM admins WHERE google_id = ? OR email = ?"
-    ).get<AdminRow>(googleUser.sub, googleUser.email);
+    let admin = await findAdminByGoogleOrEmail(db, googleUser.sub, googleUser.email);
 
     if (!admin) {
       // Check if SSO auto-register is allowed
-      const ssoAutoRegister = await db.query(
-        "SELECT value FROM settings WHERE key = 'ssoAutoRegister'"
-      ).get<SettingRow>();
+      const ssoAllowed = await getSsoAutoRegisterSetting(db);
 
-      if (ssoAutoRegister?.value === 'true') {
+      if (ssoAllowed) {
         // Auto-register new admin with viewer role
         const id = crypto.randomUUID();
-        await db.run(
-          `INSERT INTO admins (id, email, password, role, google_id, name, avatar_url, auth_provider)
-           VALUES (?, ?, '', 'viewer', ?, ?, ?, 'google')`,
-          [id, googleUser.email, googleUser.sub, googleUser.name, googleUser.picture]
-        );
+        await createSsoAdmin(db, {
+          id,
+          email: googleUser.email,
+          googleSub: googleUser.sub,
+          name: googleUser.name,
+          avatarUrl: googleUser.picture,
+        });
         admin = { id, email: googleUser.email, role: 'viewer' };
       } else {
         return c.json({
@@ -167,10 +183,7 @@ auth.post('/google', async (c) => {
       }
     } else if (!admin.google_id) {
       // Link Google account to existing admin (first Google login)
-      await db.run(
-        "UPDATE admins SET google_id = ?, name = COALESCE(name, ?), avatar_url = ?, auth_provider = 'google' WHERE id = ?",
-        [googleUser.sub, googleUser.name, googleUser.picture, admin.id]
-      );
+      await linkGoogleAccount(db, admin.id, googleUser.sub, googleUser.name, googleUser.picture);
     }
 
     // Generate unique JWT IDs for token blacklist by jti
@@ -244,21 +257,16 @@ auth.post('/refresh', async (c) => {
     }
 
     // Check if this refresh token was already rotated/revoked (reuse detection)
-    const existing = await db.query(
-      "SELECT 1 FROM refresh_token_blacklist WHERE jti_token = ?"
-    ).get(refreshJti);
+    const isRevoked = await checkRefreshTokenRevoked(db, refreshJti);
 
-    if (existing) {
+    if (isRevoked) {
       // Token reuse detected — revoke all user tokens for security
       console.warn(`Token reuse detected for admin ${adminId}, revoking all sessions`);
-      await db.run(
-        "DELETE FROM refresh_token_blacklist WHERE admin_id = ?",
-        [adminId]
-      );
+      await revokeAllAdminRefreshTokens(db, adminId);
       return c.json({ success: false, message: 'Sesi tidak valid. Silakan login kembali.' }, 401);
     }
 
-    const admin = await db.query("SELECT * FROM admins WHERE id = ?").get<AdminRow>(adminId)
+    const admin = await findAdminById(db, adminId)
     if (!admin) {
       return c.json({ success: false, message: 'User no longer exists or has been deactivated' }, 401)
     }
@@ -268,10 +276,7 @@ auth.post('/refresh', async (c) => {
       const oldRefreshExpires = decodedRefresh.payload?.exp
         ? (decodedRefresh.payload.exp as number) * 1000
         : Date.now() + REFRESH_TOKEN_TTL_SEC * 1000;
-      await db.run(
-        "INSERT INTO refresh_token_blacklist (jti_token, admin_id, expires_at) VALUES (?, ?, ?) ON CONFLICT (jti_token) DO UPDATE SET revoked_at = CURRENT_TIMESTAMP",
-        [refreshJti, adminId, oldRefreshExpires]
-      );
+      await blacklistRefreshToken(db, refreshJti, adminId, oldRefreshExpires);
     }
 
     // Generate new access and refresh tokens with fresh jti claims
@@ -331,10 +336,7 @@ auth.post('/logout', async (c) => {
       // Blacklist by jti_token instead of full JWT string
       // Skip insert if no jti available (e.g., token from old system without jti claim)
       if (jti) {
-        await db.run(
-          "INSERT INTO token_blacklist (jti_token, expires_at) VALUES (?, ?) ON CONFLICT (jti_token) DO UPDATE SET expires_at = EXCLUDED.expires_at",
-          [jti, exp]
-        );
+        await blacklistAccessToken(db, jti, exp);
       } else {
         console.warn('Token tanpa jti di logout — skip blacklist');
       }
@@ -363,14 +365,12 @@ auth.get('/totp/status', async (c) => {
   }
 
   try {
-    const admin = await db.query(
-      "SELECT two_factor_enabled FROM admins WHERE id = ?"
-    ).get<AdminRow>(payload.sub);
+    const twoFactorEnabled = await getTotpStatus(db, payload.sub);
 
     return c.json({
       success: true,
       data: {
-        twoFactorEnabled: admin?.two_factor_enabled || false
+        twoFactorEnabled,
       }
     });
   } catch (error) {
@@ -392,10 +392,7 @@ auth.get('/totp/setup', async (c) => {
     const recoveryCodes = generateRecoveryCodes(8);
 
     // Store in database (but don't enable 2FA yet)
-    await db.run(
-      `UPDATE admins SET totp_secret = ?, recovery_codes = ? WHERE id = ?`,
-      [secret, JSON.stringify(recoveryCodes), payload.sub]
-    );
+    await saveTotpSetup(db, payload.sub, secret, recoveryCodes);
 
     // Return URI for QR code generation and the secret as fallback
     const uri = totpUrl(secret, payload.email);
@@ -430,9 +427,7 @@ auth.post('/totp/verify', async (c) => {
     }
 
     // Get stored secret for this user
-    const admin = await db.query(
-      "SELECT totp_secret FROM admins WHERE id = ?"
-    ).get<AdminRow>(payload.sub);
+    const admin = await getAdminTotpData(db, payload.sub);
 
     if (!admin?.totp_secret) {
       return c.json({ success: false, message: 'No TOTP setup found. Please start the enrollment process first.' }, 400);
@@ -445,10 +440,7 @@ auth.post('/totp/verify', async (c) => {
     }
 
     // Enable 2FA
-    await db.run(
-      "UPDATE admins SET two_factor_enabled = TRUE WHERE id = ?",
-      [payload.sub]
-    );
+    await enableTotp(db, payload.sub);
 
     return c.json({ success: true, message: 'Two-factor authentication enabled successfully' });
   } catch (error) {
@@ -473,9 +465,7 @@ auth.post('/totp/disable', async (c) => {
     }
 
     // Get admin record with recovery codes and secret
-    const admin = await db.query(
-      "SELECT totp_secret, recovery_codes FROM admins WHERE id = ?"
-    ).get<AdminRow>(payload.sub);
+    const admin = await getAdminTotpData(db, payload.sub);
 
     if (!admin?.totp_secret || !admin.recovery_codes) {
       return c.json({ success: false, message: 'Two-factor authentication is not enabled' }, 400);
@@ -503,10 +493,7 @@ auth.post('/totp/disable', async (c) => {
     }
 
     // Disable 2FA and clear all related data
-    await db.run(
-      "UPDATE admins SET two_factor_enabled = FALSE, totp_secret = NULL, recovery_codes = '[]' WHERE id = ?",
-      [payload.sub]
-    );
+    await disableTotp(db, payload.sub);
 
     return c.json({ success: true, message: 'Two-factor authentication disabled' });
   } catch (error) {
@@ -524,9 +511,7 @@ auth.post('/totp/recovery-codes', async (c) => {
 
   try {
     // Verify current TOTP token for security
-    const admin = await db.query(
-      "SELECT totp_secret, two_factor_enabled FROM admins WHERE id = ?"
-    ).get<AdminRow>(payload.sub);
+    const admin = await getAdminTotpData(db, payload.sub);
 
     if (!admin?.totp_secret || !admin.two_factor_enabled) {
       return c.json({ success: false, message: 'Two-factor authentication is not enabled' }, 400);
@@ -549,10 +534,7 @@ auth.post('/totp/recovery-codes', async (c) => {
     const newCodes = generateRecoveryCodes(8);
 
     // Update in database
-    await db.run(
-      "UPDATE admins SET recovery_codes = ? WHERE id = ?",
-      [JSON.stringify(newCodes), payload.sub]
-    );
+    await updateRecoveryCodes(db, payload.sub, newCodes);
 
     return c.json({ success: true, data: { recoveryCodes: newCodes } });
   } catch (error) {

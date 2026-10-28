@@ -8,6 +8,9 @@ import {
   getNextLetterNumberPreview,
   createOfficialLetter,
   getLettersList,
+  getLetterById,
+  updateLetter,
+  deleteLetter,
 } from '../services/letterService';
 import { z } from 'zod';
 
@@ -99,11 +102,12 @@ letters.post('/', requirePermission('create:loans'), async (c) => {
 // 5. Update Letter Details
 letters.put('/:id', requirePermission('approve:loans'), async (c) => {
   const id = c.req.param('id');
+  if (!id) {
+    return c.json({ success: false, message: 'ID surat diperlukan' }, 400);
+  }
   const body = await c.req.json();
 
-  const existing = await db
-    .query("SELECT * FROM official_letters WHERE id = ?")
-    .get<any>(id);
+  const existing = await getLetterById(db, id);
 
   if (!existing) {
     return c.json({ success: false, message: 'Surat tidak ditemukan' }, 404);
@@ -124,13 +128,15 @@ letters.put('/:id', requirePermission('approve:loans'), async (c) => {
     return c.json({ success: false, message: 'Perihal surat wajib diisi' }, 400);
   }
 
-  await db.run(
-    `UPDATE official_letters SET
-      party_name = ?, subject = ?, description = ?, amount = ?,
-      attachment_url = ?, attachment_name = ?, status = ?, updated_at = NOW()
-     WHERE id = ?`,
-    [partyName, subject, description, amount, attachmentUrl, attachmentName, status, id]
-  );
+  await updateLetter(db, id, {
+    partyName,
+    subject,
+    description,
+    amount,
+    attachmentUrl,
+    attachmentName,
+    status,
+  });
 
   await audit(db, {
     actor: getActor(c),
@@ -147,16 +153,17 @@ letters.put('/:id', requirePermission('approve:loans'), async (c) => {
 // 6. Delete / Cancel Letter
 letters.delete('/:id', requirePermission('delete:loans'), async (c) => {
   const id = c.req.param('id');
+  if (!id) {
+    return c.json({ success: false, message: 'ID surat diperlukan' }, 400);
+  }
 
-  const existing = await db
-    .query("SELECT * FROM official_letters WHERE id = ?")
-    .get<any>(id);
+  const existing = await getLetterById(db, id);
 
   if (!existing) {
     return c.json({ success: false, message: 'Surat tidak ditemukan' }, 404);
   }
 
-  await db.run("DELETE FROM official_letters WHERE id = ?", [id]);
+  await deleteLetter(db, id);
 
   await audit(db, {
     actor: getActor(c),

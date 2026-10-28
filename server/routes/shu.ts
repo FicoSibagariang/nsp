@@ -1,5 +1,11 @@
 import { Hono } from 'hono'
-import { calculateSHU, getShuConfig } from '../services/shuService'
+import {
+  calculateSHU,
+  getShuConfig,
+  saveShuConfig,
+  closeShuPeriod,
+  reopenShuPeriod,
+} from '../services/shuService'
 import { requirePermission } from '../middleware'
 import db from '../db'
 import type { ShuCloseRow } from '../db/entities'
@@ -50,14 +56,7 @@ shu.put('/config', requirePermission('update:settings'), async (c) => {
     shu_include_inactive_members: (includeInactiveMembers ?? true).toString(),
   };
 
-  await db.transaction(async () => {
-    for (const [k, v] of Object.entries(updates)) {
-      await db.run(
-        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-        [k, v]
-      );
-    }
-  })();
+  await saveShuConfig(db, updates);
 
   await audit(db, {
     actor: getActor(c),
@@ -79,59 +78,25 @@ shu.post('/close', requirePermission('approve:loans'), async (c) => {
   const { year, biayaOperasional } = await c.req.json();
   if (!year) return c.json({ success: false, message: 'Tahun wajib diisi' }, 400);
 
-  // Check whether the year is already closed
-  const check = await db.query("SELECT 1 FROM shu_closes WHERE year = ?").get(year);
-  if (check) {
-    return c.json({ success: false, message: `Tahun ${year} sudah ditutup` }, 409);
+  try {
+    const userEmail = getActor(c);
+    const { pendapatan, shuNetto } = await closeShuPeriod(db, year, userEmail, biayaOperasional);
+
+    // Audit: log SHU year close
+    await audit(db, {
+      actor: getActor(c),
+      action: 'close_shu',
+      entity: 'shu_closes',
+      entityId: year,
+      after: { year, pendapatan, shuNetto },
+      ip: getClientIp(c),
+    });
+
+    return c.json({ success: true, message: `Tahun Buku ${year} berhasil ditutup` });
+  } catch (err: any) {
+    const status = err.statusCode || 400;
+    return c.json({ success: false, message: err.message }, status);
   }
-
-  // Persist manual operating cost override if provided
-  if (biayaOperasional !== undefined) {
-    await db.run(
-      "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
-      [`biaya_operasional_${year}`, biayaOperasional.toString()]
-    );
-  }
-
-  // Calculate SHU for the year (strictly realization mode for closing)
-  const result = await calculateSHU(year, { mode: 'realization' });
-  const userEmail = getActor(c);
-
-  // Persist everything inside a transaction
-  await db.transaction(async () => {
-    // 1. Insert closing log into shu_closes
-    await db.run(`
-      INSERT INTO shu_closes (year, pendapatan, biayaOperasional, shuNetto, distribusi, closedBy)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [
-      year,
-      result.pendapatan,
-      result.biayaOperasional,
-      result.shuNetto,
-      JSON.stringify(result.distribusi),
-      userEmail
-    ]);
-
-    // 2. Insert member allocations into shu_member_allocations
-    for (const a of result.alokasiAnggota) {
-      await db.run(`
-        INSERT INTO shu_member_allocations (year, memberId, savingsShare, loansShare, totalSHU, averageSavings)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, [year, a.id, a.savingsShare, a.loansShare, a.shu, a.averageSavings ?? a.totalSavings]);
-    }
-  });
-
-  // Audit: log SHU year close
-  await audit(db, {
-    actor: getActor(c),
-    action: 'close_shu',
-    entity: 'shu_closes',
-    entityId: year,
-    after: { year, pendapatan: result.pendapatan, shuNetto: result.shuNetto },
-    ip: getClientIp(c),
-  })
-
-  return c.json({ success: true, message: `Tahun Buku ${year} berhasil ditutup` });
 });
 
 // ---------------------------------------------------------------------------
@@ -143,34 +108,26 @@ shu.post('/reopen', requirePermission('delete:members'), async (c) => {
   const { year } = await c.req.json();
   if (!year) return c.json({ success: false, message: 'Tahun wajib diisi' }, 400);
 
-  // Verify the year was actually closed before allowing reopen
-  const check = await db.query("SELECT 1 FROM shu_closes WHERE year = ?").get(year);
-  if (!check) {
-    return c.json({ success: false, message: `Tahun ${year} belum ditutup` }, 400);
+  try {
+    const beforeClose = await reopenShuPeriod(db, year);
+
+    // Audit: log SHU year reopen
+    if (beforeClose) {
+      await audit(db, {
+        actor: getActor(c),
+        action: 'reopen_shu',
+        entity: 'shu_closes',
+        entityId: year,
+        before: { year: beforeClose.year, pendapatan: beforeClose.pendapatan, shuNetto: beforeClose.shuNetto },
+        ip: getClientIp(c),
+      });
+    }
+
+    return c.json({ success: true, message: `Tahun Buku ${year} berhasil dibuka kembali` });
+  } catch (err: any) {
+    const status = err.statusCode || 400;
+    return c.json({ success: false, message: err.message }, status);
   }
-
-  // Capture before state for audit (fetch current closing data)
-  const beforeClose = await db.query("SELECT year, pendapatan, shuNetto FROM shu_closes WHERE year = ?").get<Pick<ShuCloseRow, "year" | "pendapatan" | "shuNetto">>(year)
-
-  // Delete allocations and closing log inside a transaction
-  await db.transaction(async () => {
-    await db.run("DELETE FROM shu_member_allocations WHERE year = ?", [year]);
-    await db.run("DELETE FROM shu_closes WHERE year = ?", [year]);
-  });
-
-  // Audit: log SHU year reopen
-  if (beforeClose) {
-    await audit(db, {
-      actor: getActor(c),
-      action: 'reopen_shu',
-      entity: 'shu_closes',
-      entityId: year,
-      before: { year: beforeClose.year, pendapatan: beforeClose.pendapatan, shuNetto: beforeClose.shuNetto },
-      ip: getClientIp(c),
-    })
-  }
-
-  return c.json({ success: true, message: `Tahun Buku ${year} berhasil dibuka kembali` });
 });
 
 export default shu;

@@ -11,13 +11,11 @@ import {
   getPayrollRecap,
   settlePayroll,
   batchImportEmployees,
-  getMemberActiveMonthlyLoanInstallment,
-  getCurrentPeriodMonth,
-  getPayrollCycleDates,
-  getEwaPayrollCutoffDay,
   getEwaFeeTiers,
   saveEwaFeeTiers,
   calculateEwaFee,
+  getEwaPaymentSources,
+  getEwaEmployeesList,
 } from '../services/ewaService';
 import {
   ewaEmployeeSchema,
@@ -57,13 +55,7 @@ ewa.get('/requests', requirePermission('read:loans'), async (c) => {
 
 // 1.1 Get Available Payment Sources (Cash/Bank accounts) for EWA Disbursement
 ewa.get('/payment-sources', requirePermission('approve:loans'), async (c) => {
-  const accounts = await db.query(`
-    SELECT id, code, name, type 
-    FROM accounts 
-    WHERE code LIKE '111%'
-    ORDER BY code ASC
-  `).all<any>();
-
+  const accounts = await getEwaPaymentSources(db);
   return c.json({ success: true, data: accounts });
 });
 
@@ -172,71 +164,16 @@ ewa.get('/employees', requirePermission('approve:loans'), async (c) => {
   const limit = Number(c.req.query('limit') || 20);
   const offset = (page - 1) * limit;
 
-  const conditions: string[] = [];
-  const params: any[] = [];
-
-  if (search.trim()) {
-    conditions.push('(LOWER(name) LIKE ? OR LOWER(nip) LIKE ? OR LOWER(email) LIKE ?)');
-    const q = `%${search.trim().toLowerCase()}%`;
-    params.push(q, q, q);
-  }
-  if (status) {
-    conditions.push('LOWER(status) = LOWER(?)');
-    params.push(status);
-  }
-
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-  const totalRes = await db
-    .query(`SELECT COUNT(*) as count FROM employees ${whereClause}`)
-    .get<any>(...params);
-  const total = Number(totalRes?.count || 0);
-
-  const rows = await db
-    .query(
-      `SELECT 
-        id, nip, nik, name, email, phone, department, position,
-        base_salary as "baseSalary", member_id as "memberId", is_member as "isMember",
-        bank_name as "bankName", bank_account_number as "bankAccountNumber", bank_account_holder as "bankAccountName",
-        status, contract_end_date as "contractEndDate", created_at as "createdAt", updated_at as "updatedAt"
-       FROM employees
-       ${whereClause}
-       ORDER BY name ASC
-       LIMIT ? OFFSET ?`
-    )
-    .all(...params, limit, offset);
-
-  const now = new Date();
-  const currentPeriod = getCurrentPeriodMonth(now);
-  const cutoffDay = getEwaPayrollCutoffDay();
-  const { startDate, endDate, totalDaysInCycle } = getPayrollCycleDates(currentPeriod, cutoffDay);
-  const targetUtc = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const clampedTargetTime = Math.min(endDate.getTime(), Math.max(startDate.getTime(), targetUtc));
-  const currentDayInCycle = Math.round((clampedTargetTime - startDate.getTime()) / msPerDay) + 1;
-  const progressiveRatio = Math.min(1, Math.max(0, currentDayInCycle / totalDaysInCycle));
-
-  const mapped = await Promise.all(
-    rows.map(async (r: any) => {
-      const baseSalary = Number(r.baseSalary || 0);
-      const coopLoanDeduction = await getMemberActiveMonthlyLoanInstallment(db, r.memberId, currentPeriod);
-      const effectiveSalary = Math.max(0, baseSalary - coopLoanDeduction);
-      const maxMonthlyLimit = Math.floor(effectiveSalary * 0.5);
-      const dailyAccumulatedLimit = Math.floor(maxMonthlyLimit * progressiveRatio);
-      return {
-        ...r,
-        baseSalary,
-        coopLoanDeduction,
-        effectiveSalary,
-        dailyAccumulatedLimit,
-        isMember: Boolean(r.isMember),
-      };
-    })
-  );
+  const { items, total } = await getEwaEmployeesList(db, {
+    search,
+    status,
+    limit,
+    offset,
+  });
 
   return c.json({
     success: true,
-    data: mapped,
+    data: items,
     total,
     page,
     limit,

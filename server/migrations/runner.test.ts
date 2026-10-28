@@ -1,6 +1,14 @@
 import { expect, test, describe, beforeAll } from "bun:test";
 import db from "../db";
-import { applyAllMigrations, listAppliedMigrations, runMigrations } from "./index";
+import {
+  applyAllMigrations,
+  applySchemaMigrations,
+  applyDataPatches,
+  buildSchemaMigrations,
+  buildDataPatches,
+  listAppliedMigrations,
+  runMigrations,
+} from "./index";
 import type { Migration } from "./types";
 
 describe("formal migrations", () => {
@@ -14,6 +22,27 @@ describe("formal migrations", () => {
     expect(applied).toContain("001_baseline");
     expect(applied).toContain("0003_convert_currency_to_int");
     expect(applied).toContain("0004_hash_admin_passwords");
+  });
+
+  test("separates pure DDL schema migrations from incidental data hotfixes", async () => {
+    const schemaMigs = buildSchemaMigrations(db);
+    const dataPatches = buildDataPatches(db);
+
+    // Schema migrations contain DDL tables
+    const schemaNames = schemaMigs.map((m) => m.name);
+    expect(schemaNames).toContain("001_baseline");
+    expect(schemaNames).toContain("0022_add_accounting");
+    expect(schemaNames).toContain("0025_add_ewa_service");
+
+    // Data patches contain user/record hotfixes
+    const patchNames = dataPatches.map((m) => m.name);
+    expect(patchNames).toContain("0041_fix_didi_irawan_journal_date");
+    expect(patchNames).toContain("0043_fix_ewa_september_payroll_journal_date");
+    expect(patchNames).toContain("0040_set_ewa_journal_creator_system");
+
+    // Pure schema migrations can run cleanly
+    await applySchemaMigrations(db);
+    await applyDataPatches(db);
   });
 
   test("core tables exist after baseline", async () => {

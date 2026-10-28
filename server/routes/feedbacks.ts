@@ -6,6 +6,13 @@ import db from '../db';
 import type { UserFeedbackRow } from '../db/entities';
 import { secretKey } from '../middleware';
 import { createFeedbackSchema, updateFeedbackStatusSchema } from '../schemas';
+import {
+  createUserFeedback,
+  listUserFeedbacks,
+  getUserFeedbacksStats,
+  updateUserFeedbackStatus,
+  deleteUserFeedback,
+} from '../services/feedbackService';
 
 const feedbacks = new Hono();
 
@@ -108,26 +115,20 @@ feedbacks.post('/', async (c) => {
     const effectiveUserEmail = tokenUser?.userEmail || userEmail || null;
     const effectiveUserRole = tokenUser?.userRole || (tokenUser ? 'member' : 'guest');
 
-    await db.prepare(`
-      INSERT INTO user_feedbacks (
-        id, type, title, description, screenshot_url, page_url, user_agent,
-        screen_resolution, user_id, user_name, user_email, user_role, status,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', NOW(), NOW())
-    `).run(
+    await createUserFeedback(db, {
       id,
       type,
-      title || null,
+      title: title || null,
       description,
       screenshotUrl,
-      pageUrl || null,
-      userAgent || null,
-      screenResolution || null,
+      pageUrl: pageUrl || null,
+      userAgent: userAgent || null,
+      screenResolution: screenResolution || null,
       effectiveUserId,
       effectiveUserName,
       effectiveUserEmail,
-      effectiveUserRole
-    );
+      effectiveUserRole,
+    });
 
     return c.json({
       success: true,
@@ -166,35 +167,13 @@ feedbacks.get('/', requireAdminAuth, async (c) => {
     const limit = Math.min(Math.max(parseInt(c.req.query('limit') || '50', 10), 1), 200);
     const offset = Math.max(parseInt(c.req.query('offset') || '0', 10), 0);
 
-    const conditions: string[] = ['1=1'];
-    const params: unknown[] = [];
-
-    if (type && ['bug', 'feature', 'general'].includes(type)) {
-      conditions.push('type = ?');
-      params.push(type);
-    }
-
-    if (status && ['open', 'in_review', 'resolved', 'closed'].includes(status)) {
-      conditions.push('status = ?');
-      params.push(status);
-    }
-
-    if (search && search.trim()) {
-      conditions.push('(title ILIKE ? OR description ILIKE ? OR user_name ILIKE ? OR user_email ILIKE ?)');
-      const pattern = `%${search.trim()}%`;
-      params.push(pattern, pattern, pattern, pattern);
-    }
-
-    const whereClause = conditions.join(' AND ');
-
-    const countRow = await db.query(
-      `SELECT COUNT(*) as count FROM user_feedbacks WHERE ${whereClause}`
-    ).get<{ count: number }>(...params);
-    const total = countRow?.count ? Number(countRow.count) : 0;
-
-    const rows = await db.query(
-      `SELECT * FROM user_feedbacks WHERE ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-    ).all<UserFeedbackRow>(...params, limit, offset);
+    const { feedbacks: rows, total } = await listUserFeedbacks(db, {
+      type,
+      status,
+      search,
+      limit,
+      offset,
+    });
 
     return c.json({
       success: true,
@@ -221,46 +200,11 @@ feedbacks.get('/', requireAdminAuth, async (c) => {
  */
 feedbacks.get('/stats', requireAdminAuth, async (c) => {
   try {
-    const statusRows = await db.query(`
-      SELECT status, COUNT(*) as count FROM user_feedbacks GROUP BY status
-    `).all<{ status: string; count: number }>();
-
-    const typeRows = await db.query(`
-      SELECT type, COUNT(*) as count FROM user_feedbacks GROUP BY type
-    `).all<{ type: string; count: number }>();
-
-    const statusCounts = {
-      open: 0,
-      in_review: 0,
-      resolved: 0,
-      closed: 0,
-    };
-    for (const r of statusRows) {
-      if (r.status in statusCounts) {
-        statusCounts[r.status as keyof typeof statusCounts] = Number(r.count);
-      }
-    }
-
-    const typeCounts = {
-      bug: 0,
-      feature: 0,
-      general: 0,
-    };
-    for (const r of typeRows) {
-      if (r.type in typeCounts) {
-        typeCounts[r.type as keyof typeof typeCounts] = Number(r.count);
-      }
-    }
-
-    const total = Object.values(statusCounts).reduce((a, b) => a + b, 0);
+    const data = await getUserFeedbacksStats(db);
 
     return c.json({
       success: true,
-      data: {
-        total,
-        statusCounts,
-        typeCounts,
-      },
+      data,
     });
   } catch (err) {
     console.error('Error getting feedback stats:', err);
@@ -290,24 +234,16 @@ feedbacks.put('/:id/status', requireAdminAuth, async (c) => {
       }, 400);
     }
 
-    const existing = await db.query('SELECT id FROM user_feedbacks WHERE id = ?').get<{ id: string }>(id);
-    if (!existing) {
-      return c.json({ success: false, message: 'Laporan masukan tidak ditemukan' }, 404);
-    }
-
-    const { status, adminNotes } = parsed.data;
-
-    await db.prepare(`
-      UPDATE user_feedbacks
-      SET status = ?, admin_notes = ?, updated_at = NOW()
-      WHERE id = ?
-    `).run(status, adminNotes ?? null, id);
+    await updateUserFeedbackStatus(db, id, parsed.data.status, parsed.data.adminNotes);
 
     return c.json({
       success: true,
       message: 'Status masukan berhasil diperbarui',
     });
-  } catch (err) {
+  } catch (err: any) {
+    if (err.statusCode === 404) {
+      return c.json({ success: false, message: err.message }, 404);
+    }
     console.error('Error updating feedback status:', err);
     return c.json({
       success: false,
@@ -324,16 +260,10 @@ feedbacks.put('/:id/status', requireAdminAuth, async (c) => {
 feedbacks.delete('/:id', requireAdminAuth, async (c) => {
   try {
     const id = c.req.param('id');
-    const existing = await db.query(
-      'SELECT id, screenshot_url FROM user_feedbacks WHERE id = ?'
-    ).get<{ id: string; screenshot_url: string | null }>(id);
+    const { screenshot_url } = await deleteUserFeedback(db, id);
 
-    if (!existing) {
-      return c.json({ success: false, message: 'Laporan masukan tidak ditemukan' }, 404);
-    }
-
-    if (existing.screenshot_url && existing.screenshot_url.startsWith('/uploads/feedbacks/')) {
-      const fileName = existing.screenshot_url.replace('/uploads/feedbacks/', '');
+    if (screenshot_url && screenshot_url.startsWith('/uploads/feedbacks/')) {
+      const fileName = screenshot_url.replace('/uploads/feedbacks/', '');
       const filePath = join(FEEDBACKS_DIR, fileName);
       if (existsSync(filePath)) {
         try {
@@ -344,13 +274,14 @@ feedbacks.delete('/:id', requireAdminAuth, async (c) => {
       }
     }
 
-    await db.prepare('DELETE FROM user_feedbacks WHERE id = ?').run(id);
-
     return c.json({
       success: true,
       message: 'Masukan berhasil dihapus',
     });
-  } catch (err) {
+  } catch (err: any) {
+    if (err.statusCode === 404) {
+      return c.json({ success: false, message: err.message }, 404);
+    }
     console.error('Error deleting feedback:', err);
     return c.json({
       success: false,

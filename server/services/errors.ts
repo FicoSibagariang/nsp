@@ -6,6 +6,10 @@ export class ServiceError extends Error {
     this.name = "ServiceError";
     this.status = status;
   }
+
+  get statusCode(): number {
+    return this.status;
+  }
 }
 
 export function isForeignKeyError(err: unknown): boolean {

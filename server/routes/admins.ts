@@ -1,35 +1,26 @@
 import { Hono } from 'hono'
 import db from '../db'
-import type { AdminPublic, MemberRow } from '../db/entities'
 import { adminCreationSchema, adminUpdateSchema } from '../schemas'
 import { requirePermission } from '../middleware'
 import { audit, getActor, getClientIp, getJwtPayload } from '../lib/audit'
+import {
+  getAdminsList,
+  createAdmin,
+  updateAdminRole,
+  deleteAdmin,
+  getSavingsReconciliationData,
+  reconcileMemberSavings,
+} from '../services/adminService'
+import { mapServiceError } from '../lib/serviceResponse'
 
 const admins = new Hono()
 
 // Apply requirePermission('manage:users') to all routes in this router
 admins.use('*', requirePermission('manage:users'))
 
-/**
- * Reconciliation response type for savings balance drift detection
- */
-interface SavingsReconciliationResult {
-  memberId: string
-  memberName: string
-  dbTotalSavings: number
-  calculatedTotal: number
-  difference: number
-  simpananPokok: number
-  simpananWajib: number
-  simpananSukarela: number
-}
-
 // GET /api/v1/admins
 admins.get('/', async (c) => {
-  const rows = await db.query(
-    "SELECT id, email, role, google_id, name, avatar_url, auth_provider FROM admins ORDER BY email ASC"
-  ).all<AdminPublic>()
-
+  const rows = await getAdminsList(db)
   return c.json({ success: true, data: rows })
 })
 
@@ -43,28 +34,7 @@ admins.post('/', async (c) => {
       return c.json({ success: false, errors: parsed.error.format() }, 400)
     }
     
-    const { email, password, role, name } = parsed.data
-    
-    // Check if email already exists
-    const existing = await db.query("SELECT 1 FROM admins WHERE email = ?").get(email)
-    if (existing) {
-      return c.json({ success: false, message: 'Email pengurus sudah terdaftar' }, 400)
-    }
-    
-    const id = crypto.randomUUID()
-    let hashedPassword = ""
-    let authProvider = "google" // If no password provided, it defaults to SSO
-    
-    if (password) {
-      hashedPassword = await Bun.password.hash(password)
-      authProvider = "local"
-    }
-    
-    const stmt = await db.prepare(`
-      INSERT INTO admins (id, email, password, role, name, auth_provider)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `)
-    await stmt.run(id, email, hashedPassword, role, name || null, authProvider)
+    const id = await createAdmin(db, parsed.data)
 
     // Audit: log admin creation
     await audit(db, {
@@ -72,12 +42,14 @@ admins.post('/', async (c) => {
       action: 'create_admin',
       entity: 'admins',
       entityId: id,
-      after: { email, role, name },
+      after: { email: parsed.data.email, role: parsed.data.role, name: parsed.data.name },
       ip: getClientIp(c),
     })
 
     return c.json({ success: true, message: 'Pengurus berhasil ditambahkan', id }, 201)
   } catch (error) {
+    const res = mapServiceError(c, error)
+    if (res) return res
     throw error
   }
 })
@@ -101,11 +73,9 @@ admins.put('/:id', async (c) => {
       return c.json({ success: false, message: 'Anda tidak dapat mengubah peran Anda sendiri' }, 400)
     }
     
-    const stmt = await db.prepare("UPDATE admins SET role = ? WHERE id = ?")
-    await stmt.run(role, id)
+    const before = await updateAdminRole(db, id, role)
 
     // Audit: log admin role update
-    const before = await db.query("SELECT email, role FROM admins WHERE id = ?").get<Pick<AdminPublic, "email" | "role">>(id)
     await audit(db, {
       actor: getActor(c),
       action: 'update_admin',
@@ -118,6 +88,8 @@ admins.put('/:id', async (c) => {
 
     return c.json({ success: true, message: 'Peran pengurus berhasil diperbarui' })
   } catch (error) {
+    const res = mapServiceError(c, error)
+    if (res) return res
     throw error
   }
 })
@@ -133,11 +105,7 @@ admins.delete('/:id', async (c) => {
       return c.json({ success: false, message: 'Anda tidak dapat menghapus akun Anda sendiri' }, 400)
     }
 
-    // Capture before state for audit (fetch email/role before delete)
-    const before = await db.query("SELECT email, role FROM admins WHERE id = ?").get<Pick<AdminPublic, "email" | "role">>(id)
-
-    const stmt = await db.prepare("DELETE FROM admins WHERE id = ?")
-    await stmt.run(id)
+    const before = await deleteAdmin(db, id)
 
     // Audit: log admin deletion
     if (before) {
@@ -153,6 +121,8 @@ admins.delete('/:id', async (c) => {
 
     return c.json({ success: true, message: 'Pengurus berhasil dihapus' })
   } catch (error) {
+    const res = mapServiceError(c, error)
+    if (res) return res
     throw error
   }
 })
@@ -160,59 +130,7 @@ admins.delete('/:id', async (c) => {
 // GET /api/v1/admins/reconcile-savings - Admin endpoint to detect savings balance drift
 admins.get('/reconcile-savings', async (c) => {
   try {
-    // Find members where totalSavings doesn't match the sum of components
-    const driftedMembers = await db.query(`
-      SELECT
-        id,
-        name as memberName,
-        simpananPokok,
-        simpananWajib,
-        simpananSukarela,
-        totalSavings as dbTotalSavings,
-        (simpananPokok + simpananWajib + simpananSukarela) as calculatedTotal
-      FROM members
-      WHERE totalSavings != simpananPokok + simpananWajib + simpananSukarela
-    `).all<{
-      id: string
-      memberName: string
-      simpananPokok: number
-      simpananWajib: number
-      simpananSukarela: number
-      dbTotalSavings: number
-      calculatedTotal: number
-    }>()
-
-    // Calculate the difference for each drifted member
-    const reconciliationResults: SavingsReconciliationResult[] = driftedMembers.map(m => ({
-      memberId: m.id,
-      memberName: m.memberName,
-      dbTotalSavings: Number(m.dbTotalSavings) || 0,
-      calculatedTotal: Number(m.simpananPokok) + Number(m.simpananWajib) + Number(m.simpananSukarela),
-      difference: (Number(m.dbTotalSavings) || 0) - (Number(m.simpananPokok) + Number(m.simpananWajib) + Number(m.simpananSukarela)),
-      simpananPokok: Number(m.simpananPokok) || 0,
-      simpananWajib: Number(m.simpananWajib) || 0,
-      simpananSukarela: Number(m.simpananSukarela) || 0
-    }))
-
-    // Also check for negative balances (which violate CHECK constraint after migration)
-    const negativeBalanceMembers = await db.query(`
-      SELECT
-        id,
-        name as memberName,
-        simpananPokok,
-        simpananWajib,
-        simpananSukarela,
-        totalSavings
-      FROM members
-      WHERE simpananPokok < 0 OR simpananWajib < 0 OR simpananSukarela < 0 OR totalSavings < 0
-    `).all<{
-      id: string
-      memberName: string
-      simpananPokok: number
-      simpananWajib: number
-      simpananSukarela: number
-      totalSavings: number
-    }>()
+    const { reconciliationResults, negativeBalanceMembers } = await getSavingsReconciliationData(db)
 
     return c.json({
       success: true,
@@ -240,21 +158,7 @@ admins.post('/reconcile-savings', async (c) => {
       return c.json({ success: false, message: 'memberId is required' }, 400)
     }
 
-    // Get current member data
-    const member = await db.query(`
-      SELECT id, name, simpananPokok, simpananWajib, simpananSukarela, totalSavings
-      FROM members WHERE id = ?
-    `).get<Pick<MemberRow, 'id' | 'name' | 'simpananPokok' | 'simpananWajib' | 'simpananSukarela' | 'totalSavings'>>(memberId)
-
-    if (!member) {
-      return c.json({ success: false, message: 'Member not found' }, 404)
-    }
-
-    // Calculate correct total
-    const correctTotal = Number(member.simpananPokok) + Number(member.simpananWajib) + Number(member.simpananSukarela)
-
-    // Update the member with corrected total
-    await db.query("UPDATE members SET totalSavings = ? WHERE id = ?").run(correctTotal, memberId)
+    const { member, correctTotal } = await reconcileMemberSavings(db, memberId)
 
     // Audit: log savings reconciliation
     await audit(db, {
@@ -277,6 +181,8 @@ admins.post('/reconcile-savings', async (c) => {
       }
     })
   } catch (error) {
+    const res = mapServiceError(c, error)
+    if (res) return res
     throw error
   }
 })

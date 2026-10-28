@@ -1,25 +1,30 @@
 import { Hono } from 'hono'
+import { z } from 'zod'
 import db from '../db'
 import { requirePermission } from '../middleware'
-import { z } from 'zod'
+import { parsePagination } from '../services/pagination'
+import {
+  getAccountsList,
+  createAccount,
+  getJournalEntriesList,
+  getJournalLinesByEntryId,
+  createManualJournalEntry,
+  reverseJournalEntry,
+  deleteJournalEntry,
+  getTrialBalanceReport,
+  getGeneralLedgerReport,
+} from '../services/accountingService'
 import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
 import { audit, getActor, getClientIp, getJwtPayload } from '../lib/audit'
-import { getLocalTodayYmd } from '../lib/dates'
-import type { AccountRow, JournalEntryRow, JournalLineRow } from '../db/entities'
-import { parsePagination } from '../services/pagination'
 
 const accounting = new Hono()
 
 // ---------------------------------------------------------------------------
-// Chart of Accounts
+// Chart of Accounts (COA)
 // ---------------------------------------------------------------------------
 
 accounting.get('/accounts', requirePermission('read:accounting'), async (c) => {
-  const accounts = await db.query(`
-    SELECT * FROM accounts 
-    ORDER BY code ASC
-  `).all<AccountRow>()
-  
+  const accounts = await getAccountsList(db)
   return c.json({ success: true, data: accounts })
 })
 
@@ -36,16 +41,7 @@ accounting.post('/accounts', requirePermission('manage:accounting'), async (c) =
   if (!parsed.success) return c.json({ success: false, errors: parsed.error.format() }, 400)
 
   try {
-    const existing = await db.query(`SELECT id FROM accounts WHERE code = $1`).get(parsed.data.code)
-    if (existing) {
-      return c.json({ success: false, message: 'Kode akun sudah digunakan' }, 400)
-    }
-
-    const newId = crypto.randomUUID()
-    await db.run(
-      `INSERT INTO accounts (id, code, name, type, normal_balance) VALUES ($1, $2, $3, $4, $5)`,
-      [newId, parsed.data.code, parsed.data.name, parsed.data.type, parsed.data.normal_balance]
-    )
+    const newId = await createAccount(db, parsed.data)
 
     await audit(db, {
       actor: getActor(c),
@@ -72,37 +68,13 @@ accounting.get('/journals', requirePermission('read:accounting'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
   const offset = (page - 1) * limit
 
-  const rows = await db.query(`
-    SELECT 
-      j.*,
-      COALESCE(a.name, 'Sistem') as creator_name,
-      (SELECT COALESCE(SUM(debit), 0) FROM journal_lines WHERE journal_entry_id = j.id) as total_amount,
-      (
-        SELECT json_agg(json_build_object(
-          'id', l.id,
-          'account_code', acc.code,
-          'account_name', acc.name,
-          'debit', l.debit,
-          'credit', l.credit,
-          'description', l.description
-        ) ORDER BY l.debit DESC, acc.code ASC)
-        FROM journal_lines l
-        JOIN accounts acc ON l.account_id = acc.id
-        WHERE l.journal_entry_id = j.id
-      ) as lines
-    FROM journal_entries j
-    LEFT JOIN admins a ON j.created_by = a.id
-    ORDER BY j.transaction_date DESC, j.created_at DESC
-    LIMIT $1 OFFSET $2
-  `).all<JournalEntryRow & { creator_name: string, total_amount: number, lines: any }>(limit, offset)
-
-  const countRes = await db.query(`SELECT COUNT(*) as count FROM journal_entries`).get() as { count: number }
+  const { rows, total } = await getJournalEntriesList(db, limit, offset)
 
   return c.json({
     success: true,
     data: {
       data: rows,
-      total: Number(countRes?.count ?? 0),
+      total,
       page,
       limit,
     },
@@ -111,18 +83,7 @@ accounting.get('/journals', requirePermission('read:accounting'), async (c) => {
 
 accounting.get('/journals/:id/lines', requirePermission('read:accounting'), async (c) => {
   const id = requireRouteParam(c, 'id')
-  
-  const lines = await db.query(`
-    SELECT 
-      l.*,
-      a.code as account_code,
-      a.name as account_name
-    FROM journal_lines l
-    JOIN accounts a ON l.account_id = a.id
-    WHERE l.journal_entry_id = $1
-    ORDER BY l.debit DESC, a.code ASC
-  `).all<JournalLineRow & { account_code: string, account_name: string }>(id)
-
+  const lines = await getJournalLinesByEntryId(db, id)
   return c.json({ success: true, data: lines })
 })
 
@@ -147,39 +108,14 @@ accounting.post('/journals', requirePermission('create:accounting'), async (c) =
   if (!parsed.success) return c.json({ success: false, errors: parsed.error.format() }, 400)
 
   const data = parsed.data
-  
-  // Validasi Balance
-  const totalDebit = data.lines.reduce((sum, line) => sum + (line.debit || 0), 0)
-  const totalCredit = data.lines.reduce((sum, line) => sum + (line.credit || 0), 0)
-  
-  if (Math.abs(totalDebit - totalCredit) > 0.01) {
-    return c.json({ success: false, message: 'Jurnal tidak balance. Total Debit harus sama dengan Kredit.' }, 400)
-  }
-  
-  if (totalDebit <= 0) {
-    return c.json({ success: false, message: 'Nilai jurnal tidak boleh nol.' }, 400)
-  }
 
   try {
-    const entryId = crypto.randomUUID()
     const actor = getActor(c)
     const adminId = getJwtPayload(c)?.sub || null
 
-    await db.transaction(async () => {
-      // 1. Insert Header
-      await db.run(`
-        INSERT INTO journal_entries (id, transaction_date, description, reference_type, reference_id, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [entryId, data.transaction_date, data.description, data.reference_type || null, data.reference_id || null, adminId])
+    const entryId = await createManualJournalEntry(db, data, adminId)
 
-      // 2. Insert Lines
-      for (const line of data.lines) {
-        await db.run(`
-          INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, description)
-          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
-        `, [entryId, line.account_id, line.debit, line.credit, line.description || null])
-      }
-    })();
+    const totalDebit = data.lines.reduce((sum, line) => sum + (line.debit || 0), 0)
 
     await audit(db, {
       actor,
@@ -210,60 +146,8 @@ accounting.post('/journals/:id/reverse', requirePermission('create:accounting'),
   const actor = getActor(c)
   const adminId = getJwtPayload(c)?.sub || null
 
-  // 1. Load the original entry
-  const entry = await db.query(`SELECT * FROM journal_entries WHERE id = $1`).get<{ id: string; transaction_date: string; description: string; reference_type: string | null; reference_id: string | null }>(id)
-  if (!entry) return c.json({ success: false, message: 'Jurnal tidak ditemukan' }, 404)
-
-  // Check if this entry was already reversed (has a reversal entry)
-  const alreadyReversed = await db.query(
-    `SELECT id FROM journal_entries WHERE reference_type = 'reversal_of' AND reference_id = $1`
-  ).get(id)
-  if (alreadyReversed) {
-    return c.json({ success: false, message: 'Jurnal ini sudah pernah dikoreksi sebelumnya.' }, 400)
-  }
-
-  // 2. Load original lines
-  const lines = await db.query(`
-    SELECT jl.*, a.code as account_code
-    FROM journal_lines jl
-    JOIN accounts a ON jl.account_id = a.id
-    WHERE jl.journal_entry_id = $1
-  `).all<{ id: string; account_id: string; debit: number; credit: number; description: string | null }>(id)
-
-  if (lines.length === 0) return c.json({ success: false, message: 'Jurnal tidak memiliki baris' }, 400)
-
   try {
-    const reversalId = crypto.randomUUID()
-    const today = getLocalTodayYmd()
-
-    await db.transaction(async () => {
-      // Insert reversal header
-      await db.run(`
-        INSERT INTO journal_entries (id, transaction_date, description, reference_type, reference_id, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [
-        reversalId,
-        today,
-        `[KOREKSI] ${entry.description}`,
-        'reversal_of',
-        id,
-        adminId,
-      ])
-
-      // Insert reversed lines (swap debit ↔ credit)
-      for (const line of lines) {
-        await db.run(`
-          INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, description)
-          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
-        `, [
-          reversalId,
-          line.account_id,
-          line.credit,   // swapped
-          line.debit,    // swapped
-          line.description ? `[Koreksi] ${line.description}` : '[Koreksi]',
-        ])
-      }
-    })()
+    const reversalId = await reverseJournalEntry(db, id, adminId)
 
     await audit(db, {
       actor,
@@ -290,23 +174,8 @@ accounting.delete('/journals/:id', requirePermission('delete:accounting'), async
   const id = requireRouteParam(c, 'id')
   const actor = getActor(c)
 
-  const entry = await db.query(`SELECT * FROM journal_entries WHERE id = $1`).get<{ id: string; description: string; reference_type: string | null }>(id)
-  if (!entry) return c.json({ success: false, message: 'Jurnal tidak ditemukan' }, 404)
-
-  // Block deletion of auto-generated journals (they are owned by business logic)
-  const autoTypes = ['loan_disbursement', 'loan_payment', 'savings_setor', 'savings_tarik']
-  if (entry.reference_type && autoTypes.includes(entry.reference_type)) {
-    return c.json({
-      success: false,
-      message: 'Jurnal otomatis (dari simpanan/pinjaman) tidak dapat dihapus langsung. Gunakan fitur Koreksi.',
-    }, 400)
-  }
-
   try {
-    await db.transaction(async () => {
-      await db.run(`DELETE FROM journal_lines WHERE journal_entry_id = $1`, [id])
-      await db.run(`DELETE FROM journal_entries WHERE id = $1`, [id])
-    })()
+    const entry = await deleteJournalEntry(db, id)
 
     await audit(db, {
       actor,
@@ -333,148 +202,24 @@ accounting.get('/ledger', requirePermission('read:accounting'), async (c) => {
   const startDate = c.req.query('startDate')?.trim()
   const endDate = c.req.query('endDate')?.trim()
 
-  let obFilter = '';
-  let perFilter = '';
-  const params: any[] = [];
-  
-  if (startDate) {
-    obFilter = 'AND j.transaction_date < ?';
-    perFilter = 'AND j.transaction_date >= ?';
-    params.push(startDate, startDate);
-  } else {
-    obFilter = 'AND 1=0';
-  }
-  if (endDate) {
-    perFilter += ' AND j.transaction_date <= ?';
-    params.push(endDate);
-  }
-
-  const query = `
-    WITH OB AS (
-      SELECT 
-        l.account_id,
-        SUM(l.debit) as ob_debit,
-        SUM(l.credit) as ob_credit
-      FROM journal_lines l
-      JOIN journal_entries j ON l.journal_entry_id = j.id
-      WHERE 1=1 ${obFilter}
-      GROUP BY l.account_id
-    ),
-    PER AS (
-      SELECT
-        l.account_id,
-        SUM(l.debit) as per_debit,
-        SUM(l.credit) as per_credit
-      FROM journal_lines l
-      JOIN journal_entries j ON l.journal_entry_id = j.id
-      WHERE 1=1 ${perFilter}
-      GROUP BY l.account_id
-    )
-    SELECT 
-      a.id, a.code, a.name, a.type, a.normal_balance,
-      COALESCE(PER.per_debit, 0) as total_debit,
-      COALESCE(PER.per_credit, 0) as total_credit,
-      CASE 
-        WHEN a.normal_balance = 'DEBIT' THEN COALESCE(OB.ob_debit, 0) - COALESCE(OB.ob_credit, 0)
-        ELSE COALESCE(OB.ob_credit, 0) - COALESCE(OB.ob_debit, 0)
-      END as opening_balance,
-      CASE 
-        WHEN a.normal_balance = 'DEBIT' THEN (COALESCE(OB.ob_debit, 0) - COALESCE(OB.ob_credit, 0)) + COALESCE(PER.per_debit, 0) - COALESCE(PER.per_credit, 0)
-        ELSE (COALESCE(OB.ob_credit, 0) - COALESCE(OB.ob_debit, 0)) + COALESCE(PER.per_credit, 0) - COALESCE(PER.per_debit, 0)
-      END as balance
-    FROM accounts a
-    LEFT JOIN OB ON a.id = OB.account_id
-    LEFT JOIN PER ON a.id = PER.account_id
-    WHERE (COALESCE(OB.ob_debit, 0) + COALESCE(OB.ob_credit, 0) + COALESCE(PER.per_debit, 0) + COALESCE(PER.per_credit, 0)) > 0
-    ORDER BY a.code ASC
-  `;
-
-  const rows = await db.query(query).all(...params)
-  
+  const rows = await getTrialBalanceReport(db, startDate, endDate)
   return c.json({ success: true, data: rows })
 })
+
 accounting.get('/ledger/:accountId', requirePermission('read:accounting'), async (c) => {
-  const accountId = c.req.param('accountId')
+  const accountId = requireRouteParam(c, 'accountId')
   const startDate = c.req.query('startDate')?.trim()
   const endDate = c.req.query('endDate')?.trim()
 
-  const account = await db.query(`SELECT * FROM accounts WHERE id = ?`).get(accountId)
-  if (!account) {
+  const data = await getGeneralLedgerReport(db, accountId, startDate, endDate)
+  if (!data) {
     return c.json({ success: false, error: 'Account not found' }, 404)
-  }
-
-  // Calculate Opening Balance
-  let openingBalance = 0;
-  if (startDate) {
-    const obQuery = `
-      SELECT COALESCE(SUM(l.debit), 0) as total_debit, COALESCE(SUM(l.credit), 0) as total_credit
-      FROM journal_lines l
-      JOIN journal_entries j ON l.journal_entry_id = j.id
-      WHERE l.account_id = ? AND j.transaction_date < ?
-    `;
-    const obRes = await db.query(obQuery).get(accountId, startDate) as any;
-    if (obRes) {
-      if ((account as any).normal_balance === 'DEBIT') {
-        openingBalance = Number(obRes.total_debit) - Number(obRes.total_credit);
-      } else {
-        openingBalance = Number(obRes.total_credit) - Number(obRes.total_debit);
-      }
-    }
-  }
-
-  // Fetch Transactions
-  let txQuery = `
-    SELECT 
-      l.id,
-      j.transaction_date,
-      j.reference_type,
-      j.reference_id,
-      j.description as journal_description,
-      l.description as line_description,
-      l.debit,
-      l.credit
-    FROM journal_lines l
-    JOIN journal_entries j ON l.journal_entry_id = j.id
-    WHERE l.account_id = ?
-  `;
-  const params: any[] = [accountId];
-
-  if (startDate) {
-    txQuery += ` AND j.transaction_date >= ?`;
-    params.push(startDate);
-  }
-  if (endDate) {
-    txQuery += ` AND j.transaction_date <= ?`;
-    params.push(endDate);
-  }
-
-  txQuery += ` ORDER BY j.transaction_date ASC, j.created_at ASC`;
-
-  const transactions = await db.query(txQuery).all(...params) as any[];
-
-  // Calculate Running Balance
-  let runningBalance = openingBalance;
-  for (const tx of transactions) {
-    const d = Number(tx.debit || 0);
-    const c = Number(tx.credit || 0);
-    if ((account as any).normal_balance === 'DEBIT') {
-      runningBalance += d - c;
-    } else {
-      runningBalance += c - d;
-    }
-    tx.balance = runningBalance;
   }
 
   return c.json({ 
     success: true, 
-    data: { 
-      account,
-      openingBalance,
-      transactions,
-      closingBalance: runningBalance
-    }
+    data,
   })
 })
 
 export default accounting
-

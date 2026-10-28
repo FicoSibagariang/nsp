@@ -11,7 +11,12 @@ import {
   savingsDepositApproveSchema,
   savingsDepositRejectSchema,
 } from '../schemas'
-import { batchImportSavings } from '../services/savingsService'
+import {
+  batchImportSavings,
+  getSavingsTransactions,
+  getUnpaidPokokMembers,
+  getSavingsPaymentSources,
+} from '../services/savingsService'
 import {
   getWithdrawalsList,
   approveSavingsWithdrawal,
@@ -38,23 +43,13 @@ function isValidTransactionType(type: string): type is (typeof SAVINGS_TRANSACTI
 
 savings.get('/transactions', requirePermission('read:members'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
-  const offset = (page - 1) * limit
-
-  const rows = await db.query(`
-    SELECT t.*, m.name as "memberName" 
-    FROM transactions t
-    LEFT JOIN members m ON t.memberId = m.id
-    ORDER BY t.createdAt DESC 
-    LIMIT ? OFFSET ?
-  `).all<TransactionRow>(limit, offset)
-
-  const totalRes = await db.query("SELECT COUNT(*) as count FROM transactions").get() as { count: number }
+  const { rows, total } = await getSavingsTransactions(db, page, limit)
 
   return c.json({
     success: true,
     data: {
       data: rows,
-      total: totalRes?.count ?? 0,
+      total,
       page,
       limit
     }
@@ -62,11 +57,7 @@ savings.get('/transactions', requirePermission('read:members'), async (c) => {
 })
 
 savings.get('/template-csv', requirePermission('read:members'), async (c) => {
-  const unpaidMembers = await db.query(`
-    SELECT nik, name FROM members
-    WHERE simpananPokok = 0 AND deletedAt IS NULL
-    ORDER BY name ASC
-  `).all<{ nik: string | null; name: string }>()
+  const unpaidMembers = await getUnpaidPokokMembers(db)
 
   const today = new Date().toISOString().split('T')[0]
   const lines = ['nik,nama,jenis_simpanan,nominal,tanggal']
@@ -116,13 +107,7 @@ savings.post('/batch-import', requirePermission('update:savings'), async (c) => 
 
 // Get payment sources (Kas / Bank) for disbursement
 savings.get('/payment-sources', requirePermission('read:members'), async (c) => {
-  const accounts = await db.query(`
-    SELECT id, code, name, type 
-    FROM accounts 
-    WHERE code LIKE '111%'
-    ORDER BY code ASC
-  `).all<any>()
-
+  const accounts = await getSavingsPaymentSources(db)
   return c.json({ success: true, data: accounts })
 })
 

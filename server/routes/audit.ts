@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import db from '../db'
-import type { AuditLogRow, AuditActionCount } from '../db/entities'
 import { requirePermission } from '../middleware'
+import { getAuditLogsList, getAuditStats } from '../services/auditService'
 
 const auditRouter = new Hono()
 
@@ -22,59 +22,16 @@ auditRouter.get('/', requirePermission('manage:users'), async (c) => {
   const limit = Math.min(parseInt(limitRaw, 10), 200)
   const offset = parseInt(offsetRaw, 10)
 
-  // Build WHERE clause dynamically based on provided filters
-  const conditions: string[] = ['1=1']
-  const params: unknown[] = []
-
-  if (actor) {
-    conditions.push('actor = ?')
-    params.push(actor)
-  }
-  if (action) {
-    conditions.push('action = ?')
-    params.push(action)
-  }
-  if (entity) {
-    conditions.push('entity = ?')
-    params.push(entity)
-  }
-  if (entityId) {
-    conditions.push('entity_id = ?')
-    params.push(entityId)
-  }
-  if (from) {
-    conditions.push('created_at >= ?')
-    params.push(from)
-  }
-  if (to) {
-    conditions.push('created_at <= ?')
-    params.push(to)
-  }
-
-  const whereClause = conditions.join(' AND ')
-
-  // Query audit logs with filters, ordered by most recent first
-  const rows = await db.query(
-    `SELECT * FROM audit_logs WHERE ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
-  ).all<AuditLogRow>(...params, limit, offset)
-
-  // Parse JSONB fields back to objects for API response
-  for (const row of rows) {
-    if (row.before) {
-      try {
-        row.before = typeof row.before === 'string' ? JSON.parse(row.before) : row.before
-      } catch {
-        row.before = {} // Fallback for malformed JSON
-      }
-    }
-    if (row.after) {
-      try {
-        row.after = typeof row.after === 'string' ? JSON.parse(row.after) : row.after
-      } catch {
-        row.after = {} // Fallback for malformed JSON
-      }
-    }
-  }
+  const rows = await getAuditLogsList(db, {
+    actor,
+    action,
+    entity,
+    entityId,
+    from,
+    to,
+    limit,
+    offset,
+  })
 
   return c.json({ success: true, data: rows })
 })
@@ -84,10 +41,7 @@ auditRouter.get('/', requirePermission('manage:users'), async (c) => {
  * Requires manage:users permission (superadmin only).
  */
 auditRouter.get('/stats', requirePermission('manage:users'), async (c) => {
-  const rows = await db.query(
-    `SELECT action, COUNT(*) as count FROM audit_logs GROUP BY action ORDER BY count DESC`
-  ).all<AuditActionCount>()
-
+  const rows = await getAuditStats(db)
   return c.json({ success: true, data: rows })
 })
 

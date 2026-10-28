@@ -1,18 +1,6 @@
 import { Hono } from 'hono';
 import db from '../db';
 import type { JwtPayload } from '../types/auth';
-
-const memberSelfService = new Hono();
-
-// Middleware to ensure route is only accessed by a member
-memberSelfService.use('/*', async (c, next) => {
-  const payload = c.get('jwtPayload') as JwtPayload | undefined;
-  if (!payload || payload.role !== 'member') {
-    return c.json({ success: false, message: 'Unauthorized, member access only' }, 401);
-  }
-  return next();
-});
-
 import {
   getEmployeeByEmail,
   getEmployeeById,
@@ -40,7 +28,32 @@ import {
   notifySavingsDeposit,
   notifyLoanApplication,
 } from '../services/waNotificationService';
-import { calculateSHU } from '../services/shuService';
+import {
+  findEmployeeIdByMemberId,
+  getMemberPortalProfile,
+  getMemberSavingsTransactions,
+  getMemberNameAndNik,
+  getMemberLoans,
+  getMemberLoanSchedule,
+  getMemberLoanPayments,
+  applyMemberLoan,
+  getMemberIncomeStatement,
+  getMemberBalanceSheet,
+  getMemberCashflowStatement,
+  getMemberShuPortal,
+} from '../services/memberPortalService';
+import { mapServiceError } from '../lib/serviceResponse';
+
+const memberSelfService = new Hono();
+
+// Middleware to ensure route is only accessed by a member
+memberSelfService.use('/*', async (c, next) => {
+  const payload = c.get('jwtPayload') as JwtPayload | undefined;
+  if (!payload || payload.role !== 'member') {
+    return c.json({ success: false, message: 'Unauthorized, member access only' }, 401);
+  }
+  return next();
+});
 
 // Get member / employee profile and savings summary
 memberSelfService.get('/profile', async (c) => {
@@ -48,85 +61,23 @@ memberSelfService.get('/profile', async (c) => {
   const memberId = payload.sub;
   const email = payload.email;
 
-  const member = await db.query(
-    "SELECT id, name, role, status, joinDate, nik, phone, simpananPokok, simpananWajib, simpananSukarela, totalSavings FROM members WHERE id = ?"
-  ).get<any>(memberId);
+  const profileData = await getMemberPortalProfile(db, memberId, email);
 
-  // Look up employee record by email or memberId
-  let employee = null;
-  if (email) {
-    employee = await getEmployeeByEmail(db, email);
-  }
-  if (!employee && memberId) {
-    const empByMember = await db.query("SELECT id FROM employees WHERE member_id = ? LIMIT 1").get<any>(memberId);
-    if (empByMember?.id) {
-      employee = await getEmployeeById(db, empByMember.id);
-    }
-  }
-
-  if (!member && !employee) {
+  if (!profileData) {
     return c.json({ success: false, message: 'Data pengguna tidak ditemukan' }, 404);
   }
 
-  const isCoopMember = !!member;
-  const settingsRows = await db
-    .query("SELECT key, value FROM settings WHERE key IN ('bungaPinjaman', 'coopBankName', 'coopBankAccountNumber', 'coopBankAccountName', 'koperasiName', 'viewReports', 'viewMemberShu')")
-    .all<{ key: string; value: string }>();
-  const settingsMap: Record<string, string> = {};
-  for (const s of settingsRows) {
-    settingsMap[s.key] = s.value;
-  }
-  const loanInterestRate = parseFloat(settingsMap['bungaPinjaman'] || "0");
-  const canViewReports = settingsMap['viewReports'] === 'true';
-  const canViewShu = settingsMap['viewMemberShu'] !== 'false';
-
-  const profileData = {
-    id: member?.id || employee?.id,
-    name: member?.name || employee?.name,
-    email: member?.email || employee?.email,
-    phone: member?.phone || employee?.phone,
-    role: member?.role || 'Karyawan',
-    status: member?.status || employee?.status || 'Aktif',
-    joinDate: member?.joinDate
-      ? String(member.joinDate).slice(0, 10)
-      : employee?.createdAt
-      ? new Date(employee.createdAt).toISOString().slice(0, 10)
-      : new Date().toISOString().slice(0, 10),
-    nik: member?.nik || employee?.nik,
-    simpananPokok: Number(member?.simpananPokok || 0),
-    simpananWajib: Number(member?.simpananWajib || 0),
-    simpananSukarela: Number(member?.simpananSukarela || 0),
-    totalSavings: Number(member?.totalSavings || 0),
-    isCoopMember,
-    canViewReports,
-    canViewShu,
-    loanInterestRate,
-    coopBank: {
-      bankName: settingsMap['coopBankName'] || 'Bank Mandiri',
-      accountNumber: settingsMap['coopBankAccountNumber'] || '1060022716008',
-      accountName: settingsMap['coopBankAccountName'] || settingsMap['koperasiName'] || 'Koperasi Jasa Nusa Sejahtera Prima',
-    },
-    employee: employee ? {
-      id: employee.id,
-      nip: employee.nip,
-      department: employee.department,
-      position: employee.position,
-      baseSalary: employee.baseSalary,
-      isMember: employee.isMember,
-      bankName: employee.bankName,
-      bankAccountNumber: employee.bankAccountNumber,
-      bankAccountName: employee.bankAccountName,
-    } : null,
-  };
-
-  return c.json({ success: true, data: profileData });
+  return c.json({
+    success: true,
+    data: profileData,
+  });
 });
 
 // ---------------------------------------------------------------------------
-// EWA (Earned Wage Access) Portal Endpoints
+// EWA (Earned Wage Access) Member Endpoints
 // ---------------------------------------------------------------------------
 
-// 1. Get current employee EWA quota & simulation
+// 1. Get EWA Quota for logged-in employee / member
 memberSelfService.get('/ewa/quota', async (c) => {
   const payload = c.get('jwtPayload') as JwtPayload & { employeeId?: string };
   const email = payload.email;
@@ -139,9 +90,9 @@ memberSelfService.get('/ewa/quota', async (c) => {
     employee = await getEmployeeByEmail(db, email);
   }
   if (!employee && payload.sub) {
-    const empByMember = await db.query("SELECT id FROM employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
-    if (empByMember?.id) {
-      employee = await getEmployeeById(db, empByMember.id);
+    const empId = await findEmployeeIdByMemberId(db, payload.sub);
+    if (empId) {
+      employee = await getEmployeeById(db, empId);
     }
   }
 
@@ -178,7 +129,7 @@ memberSelfService.get('/ewa/fee-tiers', async (c) => {
   }
 });
 
-// 3. Submit EWA Request
+// 3. Get EWA History
 memberSelfService.get('/ewa/history', async (c) => {
   const payload = c.get('jwtPayload') as JwtPayload & { employeeId?: string };
   const email = payload.email;
@@ -191,9 +142,9 @@ memberSelfService.get('/ewa/history', async (c) => {
     employee = await getEmployeeByEmail(db, email);
   }
   if (!employee && payload.sub) {
-    const empByMember = await db.query("SELECT id FROM employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
-    if (empByMember?.id) {
-      employee = await getEmployeeById(db, empByMember.id);
+    const empId = await findEmployeeIdByMemberId(db, payload.sub);
+    if (empId) {
+      employee = await getEmployeeById(db, empId);
     }
   }
 
@@ -205,7 +156,7 @@ memberSelfService.get('/ewa/history', async (c) => {
   return c.json({ success: true, data: list.data });
 });
 
-// 3. Submit EWA Request
+// 4. Submit EWA Request
 memberSelfService.post('/ewa/request', async (c) => {
   const payload = c.get('jwtPayload') as JwtPayload & { employeeId?: string };
   const email = payload.email;
@@ -218,9 +169,9 @@ memberSelfService.post('/ewa/request', async (c) => {
     employee = await getEmployeeByEmail(db, email);
   }
   if (!employee && payload.sub) {
-    const empByMember = await db.query("SELECT id FROM employees WHERE member_id = ? LIMIT 1").get<any>(payload.sub);
-    if (empByMember?.id) {
-      employee = await getEmployeeById(db, empByMember.id);
+    const empId = await findEmployeeIdByMemberId(db, payload.sub);
+    if (empId) {
+      employee = await getEmployeeById(db, empId);
     }
   }
 
@@ -262,10 +213,7 @@ memberSelfService.get('/savings/transactions', async (c) => {
   const payload = c.get('jwtPayload') as JwtPayload;
   const memberId = payload.sub;
 
-  const transactions = await db.query(
-    "SELECT id, type, amount, balanceBefore, balanceAfter, createdAt, createdBy FROM transactions WHERE memberId = ? ORDER BY seq DESC"
-  ).all(memberId);
-
+  const transactions = await getMemberSavingsTransactions(db, memberId);
   return c.json({ success: true, data: transactions });
 });
 
@@ -292,7 +240,7 @@ memberSelfService.post('/savings/withdraw', async (c) => {
   try {
     const result = await createSavingsWithdrawalRequest(db, memberId, parsed.data);
 
-    const member = await db.query("SELECT name, nik FROM members WHERE id = ?").get<{ name: string; nik?: string }>(memberId);
+    const member = await getMemberNameAndNik(db, memberId);
     await notifySavingsWithdrawal({
       memberName: member?.name || 'Anggota',
       memberCode: member?.nik || undefined,
@@ -333,7 +281,7 @@ memberSelfService.post('/savings/deposit', async (c) => {
   try {
     const result = await createSavingsDepositRequest(db, memberId, parsed.data);
 
-    const member = await db.query("SELECT name FROM members WHERE id = ?").get<{ name: string }>(memberId);
+    const member = await getMemberNameAndNik(db, memberId);
     notifySavingsDeposit({
       memberName: member?.name || 'Anggota',
       amount: parsed.data.amount,
@@ -350,26 +298,12 @@ memberSelfService.post('/savings/deposit', async (c) => {
   }
 });
 
-// Get member loans (paidAmount is not a loans column — sum from loan_payments)
+// Get member loans
 memberSelfService.get('/loans', async (c) => {
   const payload = c.get('jwtPayload') as JwtPayload;
   const memberId = payload.sub;
 
-  const loans = await db.query(
-    `SELECT l.id, COALESCE(m.name, l.name) AS name, l.amount, l.tenor, l.purpose, l.status, l.createdAt,
-            l.interestRate, l.monthlyPayment, l.interestAmount, l.totalAmount,
-            l.approvedAt, l.totalInstallments, l.paidInstallments,
-            l."attachmentUrl", l."attachmentName",
-            l.rejection_reason AS "rejectionReason",
-            COALESCE(SUM(p.amount), 0) AS paidAmount
-     FROM loans l
-     LEFT JOIN members m ON m.id = l.memberId
-     LEFT JOIN loan_payments p ON l.id = p.loanId
-     WHERE l.memberId = ? AND l.deletedAt IS NULL
-     GROUP BY l.id, m.name
-     ORDER BY l.createdAt DESC`
-  ).all(memberId);
-
+  const loans = await getMemberLoans(db, memberId);
   return c.json({ success: true, data: loans });
 });
 
@@ -379,15 +313,10 @@ memberSelfService.get('/loans/:loanId/schedule', async (c) => {
   const memberId = payload.sub;
   const loanId = c.req.param('loanId');
 
-  // Verify the loan belongs to the member
-  const loan = await db.query("SELECT id FROM loans WHERE id = ? AND memberId = ?").get(loanId, memberId);
-  if (!loan) {
+  const schedule = await getMemberLoanSchedule(db, loanId, memberId);
+  if (!schedule) {
     return c.json({ success: false, message: 'Loan not found or unauthorized' }, 404);
   }
-
-  const schedule = await db.query(
-    "SELECT id, installmentNo, dueDate, principalAmount, interestAmount, paidAmount, status, lateFee, paidAt FROM loan_schedules WHERE loanId = ? ORDER BY installmentNo ASC"
-  ).all(loanId);
 
   return c.json({ success: true, data: schedule });
 });
@@ -398,15 +327,10 @@ memberSelfService.get('/loans/:loanId/payments', async (c) => {
   const memberId = payload.sub;
   const loanId = c.req.param('loanId');
 
-  // Verify the loan belongs to the member
-  const loan = await db.query("SELECT id FROM loans WHERE id = ? AND memberId = ?").get(loanId, memberId);
-  if (!loan) {
+  const payments = await getMemberLoanPayments(db, loanId, memberId);
+  if (!payments) {
     return c.json({ success: false, message: 'Loan not found or unauthorized' }, 404);
   }
-
-  const payments = await db.query(
-    'SELECT id, loanId, amount, paymentDate, method FROM loan_payments WHERE loanId = ? ORDER BY paymentDate ASC, id ASC'
-  ).all(loanId);
 
   return c.json({ success: true, data: payments });
 });
@@ -415,14 +339,6 @@ memberSelfService.get('/loans/:loanId/payments', async (c) => {
 const handleLoanApplication = async (c: any) => {
   const payload = c.get('jwtPayload') as JwtPayload;
   const memberId = payload.sub;
-
-  const member = await db.query(
-    "SELECT id, name, status FROM members WHERE id = ? AND deletedAt IS NULL"
-  ).get<{ id: string; name: string; status: string }>(memberId);
-
-  if (!member) {
-    return c.json({ success: false, message: 'Data anggota tidak ditemukan' }, 404);
-  }
 
   const body = await c.req.json();
   const amount = Number(body.amount);
@@ -444,39 +360,41 @@ const handleLoanApplication = async (c: any) => {
     return c.json({ success: false, message: 'Lampiran dokumen pendukung wajib diunggah' }, 400);
   }
 
-  // Check if member already has a pending loan application
-  const existingPending = await db.query(
-    "SELECT id FROM loans WHERE memberId = ? AND status = 'Menunggu' AND deletedAt IS NULL"
-  ).get(memberId);
+  try {
+    const result = await applyMemberLoan(db, memberId, {
+      amount,
+      tenor,
+      purpose,
+      attachmentUrl,
+      attachmentName,
+    });
 
-  if (existingPending) {
+    notifyLoanApplication({
+      memberName: result.memberName,
+      amount,
+      tenorMonths: tenor,
+      db,
+    });
+
     return c.json({
-      success: false,
-      message: 'Anda masih memiliki pengajuan pinjaman yang sedang menunggu persetujuan pengurus.'
-    }, 400);
+      success: true,
+      message: 'Pengajuan pinjaman berhasil dikirim dan sedang menunggu persetujuan pengurus.',
+      data: {
+        id: result.id,
+        amount,
+        tenor,
+        purpose,
+        status: 'Menunggu',
+        createdAt: result.createdAt,
+        attachmentUrl,
+        attachmentName,
+      },
+    });
+  } catch (err: any) {
+    const res = mapServiceError(c, err);
+    if (res) return res;
+    return c.json({ success: false, message: err.message || 'Gagal mengajukan pinjaman' }, 400);
   }
-
-  const loanId = crypto.randomUUID();
-  const createdAt = new Date().toISOString();
-
-  await db.run(
-    `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt, "attachmentUrl", "attachmentName")
-     VALUES (?, ?, ?, ?, ?, ?, 'Menunggu', ?, ?, ?)`,
-    [loanId, memberId, member.name, amount, tenor, purpose, createdAt, attachmentUrl, attachmentName]
-  );
-
-  notifyLoanApplication({
-    memberName: member.name,
-    amount,
-    tenorMonths: tenor,
-    db,
-  });
-
-  return c.json({
-    success: true,
-    message: 'Pengajuan pinjaman berhasil dikirim dan sedang menunggu persetujuan pengurus.',
-    data: { id: loanId, amount, tenor, purpose, status: 'Menunggu', createdAt, attachmentUrl, attachmentName }
-  });
 };
 
 memberSelfService.post('/loans/apply', handleLoanApplication);
@@ -484,164 +402,20 @@ memberSelfService.post('/loans', handleLoanApplication);
 
 // Financial Report: Income Statement for Members
 memberSelfService.get('/reports/income-statement', async (c) => {
-  const query = `
-    SELECT 
-      a.code, a.name, a.type, a.normal_balance,
-      COALESCE(SUM(jl.debit), 0) as total_debit, COALESCE(SUM(jl.credit), 0) as total_credit
-    FROM accounts a
-    LEFT JOIN journal_lines jl ON a.id = jl.account_id
-    WHERE a.type IN ('REVENUE', 'EXPENSE')
-    GROUP BY a.code, a.name, a.type, a.normal_balance
-    ORDER BY a.code
-  `;
-  const rows = await db.query(query).all();
-  
-  const revenues = rows.filter((r: any) => r.type === 'REVENUE').map((r: any) => ({ ...r, balance: Number(r.total_credit) - Number(r.total_debit) }));
-  const expenses = rows.filter((r: any) => r.type === 'EXPENSE').map((r: any) => ({ ...r, balance: Number(r.total_debit) - Number(r.total_credit) }));
-  
-  const totalRevenue = revenues.reduce((sum, r) => sum + r.balance, 0);
-  const totalExpense = expenses.reduce((sum, r) => sum + r.balance, 0);
-  const netIncome = totalRevenue - totalExpense;
-
-  return c.json({ success: true, data: { revenues, expenses, totalRevenue, totalExpense, netIncome } });
+  const data = await getMemberIncomeStatement(db);
+  return c.json({ success: true, data });
 });
 
 // Financial Report: Balance Sheet for Members
 memberSelfService.get('/reports/balance-sheet', async (c) => {
-  const query = `
-    SELECT 
-      a.code, a.name, a.type, a.normal_balance,
-      COALESCE(SUM(jl.debit), 0) as total_debit, COALESCE(SUM(jl.credit), 0) as total_credit
-    FROM accounts a
-    LEFT JOIN journal_lines jl ON a.id = jl.account_id
-    WHERE a.type IN ('ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE')
-    GROUP BY a.code, a.name, a.type, a.normal_balance
-    ORDER BY a.code
-  `;
-  const rows = await db.query(query).all();
-  
-  const revenues = rows.filter((r: any) => r.type === 'REVENUE').map((r: any) => Number(r.total_credit) - Number(r.total_debit));
-  const expenses = rows.filter((r: any) => r.type === 'EXPENSE').map((r: any) => Number(r.total_debit) - Number(r.total_credit));
-  const netIncome = revenues.reduce((a, b) => a + b, 0) - expenses.reduce((a, b) => a + b, 0);
-
-  const assets = rows.filter((r: any) => r.type === 'ASSET').map((r: any) => ({ ...r, balance: Number(r.total_debit) - Number(r.total_credit) }));
-  const liabilities = rows.filter((r: any) => r.type === 'LIABILITY').map((r: any) => ({ ...r, balance: Number(r.total_credit) - Number(r.total_debit) }));
-  const equity = rows.filter((r: any) => r.type === 'EQUITY').map((r: any) => ({ ...r, balance: Number(r.total_credit) - Number(r.total_debit) }));
-  
-  const shuTahunBerjalan = equity.find(e => e.code === '33102');
-  if (shuTahunBerjalan) {
-    shuTahunBerjalan.balance += netIncome;
-  } else {
-    equity.push({ code: '33102', name: 'SHU Tahun Berjalan', type: 'EQUITY', normal_balance: 'CREDIT', total_debit: 0, total_credit: netIncome, balance: netIncome });
-  }
-
-  const totalAssets = assets.reduce((sum, r) => sum + r.balance, 0);
-  const totalLiabilities = liabilities.reduce((sum, r) => sum + r.balance, 0);
-  const totalEquity = equity.reduce((sum, r) => sum + r.balance, 0);
-
-  return c.json({ success: true, data: { assets, liabilities, equity, totalAssets, totalLiabilities, totalEquity } });
+  const data = await getMemberBalanceSheet(db);
+  return c.json({ success: true, data });
 });
 
 // Financial Report: Cash Flow Statement for Members
 memberSelfService.get('/reports/cashflow-statement', async (c) => {
-  const query = `
-    SELECT 
-      CASE WHEN jl.debit > 0 THEN 'inflow' ELSE 'outflow' END as category, 
-      COALESCE(a_counter.code, 'other') as counter_code,
-      COALESCE(a_counter.name, 'Lain-lain') as counter_name,
-      COALESCE(a_counter.type, 'OTHER') as counter_type,
-      COALESCE(je.reference_type, 'jurnal_umum') as reference_type,
-      SUM(CASE WHEN jl.debit > 0 THEN jl_counter.credit ELSE jl_counter.debit END) as total
-    FROM journal_lines jl
-    JOIN journal_entries je ON jl.journal_entry_id = je.id
-    JOIN accounts a ON jl.account_id = a.id
-    LEFT JOIN journal_lines jl_counter ON jl.journal_entry_id = jl_counter.journal_entry_id AND jl.id != jl_counter.id
-    LEFT JOIN accounts a_counter ON jl_counter.account_id = a_counter.id
-    WHERE a.code IN ('11101', '11102') AND (a_counter.code NOT IN ('11101', '11102') OR a_counter.code IS NULL)
-    GROUP BY category, counter_code, counter_name, counter_type, reference_type
-    ORDER BY category, total DESC
-  `;
-  const rows = await db.query(query).all();
-
-  const getDetailLabel = (category: string, counterCode: string, counterName: string) => {
-    if (category === 'inflow') {
-      switch (counterCode) {
-        case '31101': return 'Setoran Simpanan Pokok Anggota';
-        case '31102': return 'Setoran Simpanan Wajib Anggota';
-        case '21101': return 'Setoran Simpanan Sukarela Anggota';
-        case '11201': return 'Penerimaan Angsuran Pokok Pinjaman';
-        case '41101': return 'Penerimaan Jasa / Bunga Pinjaman';
-        case '41102': return 'Penerimaan Provisi & Administrasi';
-        case '41103': return 'Penerimaan Biaya Layanan Gaji Awal (EWA)';
-        case '11301': return 'Pelunasan Payroll Kasbon Gaji (EWA)';
-        case '42101': return 'Penerimaan Bunga Bank / Jasa Giro';
-        case '42102': return 'Penerimaan Pendapatan Denda';
-        case '21201': return 'Penerimaan Kas Awal Koperasi';
-        default: return `Penerimaan: ${counterName}`;
-      }
-    } else {
-      switch (counterCode) {
-        case '11201': return 'Pencairan Penyaluran Pinjaman';
-        case '21101': return 'Penarikan Simpanan Sukarela';
-        case '11301': return 'Pencairan Kasbon Gaji Awal (EWA)';
-        case '61101': return 'Pembayaran Beban Gaji & Tunjangan';
-        case '61201': return 'Pembayaran Beban Operasional Kantor';
-        case '61301': return 'Pembayaran Beban Pelaksanaan RAT';
-        case '12101': return 'Pengeluaran Pembelian Peralatan';
-        case '11401': return 'Pengeluaran Pembelian Perlengkapan';
-        default: return `Pengeluaran: ${counterName}`;
-      }
-    }
-  };
-
-  const inflows = rows
-    .filter((r: any) => r.category === 'inflow')
-    .map((r: any) => ({
-      subcategory: r.counter_name || r.reference_type,
-      accountCode: r.counter_code,
-      accountName: r.counter_name,
-      label: getDetailLabel('inflow', r.counter_code, r.counter_name),
-      total: Number(r.total || 0),
-    }));
-
-  const outflows = rows
-    .filter((r: any) => r.category === 'outflow')
-    .map((r: any) => ({
-      subcategory: r.counter_name || r.reference_type,
-      accountCode: r.counter_code,
-      accountName: r.counter_name,
-      label: getDetailLabel('outflow', r.counter_code, r.counter_name),
-      total: Number(r.total || 0),
-    }));
-
-  const totalInflow = inflows.reduce((sum, r) => sum + r.total, 0);
-  const totalOutflow = outflows.reduce((sum, r) => sum + r.total, 0);
-  const netCashFlow = totalInflow - totalOutflow;
-
-  const cashBalanceQuery = `
-    SELECT 
-      a.code, a.name,
-      COALESCE(SUM(jl.debit), 0) - COALESCE(SUM(jl.credit), 0) as balance
-    FROM accounts a
-    LEFT JOIN journal_lines jl ON a.id = jl.account_id
-    WHERE a.code IN ('11101', '11102')
-    GROUP BY a.code, a.name
-  `;
-  const cashAccounts = await db.query(cashBalanceQuery).all();
-  const totalCashBalance = cashAccounts.reduce((sum: number, a: any) => sum + Number(a.balance || 0), 0);
-
-  return c.json({
-    success: true,
-    data: {
-      inflows,
-      outflows,
-      totalInflow,
-      totalOutflow,
-      netCashFlow,
-      totalCashBalance,
-      cashAccounts: cashAccounts.map((a: any) => ({ ...a, balance: Number(a.balance || 0) })),
-    },
-  });
+  const data = await getMemberCashflowStatement(db);
+  return c.json({ success: true, data });
 });
 
 // ---------------------------------------------------------------------------
@@ -650,153 +424,17 @@ memberSelfService.get('/reports/cashflow-statement', async (c) => {
 memberSelfService.get('/shu', async (c) => {
   const payload = c.get('jwtPayload') as JwtPayload & { employeeId?: string };
   const memberId = payload.sub;
-
-  const member = await db.query(
-    "SELECT id, name, role, status, totalSavings, joinDate FROM members WHERE id = ? AND deletedAt IS NULL"
-  ).get<any>(memberId);
-
-  if (!member) {
-    return c.json({
-      success: false,
-      message: 'Layanan informasi SHU hanya tersedia bagi anggota koperasi terdaftar.',
-    }, 404);
-  }
-
-  // Check if feature is enabled in settings
-  const settingRow = await db.query("SELECT value FROM settings WHERE key = 'viewMemberShu'").get<{ value: string }>();
-  const isEnabled = settingRow ? settingRow.value !== 'false' : true;
-  if (!isEnabled) {
-    return c.json({
-      success: false,
-      message: 'Fitur informasi dan proyeksi SHU saat ini dinonaktifkan oleh pengurus koperasi.',
-    }, 403);
-  }
-
-  const currentCalendarYear = new Date().getFullYear().toString();
-  const year = c.req.query('year') || currentCalendarYear;
+  const year = c.req.query('year');
 
   try {
-    // 1. Full-Year Projection (s/d 31 Desember)
-    const projectionData = await calculateSHU(year, { mode: 'projection' });
-    const myProjection = projectionData.alokasiAnggota.find((a: any) => a.id === memberId) || {
-      id: memberId,
-      name: member.name,
-      status: member.status || 'Aktif',
-      totalSavings: Number(member.totalSavings || 0),
-      averageSavings: 0,
-      savingsShare: 0,
-      loansShare: 0,
-      shu: 0,
-    };
-
-    const totalCoopSavings = projectionData.alokasiAnggota.reduce(
-      (sum: number, a: any) => sum + (Number(a.averageSavings ?? a.totalSavings) || 0),
-      0
-    );
-    const jasaSimpananPoolProj = Math.round(
-      (projectionData.distribusi?.anggota || 0) * ((projectionData.config?.jasaSimpananPct ?? 50) / 100)
-    );
-    const jasaPinjamanPoolProj = Math.round(
-      (projectionData.distribusi?.anggota || 0) * ((projectionData.config?.jasaPinjamanPct ?? 50) / 100)
-    );
-
-    // 2. Realisasi Berjalan (YTD) jika tahun tersebut belum tutup buku
-    let myRealization = null;
-    let realizationSummary = null;
-
-    if (!projectionData.isClosed) {
-      const realizationData = await calculateSHU(year, { mode: 'realization' });
-      const myReal = realizationData.alokasiAnggota.find((a: any) => a.id === memberId) || {
-        id: memberId,
-        name: member.name,
-        status: member.status || 'Aktif',
-        totalSavings: Number(member.totalSavings || 0),
-        averageSavings: 0,
-        savingsShare: 0,
-        loansShare: 0,
-        shu: 0,
-      };
-      myRealization = myReal;
-
-      const jasaSimpananPoolReal = Math.round(
-        (realizationData.distribusi?.anggota || 0) * ((realizationData.config?.jasaSimpananPct ?? 50) / 100)
-      );
-      const jasaPinjamanPoolReal = Math.round(
-        (realizationData.distribusi?.anggota || 0) * ((realizationData.config?.jasaPinjamanPct ?? 50) / 100)
-      );
-
-      realizationSummary = {
-        pendapatan: realizationData.pendapatan,
-        biayaOperasional: realizationData.biayaOperasional,
-        shuNetto: realizationData.shuNetto,
-        distribusiAnggota: realizationData.distribusi.anggota,
-        jasaSimpananPool: jasaSimpananPoolReal,
-        jasaPinjamanPool: jasaPinjamanPoolReal,
-      };
-    }
-
-    // 3. Historical closed allocations for this member
-    const historical = await db.query(`
-      SELECT 
-        sma.year,
-        sma.savingsShare,
-        sma.loansShare,
-        sma.totalSHU,
-        sma.averageSavings,
-        sc.closedAt,
-        sc.closedBy,
-        sc.shuNetto as "coopShuNetto"
-      FROM shu_member_allocations sma
-      JOIN shu_closes sc ON sma.year = sc.year
-      WHERE sma.memberId = ?
-      ORDER BY sma.year DESC
-    `).all<any>(memberId);
-
-    // 4. Available fiscal years (closed years + current year)
-    const closedYears = await db.query("SELECT year FROM shu_closes ORDER BY year DESC").all<{ year: string }>();
-    const yearSet = new Set<string>([currentCalendarYear, ...closedYears.map((cy) => cy.year)]);
-    const availableYears = Array.from(yearSet).sort((a, b) => b.localeCompare(a));
-
+    const data = await getMemberShuPortal(db, memberId, year);
     return c.json({
       success: true,
-      data: {
-        year,
-        isCurrentYear: year === currentCalendarYear,
-        isClosed: projectionData.isClosed,
-        closedAt: (projectionData as any).closedAt || null,
-        projection: {
-          totalRevenue: projectionData.pendapatan,
-          realizedRevenue: projectionData.realizedPendapatan,
-          projectedRevenue: projectionData.projectedPendapatan,
-          biayaOperasional: projectionData.biayaOperasional,
-          shuNetto: projectionData.shuNetto,
-          distribusiAnggota: projectionData.distribusi?.anggota || 0,
-          jasaSimpananPool: jasaSimpananPoolProj,
-          jasaPinjamanPool: jasaPinjamanPoolProj,
-          totalCoopSavings,
-          member: myProjection,
-        },
-        realization: myRealization
-          ? {
-              summary: realizationSummary,
-              member: myRealization,
-            }
-          : null,
-        config: projectionData.config,
-        historical: historical.map((h: any) => ({
-          year: h.year,
-          savingsShare: Number(h.savingsShare || 0),
-          loansShare: Number(h.loansShare || 0),
-          totalSHU: Number(h.totalSHU || 0),
-          averageSavings: Number(h.averageSavings || 0),
-          closedAt: h.closedAt,
-          coopShuNetto: Number(h.coopShuNetto || 0),
-        })),
-        availableYears,
-      },
+      data,
     });
   } catch (err: any) {
-    return c.json({ success: false, message: err.message || 'Gagal menghitung SHU' }, 500);
+    const status = err.status || err.statusCode || 500;
+    return c.json({ success: false, message: err.message || 'Gagal menghitung SHU' }, status);
   }
 });
 

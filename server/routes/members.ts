@@ -10,7 +10,16 @@ import {
 } from '../schemas'
 import { requirePermission, secretKey } from '../middleware'
 import { parsePagination } from '../services/pagination'
-import { createMember, deleteMember, setMemberPortalAccess, updateMember, batchImportMembers } from '../services/memberService'
+import {
+  createMember,
+  deleteMember,
+  setMemberPortalAccess,
+  updateMember,
+  batchImportMembers,
+  listMembers,
+  getMemberForImpersonation,
+  getMemberTransactions,
+} from '../services/memberService'
 import { updateMemberSavings } from '../services/savingsService'
 import { mapServiceError, requireRouteParam } from '../lib/serviceResponse'
 import { clearStatsCache } from './stats'
@@ -21,64 +30,24 @@ const members = new Hono()
 
 members.get('/', requirePermission('read:members'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))
-  const offset = (page - 1) * limit
-  const includeArchived = c.req.query('includeArchived') === 'true'
-  const search = c.req.query('search')?.trim() || ''
-  const status = c.req.query('status')?.trim() || ''
-  const role = c.req.query('role')?.trim() || ''
-
-  const conditions: string[] = []
-  const params: unknown[] = []
-
-  if (!includeArchived) {
-    conditions.push('deletedAt IS NULL')
-  }
-
-  if (search) {
-    conditions.push('(LOWER(name) LIKE ? OR LOWER(nik) LIKE ? OR phone LIKE ?)')
-    const pattern = `%${search.toLowerCase()}%`
-    params.push(pattern, pattern, `%${search}%`)
-  }
-
-  if (status) {
-    conditions.push('status = ?')
-    params.push(status)
-  }
-
-  if (role) {
-    conditions.push('role = ?')
-    params.push(role)
-  }
-
-  if (c.req.query('unpaidPokokOnly') === 'true') {
-    conditions.push('simpananPokok = 0')
-  }
-
   const fetchAll = c.req.query('all') === 'true'
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-  const limitClause = fetchAll ? '' : 'LIMIT ? OFFSET ?'
-  const queryParams = fetchAll ? params : [...params, limit, offset]
 
-  // Never return password hashes to the client
-  const rows = await db.query(`
-    SELECT
-      id, name, role, status, joinDate, nik, phone,
-      simpananPokok, simpananWajib, simpananSukarela, totalSavings,
-      email,
-      CASE WHEN password IS NOT NULL AND password <> '' THEN TRUE ELSE FALSE END AS "hasPortalAccess"
-    FROM members
-    ${whereClause}
-    ORDER BY name ASC, id DESC
-    ${limitClause}
-  `).all<MemberRow>(...queryParams)
-
-  const totalRes = await db.query(`SELECT COUNT(*) as count FROM members ${whereClause}`).get<{ count: number | string }>(...params)
+  const { rows, total } = await listMembers(db, {
+    page,
+    limit,
+    includeArchived: c.req.query('includeArchived') === 'true',
+    search: c.req.query('search')?.trim(),
+    status: c.req.query('status')?.trim(),
+    role: c.req.query('role')?.trim(),
+    unpaidPokokOnly: c.req.query('unpaidPokokOnly') === 'true',
+    fetchAll,
+  })
 
   return c.json({
     success: true,
     data: {
       data: rows,
-      total: Number(totalRes?.count ?? 0),
+      total,
       page: fetchAll ? 1 : page,
       limit: fetchAll ? rows.length : limit
     }
@@ -197,11 +166,7 @@ members.put('/:id', requirePermission('update:members'), async (c) => {
 members.post('/:id/impersonate', requirePermission('read:members'), async (c) => {
   try {
     const id = requireRouteParam(c, 'id')
-    const member = await db
-      .query(
-        `SELECT id, name, email, status FROM members WHERE id = ? AND deletedAt IS NULL`
-      )
-      .get<{ id: string; name: string; email: string | null; status: string }>(id)
+    const member = await getMemberForImpersonation(db, id)
 
     if (!member) {
       return c.json({ success: false, message: 'Anggota tidak ditemukan' }, 404)
@@ -321,8 +286,7 @@ members.put('/:id/savings', requirePermission('update:savings'), async (c) => {
 members.get('/:id/transactions', requirePermission('read:members'), async (c) => {
   try {
     const id = requireRouteParam(c, 'id')
-    const rows = await db.query("SELECT * FROM transactions WHERE memberId = ? ORDER BY seq DESC")
-      .all<TransactionRow>(id)
+    const rows = await getMemberTransactions(db, id)
     return c.json({ success: true, data: rows })
   } catch (err) {
     const response = mapServiceError(c, err)

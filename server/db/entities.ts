@@ -8,6 +8,7 @@
  * coercion/validation; use get<T>/all<T> for compile-time typing only.
  */
 import { z } from "zod";
+import { registerSchema } from "./mapRow";
 
 // ---------------------------------------------------------------------------
 // Helpers — Postgres / Bun may return bigint-ish values as string or number
@@ -394,5 +395,30 @@ export const userFeedbackRowSchema = z.object({
   updated_at: str,
 });
 export type UserFeedbackRow = z.infer<typeof userFeedbackRowSchema>;
+
+// Auto-register all entity schemas so new columns are dynamically mapped without manual whitelists
+const ALL_ENTITY_SCHEMAS: z.ZodTypeAny[] = [
+  memberRowSchema,
+  transactionRowSchema,
+  loanRowSchema,
+  loanPaymentRowSchema,
+  loanScheduleRowSchema,
+  adminRowSchema,
+  settingRowSchema,
+  auditLogRowSchema,
+  shuCloseRowSchema,
+  shuAllocationRowSchema,
+  cashflowRowSchema,
+  accountRowSchema,
+  journalEntryRowSchema,
+  journalLineRowSchema,
+  savingsWithdrawalRowSchema,
+  savingsDepositRowSchema,
+  userFeedbackRowSchema,
+];
+
+for (const s of ALL_ENTITY_SCHEMAS) {
+  registerSchema(s);
+}
 
 

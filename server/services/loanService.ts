@@ -1,5 +1,5 @@
 import type { Db } from "../db";
-import type { LoanRow, LoanScheduleRow } from "../db/entities";
+import type { LoanRow, LoanScheduleRow, LoanPaymentRow } from "../db/entities";
 import { addMonthsYmd, resolveCalendarDateIso, generateLoanDueDates } from "../lib/dates";
 import { ServiceError } from "./errors";
 import { recordAutoJournal } from "./accountingService";
@@ -1290,4 +1290,202 @@ export async function batchImportSchedules(
   }
 
   return { processedCount, failedCount: errors.length, errors };
+}
+
+export type GetLoansListFilter = {
+  page: number;
+  limit: number;
+  includeArchived?: boolean;
+  search?: string;
+  status?: string;
+  memberId?: string;
+  fetchAll?: boolean;
+};
+
+export async function getLoansList(
+  database: Db,
+  filter: GetLoansListFilter
+): Promise<{ data: LoanRow[]; total: number }> {
+  const { page, limit, includeArchived, search, status, memberId, fetchAll } = filter;
+  const offset = (page - 1) * limit;
+
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  if (!includeArchived) {
+    conditions.push("l.deletedAt IS NULL");
+  }
+
+  if (search) {
+    conditions.push("(LOWER(COALESCE(m.name, l.name)) LIKE ? OR LOWER(l.purpose) LIKE ? OR LOWER(COALESCE(e.bank_name, '')) LIKE ? OR LOWER(COALESCE(e.bank_account_number, '')) LIKE ?)");
+    const pattern = `%${search.toLowerCase()}%`;
+    params.push(pattern, pattern, pattern, pattern);
+  }
+
+  if (status) {
+    conditions.push("l.status = ?");
+    params.push(status);
+  }
+
+  if (memberId) {
+    conditions.push("l.memberId = ?");
+    params.push(memberId);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const limitClause = fetchAll ? "" : "LIMIT ? OFFSET ?";
+  const queryParams = fetchAll ? params : [...params, limit, offset];
+
+  const rows = await database
+    .query(`
+      SELECT 
+        l.*, 
+        COALESCE(m.name, l.name) as name, 
+        COALESCE(SUM(p.amount), 0) as paidAmount,
+        e.bank_name as "destinationBank",
+        e.bank_account_number as "destinationAccount",
+        COALESCE(e.bank_account_holder, e.name, m.name) as "destinationName",
+        l.rejection_reason as "rejectionReason"
+      FROM loans l
+      LEFT JOIN members m ON m.id = l.memberId
+      LEFT JOIN loan_payments p ON l.id = p.loanId
+      LEFT JOIN employees e ON (e.member_id = m.id OR (m.nik IS NOT NULL AND e.nik = m.nik))
+      ${whereClause}
+      GROUP BY l.id, m.name, e.bank_name, e.bank_account_number, e.bank_account_holder, e.name
+      ORDER BY 
+        CASE l.status
+          WHEN 'Menunggu' THEN 1
+          WHEN 'Disetujui' THEN 2
+          WHEN 'Lunas' THEN 3
+          WHEN 'Macet' THEN 4
+          WHEN 'Ditolak' THEN 5
+          ELSE 6
+        END ASC,
+        l.createdat DESC,
+        l.id DESC
+      ${limitClause}
+    `)
+    .all<LoanRow & { paidAmount?: number }>(...queryParams);
+
+  const bungaRate = await getBungaRatePercent(database);
+  const mappedLoans = rows.map((loan) => enrichLoanForList(loan, bungaRate));
+
+  const countQuery = `
+    SELECT COUNT(DISTINCT l.id) as count
+    FROM loans l
+    LEFT JOIN members m ON m.id = l.memberId
+    LEFT JOIN employees e ON (e.member_id = m.id OR (m.nik IS NOT NULL AND e.nik = m.nik))
+    ${whereClause}
+  `;
+  const totalRes = (await database.query(countQuery).get(...params)) as { count: number } | null;
+
+  return {
+    data: mappedLoans,
+    total: totalRes?.count ? Number(totalRes.count) : 0,
+  };
+}
+
+export async function getLoanPaymentSources(
+  database: Db
+): Promise<Array<{ id: string; code: string; name: string; type: string }>> {
+  return database
+    .query(`
+      SELECT id, code, name, type 
+      FROM accounts 
+      WHERE code LIKE '111%'
+      ORDER BY code ASC
+    `)
+    .all<{ id: string; code: string; name: string; type: string }>();
+}
+
+export async function getLoanPayrollDeductions(
+  database: Db,
+  startDate: string,
+  endDate: string
+): Promise<any[]> {
+  return database
+    .query(
+      `SELECT 
+        COALESCE(e.nip, '') as "employeeId",
+        COALESCE(m.name, l.name) as "name",
+        COALESCE(m.id, l.memberid) as "memberId",
+        COUNT(ls.id) as "loanCount",
+        SUM(COALESCE(ls.principalamount, 0) + COALESCE(ls.interestamount, 0)) as "amount",
+        SUM(COALESCE(ls.principalamount, 0)) as "principalAmount",
+        SUM(COALESCE(ls.interestamount, 0)) as "interestAmount"
+      FROM loan_schedules ls
+      JOIN loans l ON l.id = ls.loanid
+      LEFT JOIN members m ON m.id = l.memberid
+      LEFT JOIN employees e ON (e.member_id = m.id OR (m.nik IS NOT NULL AND e.nik = m.nik) OR e.name ILIKE l.name)
+      WHERE ls.duedate >= ? AND ls.duedate <= ?
+        AND (l.deletedat IS NULL)
+      GROUP BY COALESCE(e.nip, ''), COALESCE(m.name, l.name), COALESCE(m.id, l.memberid)
+      ORDER BY COALESCE(m.name, l.name) ASC`
+    )
+    .all(startDate, endDate);
+}
+
+export async function getLoanPaymentsLedger(
+  database: Db,
+  limit: number,
+  offset: number
+): Promise<{ rows: LoanPaymentRow[]; total: number }> {
+  const rows = await database
+    .query(`
+      SELECT * FROM (
+        SELECT
+          'pencairan' as "type",
+          l.id || '-disburse' as "id",
+          l.id as "loanId",
+          l.amount as "amount",
+          COALESCE(l.approvedAt::text, l.createdAt::text) as "paymentDate",
+          'Transfer' as "method",
+          COALESCE(m.name, l.name) as "borrowerName"
+        FROM loans l
+        LEFT JOIN members m ON m.id = l.memberId
+        WHERE l.status IN ('Disetujui', 'Lunas', 'Macet')
+          AND l.deletedAt IS NULL
+
+        UNION ALL
+
+        SELECT
+          'angsuran' as "type",
+          p.id as "id",
+          p.loanId as "loanId",
+          p.amount as "amount",
+          p.paymentDate as "paymentDate",
+          p.method as "method",
+          COALESCE(m.name, l.name) as "borrowerName"
+        FROM loan_payments p
+        INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL
+        LEFT JOIN members m ON m.id = l.memberId
+      ) combined
+      ORDER BY "paymentDate" DESC
+      LIMIT ? OFFSET ?
+    `)
+    .all<LoanPaymentRow>(limit, offset);
+
+  const totalRes = (await database
+    .query(`
+      SELECT (
+        (SELECT COUNT(*) FROM loans WHERE status IN ('Disetujui', 'Lunas', 'Macet') AND deletedAt IS NULL) +
+        (SELECT COUNT(*) FROM loan_payments p
+         INNER JOIN loans l ON p.loanId = l.id AND l.deletedAt IS NULL)
+      ) as count
+    `)
+    .get<{ count: number }>()) as { count: number } | null;
+
+  return {
+    rows,
+    total: totalRes?.count ?? 0,
+  };
+}
+
+export async function getLoanPaymentsByLoanId(
+  database: Db,
+  loanId: string
+): Promise<LoanPaymentRow[]> {
+  return database
+    .query("SELECT * FROM loan_payments WHERE loanId = ? ORDER BY paymentDate DESC")
+    .all<LoanPaymentRow>(loanId);
 }
