@@ -22,7 +22,7 @@ import {formatRp} from '../utils/format';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
 
-import type {CashflowRow, CashflowResponse} from '../shared/types';
+import type {CashflowRow, CashflowResponse} from '@shared/types';
 
 const flowTypeValues = [
   {value: 'inflow', label: 'Arus Masuk (Inflow)'},
@@ -51,7 +51,7 @@ export default function CashflowTemplate() {
   }, [cashflowResponse]);
 
   const filtered = useMemo(() => {
-    return applyFilters(filters, localLedger);
+    return (applyFilters as any)(filters, localLedger) as CashflowRow[];
   }, [filters, applyFilters, localLedger]);
 
   const summary = useMemo(() => {

@@ -121,7 +121,7 @@ export async function createOfficialLetter(
     );
 
     await audit(db, {
-      actor,
+      actor: actor.name || actor.id,
       action: 'create_letter',
       entity: 'official_letters',
       entityId: letterId,

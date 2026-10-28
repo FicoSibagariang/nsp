@@ -11,7 +11,7 @@ export interface FormFieldErrorProps {
  */
 export function FormFieldError({ children }: FormFieldErrorProps) {
   return (
-    <Text type="supporting" color="critical">
+    <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
       {children}
     </Text>
   );

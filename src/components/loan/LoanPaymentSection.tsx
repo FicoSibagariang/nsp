@@ -17,7 +17,7 @@ import { useToast } from '@astryxdesign/core/Toast';
 import { api, ApiError } from '../../services/api';
 import { formatAmountInput, formatRp, parseAmountInput } from '../../utils/format';
 
-interface Payment {
+interface Payment extends Record<string, unknown> {
   id: string;
   loanId: string;
   amount: number;
@@ -205,7 +205,6 @@ export function LoanPaymentSection({
               icon={<Icon icon={TrashIcon} />}
               label="Hapus"
               variant="ghost"
-              color="error"
               size="sm"
               onClick={() => handleDelete(item)}
               isDisabled={isSubmitting}
@@ -237,16 +236,15 @@ export function LoanPaymentSection({
             <DateInput
               label="Tanggal Pembayaran"
               description="Bisa diisi mundur untuk angsuran historis"
-              value={paymentDate}
+              value={paymentDate as any}
               onChange={(val) => setPaymentDate(val ?? todayIsoDate())}
-              max={todayIsoDate()}
+              max={todayIsoDate() as any}
               isRequired
             />
             <HStack hAlign="end">
               <Button
                 label="Bayar"
-                onClick={handlePay}
-                disabled={
+                onClick={handlePay} isDisabled={
                   !payAmount ||
                   parseAmountInput(payAmount) <= 0 ||
                   !paymentDate ||
@@ -280,9 +278,9 @@ export function LoanPaymentSection({
           />
           <DateInput
             label="Tanggal Pembayaran"
-            value={editDate}
+            value={editDate as any}
             onChange={(val) => setEditDate(val ?? todayIsoDate())}
-            max={todayIsoDate()}
+            max={todayIsoDate() as any}
             isRequired
           />
           <HStack gap={2} hAlign="end">

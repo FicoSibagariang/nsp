@@ -7,7 +7,7 @@ import { TransactionHistoryDialogContent } from "./TransactionHistoryDialog";
 import { EditMemberDialogContent } from "./EditMemberDialog";
 import { DemoModeProvider } from "../contexts/DemoModeContext";
 import { maskName } from "../utils/privacyMask";
-import type { LoanRow, MemberRow } from "../shared/types";
+import type { LoanRow, MemberRow } from "@shared/types";
 import * as apiQueryModule from "../hooks/useApiQuery";
 import * as authModule from "../hooks/useAuth";
 

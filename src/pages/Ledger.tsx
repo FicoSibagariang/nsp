@@ -57,7 +57,7 @@ function ExpandedTransactions({ accountId, startDate, endDate }: { accountId: st
   const { data, isLoading, error } = useApiQuery<LedgerDetailsResponse>(queryStr);
 
   if (isLoading) return <Center style={{ padding: 20 }}><Spinner /></Center>;
-  if (error) return <Text color="critical">Gagal memuat rincian transaksi.</Text>;
+  if (error) return <Text style={{ color: 'var(--color-text-error)' }}>Gagal memuat rincian transaksi.</Text>;
   if (!data) return null;
 
   return (

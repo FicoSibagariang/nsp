@@ -9,7 +9,7 @@ import { DateInput } from '@astryxdesign/core/DateInput';
 import { useToast } from '@astryxdesign/core/Toast';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { api, ApiError } from '../services/api';
-import type { LoanRow } from '../shared/types';
+import type { LoanRow } from '@shared/types';
 import { useAuth } from '../hooks/useAuth';
 import { LoanInfoSection } from './loan/LoanInfoSection';
 import { LoanScheduleTable } from './loan/LoanScheduleTable';
@@ -18,7 +18,7 @@ import { CopyableAccountNumber } from './CopyableAccountNumber';
 import { useDemoMode } from '../contexts/DemoModeContext';
 import { maskName } from '../utils/privacyMask';
 
-interface Payment {
+interface Payment extends Record<string, unknown> {
   id: string;
   loanId: string;
   amount: number;
@@ -139,10 +139,10 @@ export function LoanDetailDialogContent({
                   backgroundColor: 'var(--color-critical-50, #fef2f2)',
                 }}
               >
-                <Text type="body" weight="semibold" color="critical">
+                <Text type="body" weight="semibold" style={{ color: 'var(--color-text-error)' }}>
                   Pengajuan Pinjaman Ditolak
                 </Text>
-                <Text type="supporting" color="critical">
+                <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                   Alasan: {loan.rejectionReason || (loan as any).rejection_reason}
                 </Text>
               </VStack>
@@ -190,7 +190,7 @@ export function LoanDetailDialogContent({
                 }}
               >
                 <Text type="body" weight="bold">Dokumen Lampiran Pengajuan</Text>
-                <HStack hAlign="space-between" vAlign="center" wrap="wrap" gap={2}>
+                <HStack hAlign="between" vAlign="center" wrap="wrap" gap={2}>
                   <HStack vAlign="center" gap={2}>
                     <span style={{ fontSize: '24px' }}>
                       {loan.attachmentName?.toLowerCase().endsWith('.pdf') || loan.attachmentUrl.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}
@@ -225,7 +225,7 @@ export function LoanDetailDialogContent({
                   backgroundColor: 'var(--color-background-secondary)',
                 }}
               >
-                <HStack hAlign="space-between" vAlign="center" style={{ width: '100%' }}>
+                <HStack hAlign="between" vAlign="center" style={{ width: '100%' }}>
                   <VStack gap={1}>
                     <Text type="body" weight="bold">Tanggal Pencairan</Text>
                     <Text type="supporting" color="secondary">
@@ -262,9 +262,9 @@ export function LoanDetailDialogContent({
                     <DateInput
                       label="Tanggal Pencairan"
                       description="Bisa diisi mundur untuk data historis"
-                      value={disbursementDate}
-                      onChange={(val) => setDisbursementDate(val ?? todayIsoDate())}
-                      max={todayIsoDate()}
+                      value={disbursementDate as any}
+                      onChange={(val) => setDisbursementDate((val ?? todayIsoDate()) as any)}
+                      max={todayIsoDate() as any}
                       isRequired
                     />
                     <HStack gap={2} hAlign="end">
@@ -292,7 +292,7 @@ export function LoanDetailDialogContent({
                 loanId={loan.id}
                 pokok={pokok}
                 interestRate={loan.interestRate}
-                schedule={schedule}
+                schedule={schedule ?? undefined}
                 scheduleLoading={scheduleLoading}
                 canEditSchedule={canEditSchedule}
                 isSubmitting={isSubmitting}
@@ -305,7 +305,7 @@ export function LoanDetailDialogContent({
               loanId={loan.id}
               totalHutang={totalHutang}
               angsuranPerBulan={angsuranPerBulan}
-              payments={payments}
+              payments={payments ?? undefined}
               isLoadingPayments={isLoadingPayments}
               canManagePayments={canManagePayments}
               onSaved={refreshAll}

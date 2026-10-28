@@ -17,11 +17,11 @@ import {Spinner} from '@astryxdesign/core/Spinner';
 import {Center} from '@astryxdesign/core/Center';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {ExclamationCircleIcon, ClockIcon} from '@heroicons/react/24/outline';
-import type {MemberRow} from '../shared/types';
+import type {MemberRow} from '@shared/types';
 import {useDemoMode} from '../contexts/DemoModeContext';
 import {maskName} from '../utils/privacyMask';
 
-interface Transaction {
+interface Transaction extends Record<string, unknown> {
   id: string;
   memberId: string;
   type: string;
@@ -81,7 +81,7 @@ export function TransactionHistoryDialogContent({
       renderCell: (item: Transaction) => {
         const isDebit = item.type.startsWith('tarik');
         return (
-          <Text type="body" color={isDebit ? 'neutral' : 'success'}>
+          <Text type="body" style={!isDebit ? { color: 'var(--color-text-success)' } : undefined}>
             {isDebit ? '-' : '+'} {formatRp(item.amount)}
           </Text>
         );

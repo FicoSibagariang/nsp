@@ -105,7 +105,7 @@ loanRouter.get("/", authMiddleware, async (c) => {
   const total = countRow.total;
 
   return c.json({
-    data: rows.map((r) => formatLoanApplication(r, false)),
+    data: rows.map((r: any) => formatLoanApplication(r, false)),
     meta: {
       current_page: page,
       per_page: perPage,
@@ -217,7 +217,7 @@ loanRouter.post("/", authMiddleware, zValidator("json", storeLoanSchema), async 
 
 // GET /api/loans/:id
 loanRouter.get("/:id", authMiddleware, async (c) => {
-  const id = parseInt(c.req.param("id"), 10);
+  const id = parseInt(c.req.param("id") || "", 10);
 
   if (isNaN(id)) {
     return c.json({ message: "Not found." }, 404);

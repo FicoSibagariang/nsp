@@ -1,10 +1,13 @@
-import type { MiddlewareHandler } from "hono";
-import type { ZodType } from "zod";
+import type { MiddlewareHandler, ValidationTargets } from "hono";
+import type { ZodType, z } from "zod";
 
-export function zValidator(
-  target: "json" | "query" | "param",
-  schema: ZodType<any>
-): MiddlewareHandler {
+export function zValidator<
+  Target extends keyof ValidationTargets,
+  T extends ZodType<any>
+>(
+  target: Target,
+  schema: T
+): MiddlewareHandler<any, any, { in: { [K in Target]: z.input<T> }; out: { [K in Target]: z.output<T> } }> {
   return async (c, next) => {
     let data: unknown;
     if (target === "json") {

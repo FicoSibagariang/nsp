@@ -14,7 +14,7 @@ import {
   KeyIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
-import type { MemberRow } from '../../shared/types';
+import type { MemberRow } from '@shared/types';
 
 interface MemberActionsProps {
   member: MemberRow;

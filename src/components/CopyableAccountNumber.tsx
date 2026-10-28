@@ -108,7 +108,7 @@ export function CopyableAccountNumber({
           <IconButton
             icon={<Icon icon={copied ? CheckIcon : DocumentDuplicateIcon} />}
             label="Salin nomor rekening"
-            title={copied ? 'Tersalin!' : 'Salin nomor rekening'}
+            tooltip={copied ? 'Tersalin!' : 'Salin nomor rekening'}
             size="sm"
             variant={copied ? 'secondary' : 'ghost'}
             onClick={handleCopy}

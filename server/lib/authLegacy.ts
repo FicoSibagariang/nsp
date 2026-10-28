@@ -17,7 +17,7 @@ function createLegacyHandler(fetchApp: (req: Request) => Response | Promise<Resp
   return async (c: Context) => {
     const url = new URL(c.req.url);
     url.pathname = canonical;
-    const res = await fetchApp(new Request(url, c.req.raw));
+    const res = await fetchApp(new Request(url.toString(), c.req.raw));
     return withDeprecation(res, canonical);
   };
 }

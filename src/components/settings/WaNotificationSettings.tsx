@@ -81,8 +81,7 @@ export function WaNotificationSettings({
           label="Aktifkan Notifikasi WhatsApp"
           description="Kirim pesan otomatis ke pengurus setiap kali ada pengajuan yang membutuhkan tindak lanjut."
           value={waNotificationEnabled}
-          onChange={onWaNotificationEnabledChange}
-          disabled={!canUpdate}
+          onChange={onWaNotificationEnabledChange} isDisabled={!canUpdate}
         />
 
         <TextInput
@@ -90,7 +89,7 @@ export function WaNotificationSettings({
           placeholder="https://api.gateway.example/v2/messages"
           value={waWebhookUrl}
           onChange={onWaWebhookUrlChange}
-          disabled={!canUpdate}
+          isDisabled={!canUpdate}
         />
 
         <TextInput
@@ -99,7 +98,7 @@ export function WaNotificationSettings({
           placeholder="Masukkan token otentikasi API..."
           value={waWebhookToken}
           onChange={onWaWebhookTokenChange}
-          disabled={!canUpdate}
+          isDisabled={!canUpdate}
         />
 
         <TextInput
@@ -107,7 +106,7 @@ export function WaNotificationSettings({
           placeholder="Contoh: 6281234567890"
           value={waNotificationTarget}
           onChange={onWaNotificationTargetChange}
-          disabled={!canUpdate}
+          isDisabled={!canUpdate}
         />
 
         {canUpdate && (
@@ -115,8 +114,7 @@ export function WaNotificationSettings({
             <Button
               label={isTesting ? 'Mengirim Uji Coba...' : 'Kirim Pesan Uji Coba'}
               variant="secondary"
-              onClick={handleTestNotification}
-              disabled={isTesting}
+              onClick={handleTestNotification} isDisabled={isTesting}
             />
             <Button
               label="Simpan Notifikasi"

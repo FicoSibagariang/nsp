@@ -17,14 +17,12 @@ export function Pagination({ page, limit, total, onPageChange }: PaginationProps
       <HStack gap={2}>
         <Button 
           label="Sebelumnya" 
-          variant="outline" 
-          disabled={page <= 1} 
+          variant="secondary" isDisabled={page <= 1} 
           onClick={() => onPageChange(Math.max(1, page - 1))} 
         />
         <Button 
           label="Selanjutnya" 
-          variant="outline" 
-          disabled={page >= totalPages}
+          variant="secondary" isDisabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)} 
         />
       </HStack>

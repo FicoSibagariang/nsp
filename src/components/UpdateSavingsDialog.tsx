@@ -78,9 +78,9 @@ export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
         <DateInput
           label="Tanggal Transaksi"
           description="Pilih tanggal saat setor/tarik benar-benar terjadi"
-          value={transactionDate}
+          value={transactionDate as any}
           onChange={(val) => setTransactionDate(val ?? todayIsoDate())}
-          max={todayIsoDate()}
+          max={todayIsoDate() as any}
           isRequired
         />
       </VStack>

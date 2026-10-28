@@ -7,7 +7,7 @@ import {
   getDefaultFirstDueDate,
   computeScheduleDueDates,
 } from "./ApproveLoanDialog";
-import type { LoanRow } from "../shared/types";
+import type { LoanRow } from "@shared/types";
 import * as apiQueryModule from "../hooks/useApiQuery";
 
 const sampleLoan: LoanRow = {
@@ -108,8 +108,8 @@ describe("ApproveLoanDialogContent component", () => {
     fireEvent.click(submitBtn);
 
     expect(onConfirmMock).toHaveBeenCalledTimes(1);
-    const callArg = onConfirmMock.mock.calls[0][0];
-    expect(callArg.firstInstallmentDate).toBeDefined();
-    expect(typeof callArg.firstInstallmentDate).toBe("string");
+    const callArg = (onConfirmMock.mock.calls as any)[0]?.[0];
+    expect(callArg?.firstInstallmentDate).toBeDefined();
+    expect(typeof callArg?.firstInstallmentDate).toBe("string");
   });
 });

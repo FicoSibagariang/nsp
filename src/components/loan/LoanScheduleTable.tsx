@@ -188,7 +188,7 @@ export function LoanScheduleTable({
         border: '1px solid var(--color-border-primary)',
       }}
     >
-      <HStack hAlign="space-between" vAlign="center" wrap="wrap" gap={2}>
+      <HStack hAlign="between" vAlign="center" wrap="wrap" gap={2}>
         <VStack gap={1}>
           <Heading level={4}>Jadwal Angsuran</Heading>
           <Text type="supporting" color="secondary">
@@ -255,7 +255,8 @@ export function LoanScheduleTable({
         <VStack gap={3}>
           <Text
             type="supporting"
-            color={principalMismatch ? 'critical' : 'secondary'}
+            color={principalMismatch ? undefined : 'secondary'}
+            style={principalMismatch ? { color: 'var(--color-text-error)' } : undefined}
           >
             Jumlah pokok semua baris harus = plafon ({formatRp(pokok)}). Saat ini:{' '}
             {formatRp(draftPrincipalSum)} · Total biaya admin: {formatRp(draftAdminSum)}

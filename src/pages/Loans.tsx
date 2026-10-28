@@ -55,7 +55,7 @@ const LoanDetailDialogContent = lazy(() => import('../components/LoanDetailDialo
 const ImportLoansDialogContent = lazy(() => import('../components/ImportLoansDialog').then(m => ({ default: m.ImportLoansDialogContent })));
 const ImportSchedulesDialogContent = lazy(() => import('../components/ImportSchedulesDialog').then(m => ({ default: m.ImportSchedulesDialogContent })));
 
-import type {LoanRow, PaginatedResponse} from '../shared/types';
+import type {LoanRow, PaginatedResponse} from '@shared/types';
 
 const statusOptions = [
   {value: '', label: 'Semua Status'},
@@ -137,7 +137,7 @@ export default function LoansTemplate() {
           errorMsg: 'Terjadi kesalahan sistem',
           onSuccess: () => {
             setLocalLoans((loans) =>
-              loans.map((loan) => (loan.id === id ? { ...loan, status, rejectionReason: options?.rejectionReason } : loan))
+              loans.map((loan) => (loan.id === id ? ({ ...loan, status, rejectionReason: options?.rejectionReason } as LoanRow) : loan))
             );
             fetchLoans();
           },
@@ -234,7 +234,7 @@ export default function LoansTemplate() {
           <Text type="body">Apakah Anda yakin ingin menghapus data pengajuan pinjaman untuk {isDemoMode ? maskName(loan.memberId || loan.id, loan.name) : loan.name} senilai {formatRp(loan.amount)}?</Text>
           <HStack gap={2} hAlign="end">
             <Button variant="ghost" label="Batal" onClick={() => dialog.hide()} />
-            <Button color="error" label="Hapus" onClick={() => {
+            <Button variant="destructive" label="Hapus" onClick={() => {
               apiAction.execute(
                 () => api.delete(`/api/loans/${loan.id}`),
                 {
@@ -309,7 +309,13 @@ export default function LoansTemplate() {
         <VStack gap={1}>
           <Text type="body">{formatRp(item.amount)}</Text>
           {item.status === 'Disetujui' && (
-            <Text type="supporting" color={(item.totalAmount ?? item.amount) - (item.paidAmount || 0) > 0 ? 'error' : 'success'} style={{ fontSize: '12px' }}>
+            <Text
+              type="supporting"
+              style={{
+                fontSize: '12px',
+                color: (item.totalAmount ?? item.amount) - (item.paidAmount || 0) > 0 ? 'var(--color-text-error)' : 'var(--color-text-success)',
+              }}
+            >
               Sisa: {formatRp(Math.max(0, (item.totalAmount ?? item.amount) - (item.paidAmount || 0)))}
             </Text>
           )}
@@ -348,10 +354,8 @@ export default function LoansTemplate() {
             <Badge variant={variant} label={item.status} />
             {item.status === 'Ditolak' && (item.rejectionReason || (item as any).rejection_reason) && (
               <Text
-                type="caption"
-                color="critical"
-                style={{ fontSize: 11, wordBreak: 'break-word', maxWidth: 160 }}
-                title={item.rejectionReason || (item as any).rejection_reason}
+                type="supporting"
+                style={{ color: 'var(--color-text-error)',  fontSize: 11, wordBreak: 'break-word', maxWidth: 160  }}
               >
                 Alasan: {item.rejectionReason || (item as any).rejection_reason}
               </Text>
@@ -396,8 +400,7 @@ export default function LoansTemplate() {
               <IconButton 
                 icon={<Icon icon={TrashIcon} />} 
                 label="Hapus" 
-                variant="ghost" 
-                color="error" 
+                variant="destructive" 
                 size="sm" 
                 onClick={() => handleDeleteLoan(item)} 
               />
@@ -426,7 +429,7 @@ export default function LoansTemplate() {
                   variant="secondary"
                   onClick={async () => {
                     if (loans.length === 0) {
-                      toast.show({ type: 'error', message: 'Data kosong' });
+                      toast({ type: 'error', body: 'Data kosong' });
                       return;
                     }
                     try {
@@ -447,7 +450,7 @@ export default function LoansTemplate() {
                       ];
                       exportToExcel(dataToExport, columns, `Data_Pinjaman_${new Date().toISOString().slice(0,10)}`);
                     } catch {
-                      toast.show({ type: 'error', message: 'Gagal mengekspor data' });
+                      toast({ type: 'error', body: 'Gagal mengekspor data' });
                     }
                   }}
                 />
@@ -457,7 +460,7 @@ export default function LoansTemplate() {
                   variant="secondary"
                   onClick={async () => {
                     if (loans.length === 0) {
-                      toast.show({ type: 'error', message: 'Data kosong' });
+                      toast({ type: 'error', body: 'Data kosong' });
                       return;
                     }
                     try {
@@ -475,7 +478,7 @@ export default function LoansTemplate() {
                       ];
                       exportToPDF(dataToExport, columns, `Laporan_Pinjaman_${new Date().toISOString().slice(0,10)}`, 'DAFTAR PINJAMAN KOPERASI');
                     } catch {
-                      toast.show({ type: 'error', message: 'Gagal mengekspor PDF' });
+                      toast({ type: 'error', body: 'Gagal mengekspor PDF' });
                     }
                   }}
                 />
@@ -513,6 +516,8 @@ export default function LoansTemplate() {
             <HStack gap={3} vAlign="center" style={{ width: '100%' }}>
               <StackItem size="fill">
                 <TextInput
+                  label="Cari Pinjaman"
+                  isLabelHidden
                   placeholder="Cari nama peminjam atau keperluan pinjaman..."
                   value={searchQuery}
                   onChange={setSearchQuery}
@@ -522,6 +527,8 @@ export default function LoansTemplate() {
               </StackItem>
               <StackItem style={{ width: '220px' }}>
                 <Selector
+                  label="Filter Status"
+                  isLabelHidden
                   value={statusFilter}
                   onChange={setStatusFilter}
                   options={statusOptions}

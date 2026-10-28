@@ -3,6 +3,14 @@ import type { Context, Next } from "hono";
 import { sql } from "../db/index.js";
 import { mockReviewStore } from "../services/mock-review.js";
 
+declare module "hono" {
+  interface ContextVariableMap {
+    employee: any;
+    token: any;
+    isReviewMock?: boolean;
+  }
+}
+
 export async function authMiddleware(c: Context, next: Next) {
   const authHeader = c.req.header("Authorization");
   if (!authHeader || !authHeader.startsWith("Bearer ")) {

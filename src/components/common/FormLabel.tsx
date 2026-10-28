@@ -14,7 +14,7 @@ export function FormLabel({ children, required }: FormLabelProps) {
     <Text type="label">
       {children}
       {required && (
-        <Text type="label" color="critical" style={{ marginLeft: 4 }}>
+        <Text type="label" style={{ color: 'var(--color-text-error)',  marginLeft: 4  }}>
           *
         </Text>
       )}

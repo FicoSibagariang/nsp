@@ -35,7 +35,7 @@ import {useAuth} from '../hooks/useAuth';
 import {useDemoMode} from '../contexts/DemoModeContext';
 import {maskName, maskNik} from '../utils/privacyMask';
 
-import type {SavingsTransactionRow, SavingsWithdrawalRow, SavingsDepositRow, PaginatedResponse} from '../shared/types';
+import type {SavingsTransactionRow, SavingsWithdrawalRow, SavingsDepositRow, PaginatedResponse} from '@shared/types';
 
 const transactionTypeValues = [
   {value: 'setor_pokok', label: 'Setor Pokok'},
@@ -76,7 +76,7 @@ export default function SavingsTemplate() {
   }, [transactionsResponse]);
 
   const filtered = useMemo(() => {
-    return applyFilters(filters, localTransactions);
+    return (applyFilters as any)(filters, localTransactions) as SavingsTransactionRow[];
   }, [filters, applyFilters, localTransactions]);
 
   // Deposits state (Transfer Confirmation)
@@ -155,7 +155,7 @@ export default function SavingsTemplate() {
       width: proportional(2),
       renderCell: (item: SavingsTransactionRow) => {
         let label = item.type;
-        let variant: 'success' | 'warning' | 'critical' | 'neutral' = 'neutral';
+        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
         
         const match = transactionTypeValues.find(t => t.value === item.type);
         if (match) {
@@ -165,7 +165,7 @@ export default function SavingsTemplate() {
         if (item.type.startsWith('setor_')) {
           variant = 'success';
         } else if (item.type.startsWith('tarik_')) {
-          variant = 'critical';
+          variant = 'error';
         }
 
         return <Badge variant={variant} label={label} />;
@@ -303,10 +303,10 @@ export default function SavingsTemplate() {
       header: 'Status',
       width: proportional(1.4),
       renderCell: (item: SavingsWithdrawalRow) => {
-        let variant: 'success' | 'warning' | 'critical' | 'neutral' = 'neutral';
+        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
         if (item.status === 'Menunggu') variant = 'warning';
         else if (item.status === 'Disetujui') variant = 'success';
-        else if (item.status === 'Ditolak') variant = 'critical';
+        else if (item.status === 'Ditolak') variant = 'error';
         return <Badge variant={variant} label={item.status} />;
       },
     },
@@ -340,10 +340,10 @@ export default function SavingsTemplate() {
                               fetchPendingCount();
                               fetchTransactions();
                             } else {
-                              toast.show(res.message || 'Gagal menyetujui penarikan', { type: 'critical' });
+                              toast({ type: 'error', body: res.message || 'Gagal menyetujui penarikan' });
                             }
                           } catch {
-                            toast.show('Terjadi kesalahan jaringan', { type: 'critical' });
+                            toast({ type: 'error', body: 'Terjadi kesalahan jaringan' });
                           }
                         }}
                       />
@@ -371,10 +371,10 @@ export default function SavingsTemplate() {
                               fetchPendingCount();
                               fetchTransactions();
                             } else {
-                              toast.show(res.message || 'Gagal menolak penarikan', { type: 'critical' });
+                              toast({ type: 'error', body: res.message || 'Gagal menolak penarikan' });
                             }
                           } catch {
-                            toast.show('Terjadi kesalahan jaringan', { type: 'critical' });
+                            toast({ type: 'error', body: 'Terjadi kesalahan jaringan' });
                           }
                         }}
                       />
@@ -402,7 +402,7 @@ export default function SavingsTemplate() {
 
         return (
           <VStack gap={0}>
-            <Text type="supporting" color="critical" weight="medium">
+            <Text type="supporting" style={{ color: 'var(--color-text-error)' }} weight="medium">
               ✗ Ditolak
             </Text>
             {item.rejectionReason && (
@@ -454,10 +454,10 @@ export default function SavingsTemplate() {
       width: pixel(150),
       renderCell: (item: SavingsDepositRow) => {
         let label = 'Simpanan Sukarela';
-        let variant: 'primary' | 'neutral' | 'success' = 'neutral';
+        let variant: 'info' | 'neutral' | 'success' = 'neutral';
         if (item.savingsType === 'pokok') {
           label = 'Simpanan Pokok';
-          variant = 'primary';
+          variant = 'info';
         } else if (item.savingsType === 'wajib') {
           label = 'Simpanan Wajib';
           variant = 'success';
@@ -522,10 +522,10 @@ export default function SavingsTemplate() {
       header: 'Status',
       width: pixel(120),
       renderCell: (item: SavingsDepositRow) => {
-        let variant: 'success' | 'warning' | 'critical' | 'neutral' = 'neutral';
+        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
         if (item.status === 'Menunggu') variant = 'warning';
         else if (item.status === 'Diverifikasi') variant = 'success';
-        else if (item.status === 'Ditolak') variant = 'critical';
+        else if (item.status === 'Ditolak') variant = 'error';
         return <Badge variant={variant} label={item.status} />;
       },
     },
@@ -559,10 +559,10 @@ export default function SavingsTemplate() {
                               fetchPendingDepositsCount();
                               fetchTransactions();
                             } else {
-                              toast.show(res.message || 'Gagal memverifikasi setoran', { type: 'critical' });
+                              toast({ body: res.message || 'Gagal memverifikasi setoran', type: 'error' });
                             }
                           } catch {
-                            toast.show('Terjadi kesalahan jaringan', { type: 'critical' });
+                            toast({ body: 'Terjadi kesalahan jaringan', type: 'error' });
                           }
                         }}
                       />
@@ -590,10 +590,10 @@ export default function SavingsTemplate() {
                               fetchPendingDepositsCount();
                               fetchTransactions();
                             } else {
-                              toast.show(res.message || 'Gagal menolak setoran', { type: 'critical' });
+                              toast({ body: res.message || 'Gagal menolak setoran', type: 'error' });
                             }
                           } catch {
-                            toast.show('Terjadi kesalahan jaringan', { type: 'critical' });
+                            toast({ body: 'Terjadi kesalahan jaringan', type: 'error' });
                           }
                         }}
                       />
@@ -621,7 +621,7 @@ export default function SavingsTemplate() {
 
         return (
           <VStack gap={0}>
-            <Text type="supporting" color="critical" weight="medium">
+            <Text type="supporting" style={{ color: 'var(--color-text-error)' }} weight="medium">
               ✗ Ditolak
             </Text>
             {item.rejectionReason && (
@@ -716,7 +716,7 @@ export default function SavingsTemplate() {
                 >
                   Konfirmasi Setoran Masuk
                   {pendingDepositsCount > 0 && (
-                    <Badge variant="info" size="sm" label={String(pendingDepositsCount)} />
+                    <Badge variant="info" label={String(pendingDepositsCount)} />
                   )}
                 </button>
                 <button
@@ -743,7 +743,7 @@ export default function SavingsTemplate() {
                 >
                   Permohonan Penarikan Sukarela
                   {pendingCount > 0 && (
-                    <Badge variant="warning" size="sm" label={String(pendingCount)} />
+                    <Badge variant="warning" label={String(pendingCount)} />
                   )}
                 </button>
               </div>
@@ -790,7 +790,7 @@ export default function SavingsTemplate() {
               >
                 <VStack gap={4}>
                   {/* Status & Type Filter Pills */}
-                  <HStack gap={4} wrap="wrap" vAlign="center" justify="space-between">
+                  <HStack gap={4} wrap="wrap" vAlign="center" justify="between">
                     <HStack gap={2} vAlign="center" wrap="wrap">
                       <Text type="supporting" weight="semibold" color="secondary">
                         Status:

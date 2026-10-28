@@ -5,7 +5,7 @@ import { Button } from '@astryxdesign/core/Button';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { formatRp } from '../utils/format';
 import { CopyableAccountNumber } from './CopyableAccountNumber';
-import type { SavingsWithdrawalRow } from '../shared/types';
+import type { SavingsWithdrawalRow } from '@shared/types';
 import { useDemoMode } from '../contexts/DemoModeContext';
 import { maskName } from '../utils/privacyMask';
 
@@ -71,15 +71,15 @@ export function ApproveSavingsWithdrawalDialogContent({
             border: '1px solid var(--color-border-primary, #e5e7eb)',
           }}
         >
-          <HStack justify="space-between" vAlign="center">
+          <HStack justify="between" vAlign="center">
             <Text type="supporting" color="secondary">Anggota:</Text>
             <Text type="body" weight="semibold">{displayName}</Text>
           </HStack>
-          <HStack justify="space-between" vAlign="center">
+          <HStack justify="between" vAlign="center">
             <Text type="supporting" color="secondary">Nominal Penarikan:</Text>
             <Text type="body" weight="bold" color="primary">{formatRp(withdrawal.amount)}</Text>
           </HStack>
-          <HStack justify="space-between" vAlign="flex-start">
+          <HStack justify="between" vAlign="start">
             <Text type="supporting" color="secondary" style={{ paddingTop: 2 }}>Rekening Tujuan:</Text>
             <CopyableAccountNumber
               bankName={withdrawal.destinationBank}
@@ -88,7 +88,7 @@ export function ApproveSavingsWithdrawalDialogContent({
             />
           </HStack>
           {withdrawal.notes && (
-            <HStack justify="space-between" vAlign="flex-start">
+            <HStack justify="between" vAlign="start">
               <Text type="supporting" color="secondary">Catatan Pemohon:</Text>
               <Text type="supporting" style={{ maxWidth: 300, textAlign: 'right' }}>{withdrawal.notes}</Text>
             </HStack>
@@ -151,7 +151,7 @@ export function ApproveSavingsWithdrawalDialogContent({
           />
         </VStack>
 
-        <HStack justify="flex-end" gap={2} style={{ marginTop: 8 }}>
+        <HStack justify="end" gap={2} style={{ marginTop: 8 }}>
           <Button label="Batal" variant="ghost" onClick={onClose} isDisabled={isLoading} />
           <Button
             label={isLoading ? 'Memproses...' : 'Setujui & Cairkan Dana'}

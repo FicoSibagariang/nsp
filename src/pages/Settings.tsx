@@ -7,7 +7,7 @@ import {useApiQuery} from '../hooks/useApiQuery';
 import {useAuth} from '../hooks/useAuth';
 import {useApiAction} from '../hooks/useApiAction';
 import {DataStateView} from '../components/DataStateView';
-import type {SettingsData} from '../shared/types';
+import type {SettingsData} from '@shared/types';
 import {
   VStack,
   HStack,
@@ -384,22 +384,19 @@ export default function SettingsTemplate() {
                       label="Izinkan Anggota Melihat Laporan"
                       description="Anggota biasa dapat mengunduh laporan neraca tahunan."
                       value={viewReports}
-                      onChange={setViewReports}
-                      disabled={!hasPermission('update:settings')}
+                      onChange={setViewReports} isDisabled={!hasPermission('update:settings')}
                     />
                     <CheckboxInput
                       label="Izinkan Anggota Melihat Info & Proyeksi SHU"
                       description="Anggota dapat melihat estimasi realisasi dan proyeksi SHU akhir tahun pribadi di portal."
                       value={viewMemberShu}
-                      onChange={setViewMemberShu}
-                      disabled={!hasPermission('update:settings')}
+                      onChange={setViewMemberShu} isDisabled={!hasPermission('update:settings')}
                     />
                     <CheckboxInput
                       label="Aktifkan Pendaftaran Mandiri"
                       description="Calon anggota dapat mendaftar sendiri melalui aplikasi web."
                       value={selfRegister}
-                      onChange={setSelfRegister}
-                      disabled={!hasPermission('update:settings')}
+                      onChange={setSelfRegister} isDisabled={!hasPermission('update:settings')}
                     />
                     <TwoFactorSettings
                       twoFactorEnabled={twoFactorEnabled}
@@ -420,8 +417,7 @@ export default function SettingsTemplate() {
                       label="Registrasi Otomatis via Google SSO"
                       description="Mendaftarkan secara otomatis akun Google baru dengan role Viewer."
                       value={ssoAutoRegister}
-                      onChange={setSsoAutoRegister}
-                      disabled={!hasPermission('update:settings')}
+                      onChange={setSsoAutoRegister} isDisabled={!hasPermission('update:settings')}
                     />
                     {hasPermission('update:settings') && (
                       <HStack>

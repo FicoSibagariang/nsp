@@ -8,7 +8,7 @@ const BrokenComponent = () => {
 };
 
 describe("ErrorBoundary Component", () => {
-  let consoleErrorMock: ReturnType<typeof vi.spyOn>;
+  let consoleErrorMock: any;
 
   beforeAll(() => {
     // Suppress React error logs in console during testing of thrown errors

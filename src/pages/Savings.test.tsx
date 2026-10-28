@@ -21,7 +21,7 @@ describe("Savings Component", () => {
   });
 
   test("renders without crashing with data and allows switching tabs", async () => {
-    spyOn(apiModule.api, "get").mockImplementation((url: string) => {
+    spyOn(apiModule.api, "get").mockImplementation(((url: string) => {
       if (url.includes('/api/savings/transactions')) {
         return Promise.resolve({
           data: [
@@ -88,7 +88,7 @@ describe("Savings Component", () => {
         });
       }
       return Promise.resolve({ data: [], total: 0, page: 1, limit: 20 });
-    });
+    }) as any);
 
     renderSavings();
 

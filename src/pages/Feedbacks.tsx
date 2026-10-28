@@ -17,7 +17,7 @@ import { FeedbackSettings } from '../components/settings/FeedbackSettings';
 export default function Feedbacks() {
   return (
     <Layout>
-      <LayoutHeader divider>
+      <LayoutHeader hasDivider>
         <HStack gap={3} vAlign="center">
           <StackItem size="fill">
             <VStack gap={0}>

@@ -8,7 +8,7 @@ import { Badge } from '@astryxdesign/core/Badge';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { formatRp } from '../../utils/format';
-import type { MemberRow } from '../../shared/types';
+import type { MemberRow } from '@shared/types';
 import { MemberActions } from './MemberActions';
 import { useDemoMode } from '../../contexts/DemoModeContext';
 import { maskName, maskNik, hashString } from '../../utils/privacyMask';

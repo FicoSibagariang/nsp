@@ -70,6 +70,9 @@ ewa.get('/payment-sources', requirePermission('approve:loans'), async (c) => {
 // 2. Disburse EWA Request
 ewa.post('/requests/:id/disburse', requirePermission('approve:loans'), async (c) => {
   const id = c.req.param('id');
+  if (!id) {
+    return c.json({ success: false, message: 'ID permintaan EWA diperlukan' }, 400);
+  }
   const body = await c.req.json().catch(() => ({}));
   const parsed = ewaDisburseSchema.safeParse(body);
 
@@ -121,6 +124,9 @@ ewa.post('/requests/:id/disburse', requirePermission('approve:loans'), async (c)
 // 3. Reject EWA Request
 ewa.post('/requests/:id/reject', requirePermission('approve:loans'), async (c) => {
   const id = c.req.param('id');
+  if (!id) {
+    return c.json({ success: false, message: 'ID permintaan EWA diperlukan' }, 400);
+  }
   const body = await c.req.json();
   const parsed = ewaRejectSchema.safeParse(body);
 
@@ -250,7 +256,7 @@ ewa.post('/employees', requirePermission('create:members'), async (c) => {
   const result = await batchImportEmployees(db, [parsed.data as any]);
 
   if (result.errors.length > 0) {
-    return c.json({ success: false, message: result.errors[0].error }, 400);
+    return c.json({ success: false, message: result.errors[0].message }, 400);
   }
 
   await audit(db, {
@@ -265,7 +271,7 @@ ewa.post('/employees', requirePermission('create:members'), async (c) => {
     {
       success: true,
       message: 'Data karyawan berhasil disimpan',
-      data: result.created[0] || result.updated[0] || null,
+      data: parsed.data,
     },
     201
   );

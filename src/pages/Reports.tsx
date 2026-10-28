@@ -18,7 +18,7 @@ import {formatRp} from '../utils/format';
 import {DataStateView} from '../components/DataStateView';
 import {StatusBadge} from '../components/common/StatusBadge';
 import {chartColors, getThemedGridProps, getThemedAxisProps, getThemedTooltipProps} from '../design/chartTheme';
-import type {ReportData} from '../shared/types';
+import type {ReportData} from '@shared/types';
 import {useDemoMode} from '../contexts/DemoModeContext';
 import {maskName} from '../utils/privacyMask';
 
@@ -87,7 +87,7 @@ export default function ReportsTemplate() {
   const projectionPath = `/api/reports/revenue-projection?year=${projectionYear}`;
   const { data: projectionRes, isLoading: isProjectionLoading, error: projectionError, refetch: fetchProjection } = useApiQuery<RevenueProjectionData>(projectionPath);
 
-  const { data: settings } = useApiQuery<import('../shared/types').SettingsData>('/api/settings');
+  const { data: settings } = useApiQuery<import('@shared/types').SettingsData>('/api/settings');
   const koperasiName = settings?.koperasiName?.trim() || 'Koperasi';
 
 

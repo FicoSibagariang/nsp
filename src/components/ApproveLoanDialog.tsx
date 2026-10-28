@@ -7,7 +7,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {formatRp, formatDate} from '../utils/format';
 import {useApiQuery} from '../hooks/useApiQuery';
 import {CopyableAccountNumber} from './CopyableAccountNumber';
-import type {LoanRow, SettingsData} from '../shared/types';
+import type {LoanRow, SettingsData} from '@shared/types';
 import {useDemoMode} from '../contexts/DemoModeContext';
 import {maskName} from '../utils/privacyMask';
 
@@ -205,9 +205,9 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
       <DateInput
         label="Tanggal Pencairan / Persetujuan"
         description="Tanggal ini dipakai di Arus Kas (pencairan) dan jadwal angsuran"
-        value={approvedDate}
-        onChange={handleApprovedDateChange}
-        max={todayIsoDate()}
+        value={approvedDate as any}
+        onChange={handleApprovedDateChange as any}
+        max={todayIsoDate() as any}
         isRequired
       />
 
@@ -215,8 +215,8 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
         <DateInput
           label="Tanggal Angsuran Pertama"
           description="Pilih tanggal jatuh tempo angsuran ke-1. Jika memilih akhir bulan, angsuran berikutnya otomatis jatuh di setiap akhir bulan."
-          value={firstInstallmentDate}
-          onChange={(val) => setFirstInstallmentDate(val ?? todayIsoDate())}
+          value={firstInstallmentDate as any}
+          onChange={(val) => setFirstInstallmentDate((val ?? todayIsoDate()) as any)}
           isRequired
         />
 
@@ -312,7 +312,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
           isRequired
         />
         {rateError ? (
-          <Text type="supporting" color="critical">
+          <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
             {rateError}
           </Text>
         ) : null}
@@ -367,7 +367,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
           <Text type="body" weight="bold">
             Pratinjau angsuran ({parsedRate}% p.a.)
           </Text>
-          <HStack hAlign="space-between" style={{width: '100%'}}>
+          <HStack hAlign="between" style={{width: '100%'}}>
             <Text type="supporting" color="secondary">
               Total biaya admin
             </Text>
@@ -375,7 +375,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
               {formatRp(simulation.interestAmount)}
             </Text>
           </HStack>
-          <HStack hAlign="space-between" style={{width: '100%'}}>
+          <HStack hAlign="between" style={{width: '100%'}}>
             <Text type="supporting" color="secondary">
               Total pengembalian
             </Text>
@@ -383,7 +383,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
               {formatRp(simulation.totalRepayment)}
             </Text>
           </HStack>
-          <HStack hAlign="space-between" style={{width: '100%'}}>
+          <HStack hAlign="between" style={{width: '100%'}}>
             <Text type="body" weight="bold">
               Angsuran / bulan
             </Text>
@@ -408,18 +408,18 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
                 <Text type="supporting" color="secondary" weight="semibold">
                   Jadwal Jatuh Tempo ({tenorMonths} bulan):
                 </Text>
-                <HStack hAlign="space-between" style={{ width: '100%' }}>
+                <HStack hAlign="between" style={{ width: '100%' }}>
                   <Text type="supporting" color="secondary">Angsuran #1 (Pertama):</Text>
                   <Text type="body" weight="semibold">{formatDate(previewDueDates[0])}</Text>
                 </HStack>
                 {previewDueDates.length > 1 && (
-                  <HStack hAlign="space-between" style={{ width: '100%' }}>
+                  <HStack hAlign="between" style={{ width: '100%' }}>
                     <Text type="supporting" color="secondary">Angsuran #2:</Text>
                     <Text type="body">{formatDate(previewDueDates[1])}</Text>
                   </HStack>
                 )}
                 {previewDueDates.length > 2 && (
-                  <HStack hAlign="space-between" style={{ width: '100%' }}>
+                  <HStack hAlign="between" style={{ width: '100%' }}>
                     <Text type="supporting" color="secondary">Angsuran #{tenorMonths} (Terakhir):</Text>
                     <Text type="body" weight="semibold">{formatDate(previewDueDates[previewDueDates.length - 1])}</Text>
                   </HStack>

@@ -12,7 +12,7 @@ import {
 import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Text} from '@astryxdesign/core/Text';
-import type {MemberRow} from '../shared/types';
+import type {MemberRow} from '@shared/types';
 import {useDemoMode} from '../contexts/DemoModeContext';
 import {maskName, maskNik, hashString} from '../utils/privacyMask';
 
@@ -171,7 +171,7 @@ export function EditMemberDialogContent({
               </select>
             </VStack>
             {localError ? (
-              <Text type="supporting" color="critical">
+              <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                 {localError}
               </Text>
             ) : null}
@@ -182,7 +182,7 @@ export function EditMemberDialogContent({
         <LayoutFooter>
           <HStack gap={2} hAlign="end">
             <Button label="Batal" variant="secondary" onClick={onClose} />
-            <Button label="Simpan Perubahan" variant="primary" onClick={handleSave} disabled={!name} />
+            <Button label="Simpan Perubahan" variant="primary" onClick={handleSave} isDisabled={!name} />
           </HStack>
         </LayoutFooter>
       }

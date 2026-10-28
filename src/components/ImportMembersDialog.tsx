@@ -254,13 +254,13 @@ export function ImportMembersDialogContent({ onClose, onSuccess }: Props) {
             </VStack>
 
             {/* Messages */}
-            {errorMsg && <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>⚠️ {errorMsg}</Text>}
-            {resultMsg && <Text type="supporting" color="success" style={{ fontWeight: 600 }}>✅ {resultMsg}</Text>}
+            {errorMsg && <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 600  }}>⚠️ {errorMsg}</Text>}
+            {resultMsg && <Text type="supporting" style={{ fontWeight: 600, color: 'var(--color-text-success)' }}>✅ {resultMsg}</Text>}
             {importErrors.length > 0 && (
               <VStack gap={1} style={{ padding: '8px', backgroundColor: 'var(--color-critical-50, #fef2f2)', borderRadius: '6px' }}>
                 <Text type="supporting" style={{ fontWeight: 600 }}>Baris yang gagal diimpor:</Text>
                 {importErrors.map((e, i) => (
-                  <Text key={i} type="supporting" color="critical">• {e.identifier}: {e.message}</Text>
+                  <Text key={i} type="supporting" style={{ color: 'var(--color-text-error)' }}>• {e.identifier}: {e.message}</Text>
                 ))}
               </VStack>
             )}
@@ -268,11 +268,11 @@ export function ImportMembersDialogContent({ onClose, onSuccess }: Props) {
             {/* Step 3: Preview */}
             {rows.length > 0 && (
               <VStack gap={3}>
-                <HStack hAlign="space-between" vAlign="center">
+                <HStack hAlign="between" vAlign="center">
                   <Heading level={4}>3. Pratinjau Data ({rows.length} baris)</Heading>
                   <HStack gap={2}>
-                    <Text type="supporting" color="success">Siap: {validRows.length}</Text>
-                    {invalidRows.length > 0 && <Text type="supporting" color="critical">Error: {invalidRows.length}</Text>}
+                    <Text type="supporting" style={{ color: 'var(--color-text-success)' }}>Siap: {validRows.length}</Text>
+                    {invalidRows.length > 0 && <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>Error: {invalidRows.length}</Text>}
                   </HStack>
                 </HStack>
                 <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid var(--color-border-primary)', borderRadius: '8px' }}>
@@ -310,12 +310,11 @@ export function ImportMembersDialogContent({ onClose, onSuccess }: Props) {
       footer={
         <LayoutFooter>
           <HStack gap={2} hAlign="end">
-            <Button label="Batal" variant="secondary" onClick={onClose} disabled={isSubmitting} />
+            <Button label="Batal" variant="secondary" onClick={onClose} isDisabled={isSubmitting} />
             <Button
               label={isSubmitting ? 'Memproses...' : `Import ${validRows.length} Anggota`}
               variant="primary"
-              onClick={handleImport}
-              disabled={validRows.length === 0 || isSubmitting || isParsing}
+              onClick={handleImport} isDisabled={validRows.length === 0 || isSubmitting || isParsing}
             />
           </HStack>
         </LayoutFooter>

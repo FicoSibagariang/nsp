@@ -179,7 +179,7 @@ export function AddMemberDialogContent({
                       placeholder="Contoh: Budi Santoso"
                     />
                     {errors.name && (
-                      <Text type="supporting" color="critical">
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                         {errors.name.message}
                       </Text>
                     )}
@@ -200,7 +200,7 @@ export function AddMemberDialogContent({
                       type="text"
                     />
                     {errors.nik && (
-                      <Text type="supporting" color="critical">
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                         {errors.nik.message}
                       </Text>
                     )}
@@ -229,7 +229,7 @@ export function AddMemberDialogContent({
                       type="text"
                     />
                     {errors.phone && (
-                      <Text type="supporting" color="critical">
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                         {errors.phone.message}
                       </Text>
                     )}
@@ -262,7 +262,7 @@ export function AddMemberDialogContent({
                       <option value="Bendahara">Bendahara</option>
                     </select>
                     {errors.role && (
-                      <Text type="supporting" color="critical">
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                         {errors.role.message}
                       </Text>
                     )}
@@ -278,10 +278,9 @@ export function AddMemberDialogContent({
                       label="Tanggal Bergabung"
                       value={field.value}
                       onChange={field.onChange}
-                      type="date"
                     />
                     {errors.joinDate && (
-                      <Text type="supporting" color="critical">
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                         {errors.joinDate.message}
                       </Text>
                     )}
@@ -302,7 +301,7 @@ export function AddMemberDialogContent({
                       description="Pemisah ribuan ditambahkan otomatis"
                     />
                     {errors.deposit && (
-                      <Text type="supporting" color="critical">
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                         {errors.deposit.message}
                       </Text>
                     )}
@@ -340,7 +339,7 @@ export function AddMemberDialogContent({
                         description="Harus sama dengan email Google jika login dengan Google"
                       />
                       {errors.email && (
-                        <Text type="supporting" color="critical">
+                        <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                           {errors.email.message}
                         </Text>
                       )}
@@ -360,7 +359,7 @@ export function AddMemberDialogContent({
                         type="password"
                       />
                       {errors.password && (
-                        <Text type="supporting" color="critical">
+                        <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                           {errors.password.message}
                         </Text>
                       )}
@@ -380,7 +379,7 @@ export function AddMemberDialogContent({
                         type="password"
                       />
                       {errors.passwordConfirm && (
-                        <Text type="supporting" color="critical">
+                        <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                           {errors.passwordConfirm.message}
                         </Text>
                       )}

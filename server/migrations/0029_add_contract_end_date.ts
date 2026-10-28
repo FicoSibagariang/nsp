@@ -7,7 +7,6 @@ export function createAddContractEndDateMigration(db: {
   };
 }): Migration {
   return {
-    id: "0029_add_contract_end_date",
     name: "0029_add_contract_end_date",
     up: async () => {
       await db.run(

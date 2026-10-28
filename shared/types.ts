@@ -46,7 +46,7 @@ export interface PermissionDefinition {
   category: 'master' | 'financial' | 'reports' | 'system';
 }
 
-export interface CompanyEmployee {
+export interface CompanyEmployee extends Record<string, unknown> {
   id: string;
   nip: string;
   nik?: string | null;
@@ -70,7 +70,7 @@ export interface CompanyEmployee {
   updatedAt?: string;
 }
 
-export interface EWARequest {
+export interface EWARequest extends Record<string, unknown> {
   id: string;
   employeeId: string;
   employeeName?: string;
@@ -122,7 +122,7 @@ export interface EwaQuotaInfo {
   contractEndDate?: string | null;
 }
 
-export interface EwaFeeTier {
+export interface EwaFeeTier extends Record<string, unknown> {
   id: string;
   minAmount: number;
   maxAmount: number | null;
@@ -133,7 +133,7 @@ export interface EwaFeeTier {
   updatedAt?: string;
 }
 
-export interface MemberRow {
+export interface MemberRow extends Record<string, unknown> {
   id: string;
   name: string;
   role: 'Anggota' | 'Ketua' | 'Bendahara' | 'Sekretaris' | 'Admin' | string;
@@ -153,14 +153,14 @@ export interface MemberRow {
   hasPortalAccess?: boolean;
 }
 
-export interface LoanRow {
+export interface LoanRow extends Record<string, unknown> {
   id: string;
   memberId: string;
   name: string;
   amount: number;
   tenor: number;
   purpose: string;
-  status: 'Menunggu' | 'Disetujui' | 'Ditolak' | 'Lunas';
+  status: 'Menunggu' | 'Disetujui' | 'Ditolak' | 'Lunas' | 'Macet' | string;
   paidAmount?: number;
   interestAmount?: number;
   totalAmount?: number;
@@ -201,6 +201,7 @@ export interface SettingsData {
   bungaSimpanan?: string;
   denda?: string;
   viewReports?: string | boolean;
+  viewMemberShu?: string | boolean;
   selfRegister?: string | boolean;
   ssoAutoRegister?: string | boolean;
   coopBankName?: string;
@@ -231,7 +232,7 @@ export interface ShuConfig {
   includeInactiveMembers?: boolean;
 }
 
-export interface SavingsTransactionRow {
+export interface SavingsTransactionRow extends Record<string, unknown> {
   id: string;
   memberId: string;
   memberName?: string;
@@ -243,7 +244,7 @@ export interface SavingsTransactionRow {
   createdBy: string;
 }
 
-export interface LoanPaymentRow {
+export interface LoanPaymentRow extends Record<string, unknown> {
   id: string;
   loanId: string;
   borrowerName?: string;
@@ -253,7 +254,7 @@ export interface LoanPaymentRow {
   type?: 'pencairan' | 'angsuran';
 }
 
-export interface CashflowRow {
+export interface CashflowRow extends Record<string, unknown> {
   source: 'savings' | 'loan_payment' | 'loan_disbursement' | 'expense';
   id: string;
   date: string;
@@ -273,7 +274,7 @@ export type ExpenseCategory =
   | 'pajak'
   | 'lainnya';
 
-export interface ExpenseRow {
+export interface ExpenseRow extends Record<string, unknown> {
   id: string;
   expenseDate: string;
   category: ExpenseCategory | string;
@@ -298,7 +299,7 @@ export interface CashflowResponse {
   };
 }
 
-export interface NplRow {
+export interface NplRow extends Record<string, unknown> {
   id: string;
   memberId: string;
   name: string;
@@ -352,7 +353,7 @@ export interface ReportData {
   timestamp: string;
 }
 
-export interface SavingsWithdrawalRow {
+export interface SavingsWithdrawalRow extends Record<string, unknown> {
   id: string;
   memberId: string;
   memberName?: string;
@@ -375,7 +376,7 @@ export interface SavingsWithdrawalRow {
   updatedAt: string;
 }
 
-export interface SavingsDepositRow {
+export interface SavingsDepositRow extends Record<string, unknown> {
   id: string;
   memberId: string;
   memberName?: string;
@@ -400,6 +401,26 @@ export interface SavingsDepositRow {
   rejectionReason?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AccountRow extends Record<string, unknown> {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  normal_balance: string;
+  is_active?: boolean;
+  created_at?: string | null;
+}
+
+export interface JournalEntryRow extends Record<string, unknown> {
+  id: string;
+  transaction_date: string;
+  description: string;
+  reference_type?: string | null;
+  reference_id?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
 }
 
 

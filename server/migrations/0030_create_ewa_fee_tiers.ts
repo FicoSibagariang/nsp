@@ -7,7 +7,6 @@ export function createEwaFeeTiersMigration(db: {
   };
 }): Migration {
   return {
-    id: "0030_create_ewa_fee_tiers",
     name: "0030_create_ewa_fee_tiers",
     up: async () => {
       await db.run(`

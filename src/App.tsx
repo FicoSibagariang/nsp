@@ -56,7 +56,7 @@ import {StopIcon} from '@heroicons/react/24/solid';
 
 // ============= DATA & INTERFACES =============
 
-import type {DashboardData, PendingActionsData} from '../shared/types';
+import type {DashboardData, PendingActionsData} from '@shared/types';
 import { chartColors, getThemedGridProps, getThemedAxisProps, getThemedTooltipProps } from './design/chartTheme';
 
 // ============= CHART COMPONENTS =============
@@ -105,7 +105,7 @@ function MonthlyChart({ data }: { data: DashboardData['monthlyData'] }) {
             width={72}
           />
           <Tooltip
-            formatter={(value: number) => [formatCompactRp(value), '']}
+            formatter={(value: any) => [formatCompactRp(value), '']}
             cursor={{stroke: chartColors.grid}}
             {...getThemedTooltipProps()}
           />
@@ -320,7 +320,7 @@ function PendingActionsWidget({
           <VStack gap={1}>
             <HStack gap={2} vAlign="center">
               <Heading level={4}>Semua Antrean Bersih</Heading>
-              <Badge variant="success" size="sm" label="Semua Tertangani" />
+              <Badge variant="success" label="Semua Tertangani" />
             </HStack>
             <Text type="supporting" color="secondary">
               Tidak ada permohonan tertunda atau cicilan jatuh tempo yang memerlukan perhatian pengurus saat ini.
@@ -348,7 +348,6 @@ function PendingActionsWidget({
                 <Heading level={3}>Tindakan yang Memerlukan Perhatian</Heading>
                 <Badge
                   variant={data.overdueLoansCount > 0 ? 'error' : 'warning'}
-                  size="sm"
                   label={`${totalCount} Perlu Ditindaklanjuti`}
                 />
               </HStack>
@@ -379,7 +378,7 @@ function PendingActionsWidget({
                     <Icon icon={item.icon} size="sm" />
                     <Heading level={4}>{item.title}</Heading>
                   </HStack>
-                  <Badge variant={item.badgeVariant} size="sm" label={item.badgeLabel} />
+                  <Badge variant={item.badgeVariant} label={item.badgeLabel} />
                 </HStack>
                 <Text type="supporting" color="secondary">
                   {item.description}

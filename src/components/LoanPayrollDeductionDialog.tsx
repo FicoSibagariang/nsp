@@ -121,7 +121,7 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
         <LayoutContent padding={4}>
           <VStack gap={4}>
             {/* Filter Periode Bulan */}
-            <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+            <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
               <HStack gap={2} vAlign="center">
                 <Text type="supporting" weight="medium">
                   Periode Jatuh Tempo:
@@ -183,10 +183,10 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
             ) : error ? (
               <Card style={{ padding: 16, backgroundColor: 'var(--color-critical-50, #fef2f2)' }}>
                 <VStack gap={2}>
-                  <Text color="critical" weight="medium">
+                  <Text style={{ color: 'var(--color-text-error)' }} weight="medium">
                     Gagal memuat pratinjau potongan payroll
                   </Text>
-                  <Text type="supporting" color="critical">
+                  <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                     {error}
                   </Text>
                   <HStack justify="end">
@@ -207,7 +207,7 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
               </Card>
             ) : (
               <VStack gap={2}>
-                <HStack justify="space-between" vAlign="center">
+                <HStack justify="between" vAlign="center">
                   <Text type="supporting" weight="semibold">
                     Pratinjau Data Template HRIS ({totalEmployees} baris)
                   </Text>

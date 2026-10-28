@@ -39,7 +39,7 @@ import {DataStateView} from '../components/DataStateView';
 import {ImportMembersDialogContent} from '../components/ImportMembersDialog';
 import {MembersList} from '../components/members/MembersList';
 
-import type {MemberRow, PaginatedResponse} from '../shared/types';
+import type {MemberRow, PaginatedResponse} from '@shared/types';
 import {useDemoMode} from '../contexts/DemoModeContext';
 import {maskName} from '../utils/privacyMask';
 
@@ -108,7 +108,7 @@ export default function MembersTemplate() {
           </Text>
           <HStack gap={2} hAlign="end">
             <Button variant="ghost" label="Batal" onClick={() => dialog.hide()} />
-            <Button color="error" label="Hapus" onClick={() => {
+            <Button variant="destructive" label="Hapus" onClick={() => {
               apiAction.execute(
                 () => api.delete(`/api/members/${member.id}`),
                 {
@@ -116,9 +116,7 @@ export default function MembersTemplate() {
                   errorMsg: 'Gagal menghapus anggota',
                   onSuccess: () => {
                     dialog.hide();
-                    setTimeout(() => {
-                      setMembers(members => members.filter(m => m.id !== member.id));
-                    }, 100);
+                    fetchMembers();
                   },
                   onFinally: () => dialog.hide()
                 }
@@ -128,7 +126,7 @@ export default function MembersTemplate() {
         </VStack>
       </Card>
     );
-  }, [isDemoMode, dialog, apiAction]);
+  }, [isDemoMode, dialog, apiAction, fetchMembers]);
 
   const handleUpdateSavings = useCallback((member: MemberRow) => {
     dialog.show(
@@ -293,7 +291,7 @@ export default function MembersTemplate() {
                 variant="secondary"
                 onClick={() => {
                   if (members.length === 0) {
-                    toast.show({ type: 'error', message: 'Data kosong' });
+                    toast({ type: 'error', body: 'Data kosong' });
                     return;
                   }
                   
@@ -354,6 +352,8 @@ export default function MembersTemplate() {
             <HStack gap={3} vAlign="center" style={{ width: '100%' }}>
               <StackItem size="fill">
                 <TextInput
+                  label="Cari Anggota"
+                  isLabelHidden
                   placeholder="Cari nama, NIK, atau no. telepon..."
                   value={searchQuery}
                   onChange={setSearchQuery}
@@ -363,6 +363,8 @@ export default function MembersTemplate() {
               </StackItem>
               <StackItem style={{ width: '160px' }}>
                 <Selector
+                  label="Status"
+                  isLabelHidden
                   value={statusFilter}
                   onChange={setStatusFilter}
                   options={statusOptions}
@@ -370,6 +372,8 @@ export default function MembersTemplate() {
               </StackItem>
               <StackItem style={{ width: '180px' }}>
                 <Selector
+                  label="Peran"
+                  isLabelHidden
                   value={roleFilter}
                   onChange={setRoleFilter}
                   options={roleOptions}

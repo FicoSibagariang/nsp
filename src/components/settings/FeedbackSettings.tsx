@@ -121,7 +121,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
         adminNotes: adminNotes.trim() || undefined,
       });
 
-      toast({ body: 'Status masukan berhasil diperbarui', type: 'success' });
+      toast({ body: 'Status masukan berhasil diperbarui', type: 'info' });
       setSelectedItem(null);
       loadData();
     } catch (err: any) {
@@ -136,7 +136,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
     if (!window.confirm('Yakin ingin menghapus laporan masukan ini?')) return;
     try {
       await api.delete(`/api/feedbacks/${item.id}`);
-      toast({ body: 'Laporan berhasil dihapus', type: 'success' });
+      toast({ body: 'Laporan berhasil dihapus', type: 'info' });
       if (selectedItem?.id === item.id) {
         setSelectedItem(null);
       }
@@ -150,24 +150,24 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
   const getTypeBadge = (type: string) => {
     switch (type) {
       case 'bug':
-        return <Badge variant="error" size="sm" label="Bug" />;
+        return <Badge variant="error" label="Bug" />;
       case 'feature':
-        return <Badge variant="info" size="sm" label="Usulan Fitur" />;
+        return <Badge variant="info" label="Usulan Fitur" />;
       default:
-        return <Badge variant="success" size="sm" label="Masukan" />;
+        return <Badge variant="success" label="Masukan" />;
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'open':
-        return <Badge variant="warning" size="sm" label="Baru (Open)" />;
+        return <Badge variant="warning" label="Baru (Open)" />;
       case 'in_review':
-        return <Badge variant="info" size="sm" label="Ditinjau" />;
+        return <Badge variant="info" label="Ditinjau" />;
       case 'resolved':
-        return <Badge variant="success" size="sm" label="Selesai" />;
+        return <Badge variant="success" label="Selesai" />;
       default:
-        return <Badge variant="neutral" size="sm" label="Ditutup" />;
+        return <Badge variant="neutral" label="Ditutup" />;
     }
   };
 
@@ -361,6 +361,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
         </div>
 
         <Button
+          label="Segarkan"
           variant="secondary"
           onClick={loadData}
           isDisabled={loading}
@@ -509,6 +510,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                     <td style={{ padding: '12px 16px', verticalAlign: 'top', textAlign: 'right' }}>
                       <HStack gap={1} hAlign="end">
                         <Button
+                          label="Detail"
                           size="sm"
                           variant="secondary"
                           onClick={() => handleOpenDetail(item)}
@@ -522,7 +524,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                         <IconButton
                           icon={<Icon icon={TrashIcon} />}
                           label="Hapus masukan"
-                          title="Hapus masukan"
+                          tooltip="Hapus masukan"
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDelete(item)}

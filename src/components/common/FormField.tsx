@@ -26,7 +26,7 @@ export function FormField({
   return (
     <VStack gap={1}>
       <FormLabel required={required}>{label}</FormLabel>
-      <TextInput {...inputProps} />
+      <TextInput label={label} isLabelHidden {...inputProps} />
       {description && !error && (
         <Text type="supporting" color="secondary">
           {description}

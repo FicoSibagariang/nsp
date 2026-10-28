@@ -32,7 +32,7 @@ import {maskName} from '../utils/privacyMask';
 const ImportPaymentsDialogContent = lazy(() => import('../components/ImportPaymentsDialog').then(m => ({ default: m.ImportPaymentsDialogContent })));
 const LoanPayrollDeductionDialogContent = lazy(() => import('../components/LoanPayrollDeductionDialog').then(m => ({ default: m.LoanPayrollDeductionDialogContent })));
 
-import type {LoanPaymentRow, PaginatedResponse} from '../shared/types';
+import type {LoanPaymentRow, PaginatedResponse} from '@shared/types';
 
 const methodValues = [
   {value: 'Cash', label: 'Cash / Tunai'},
@@ -89,7 +89,7 @@ export default function LoansTxTemplate() {
   }, [dialog, fetchPayments]);
 
   const filtered = useMemo(() => {
-    return applyFilters(filters, localPayments);
+    return (applyFilters as any)(filters, localPayments) as LoanPaymentRow[];
   }, [filters, applyFilters, localPayments]);
 
   const columns: TableColumn<LoanPaymentRow>[] = useMemo(() => [

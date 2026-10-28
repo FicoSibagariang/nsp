@@ -7,7 +7,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {Typeahead} from '@astryxdesign/core/Typeahead';
 import type {SearchableItem, SearchSource} from '@astryxdesign/core/Typeahead';
 import {useApiQuery} from '../hooks/useApiQuery';
-import type {PaginatedResponse, MemberRow, LoanRow, SettingsData} from '../shared/types';
+import type {PaginatedResponse, MemberRow, LoanRow, SettingsData} from '@shared/types';
 import {formatAmountInput, formatRp, parseAmountInput} from '../utils/format';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -75,9 +75,9 @@ type LoanForm = z.infer<typeof loanSchema>;
 
 export function AddLoanDialogContent({onClose, onAdd}: Props) {
   const { control, handleSubmit, watch, formState: { errors } } = useForm<LoanForm>({
-    resolver: zodResolver(loanSchema),
+    resolver: zodResolver(loanSchema) as any,
     defaultValues: {
-      selectedMember: null,
+      selectedMember: null as any,
       amount: '',
       tenor: '12',
       purpose: '',
@@ -133,7 +133,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
     (errors.selectedMember as { id?: { message?: string } } | undefined)?.id?.message;
 
   return (
-    <form id="add-loan-form" onSubmit={handleSubmit(onSubmit)}>
+    <form id="add-loan-form" onSubmit={handleSubmit(onSubmit as any)}>
       <VStack padding={4} gap={4} style={{ width: '100%', boxSizing: 'border-box' }}>
         <VStack gap={1}>
           <Heading level={3}>Tambah Pengajuan Pinjaman</Heading>
@@ -157,7 +157,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                   hasEntriesOnFocus
                 />
                 {selectedMemberError ? (
-                  <Text type="supporting" color="critical">
+                  <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                     {selectedMemberError}
                   </Text>
                 ) : null}
@@ -177,7 +177,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                   placeholder="Contoh: 5.000.000"
                   description="Pemisah ribuan ditambahkan otomatis"
                 />
-                {errors.amount && <Text type="supporting" color="critical">{errors.amount.message}</Text>}
+                {errors.amount && <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>{errors.amount.message}</Text>}
               </VStack>
             )}
           />
@@ -193,7 +193,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                   onChange={(raw) => field.onChange(raw.replace(/\D/g, ''))}
                   placeholder="12"
                 />
-                {errors.tenor && <Text type="supporting" color="critical">{errors.tenor.message}</Text>}
+                {errors.tenor && <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>{errors.tenor.message}</Text>}
               </VStack>
             )}
           />
@@ -208,7 +208,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                   onChange={field.onChange}
                   placeholder="Contoh: Modal Usaha"
                 />
-                {errors.purpose && <Text type="supporting" color="critical">{errors.purpose.message}</Text>}
+                {errors.purpose && <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>{errors.purpose.message}</Text>}
               </VStack>
             )}
           />
@@ -220,12 +220,12 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                 <DateInput
                   label="Tanggal Pinjaman"
                   description="Tanggal pengajuan/pencairan. Bisa diisi mundur untuk data lama."
-                  value={field.value}
+                  value={field.value as any}
                   onChange={(val) => field.onChange(val ?? todayIsoDate())}
-                  max={todayIsoDate()}
+                  max={todayIsoDate() as any}
                   isRequired
                 />
-                {errors.loanDate && <Text type="supporting" color="critical">{errors.loanDate.message}</Text>}
+                {errors.loanDate && <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>{errors.loanDate.message}</Text>}
               </VStack>
             )}
           />
@@ -256,16 +256,16 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                   Bunga pinjaman di Pengaturan saat ini 0%. Ubah di Pengaturan → Bunga Pinjaman jika perlu.
                 </Text>
               )}
-              <HStack hAlign="space-between" style={{ width: '100%' }}>
+              <HStack hAlign="between" style={{ width: '100%' }}>
                 <Text type="supporting" color="secondary">Pokok Pinjaman</Text>
                 <Text type="body" weight="semibold">{formatRp(parsedAmount)}</Text>
               </HStack>
-              <HStack hAlign="space-between" style={{ width: '100%' }}>
+              <HStack hAlign="between" style={{ width: '100%' }}>
                 <Text type="supporting" color="secondary">Total Bunga ({parsedTenor} bln)</Text>
                 <Text type="body" weight="semibold">{formatRp(simulation.interestAmount)}</Text>
               </HStack>
               <HStack
-                hAlign="space-between"
+                hAlign="between"
                 style={{
                   width: '100%',
                   borderTop: '1px dashed var(--color-border-primary, #e5e7eb)',
@@ -276,7 +276,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                 <Text type="body" weight="bold">Total Pengembalian</Text>
                 <Text type="body" weight="bold" color="accent">{formatRp(simulation.totalRepayment)}</Text>
               </HStack>
-              <HStack hAlign="space-between" style={{ width: '100%' }}>
+              <HStack hAlign="between" style={{ width: '100%' }}>
                 <Text type="body" weight="bold">Angsuran per Bulan</Text>
                 <Text type="body" weight="bold" color="accent">
                   {formatRp(simulation.monthlyInstallment)} / bln

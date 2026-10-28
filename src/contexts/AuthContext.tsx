@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { api } from '../services/api'
-import { hasPermission as verifyPermission, type Permission } from '../../shared/permissions'
+import { hasPermission as verifyPermission, type Permission } from '@shared/permissions'
 
 interface AuthContextType {
   isAuthenticated: boolean

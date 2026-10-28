@@ -37,7 +37,7 @@ import { TextInput } from '@astryxdesign/core/TextInput';
 import { Selector } from '@astryxdesign/core/Selector';
 import { DialogHeader } from '@astryxdesign/core/Dialog';
 
-interface AdminRow {
+interface AdminRow extends Record<string, unknown> {
   id: string;
   email: string;
   role: 'viewer' | 'admin' | 'superadmin';
@@ -115,7 +115,7 @@ function AddAdminDialogContent({
             <Selector
               label="Peran / Hak Akses"
               value={role}
-              onChange={setRole}
+              onChange={(val) => setRole(val as any)}
               options={[
                 { value: 'viewer', label: 'Viewer / Pengawas (Hanya baca data)' },
                 { value: 'admin', label: 'Admin (Operasional, tanpa hapus/settings)' },
@@ -132,8 +132,7 @@ function AddAdminDialogContent({
             <Button
               label="Simpan Pengurus"
               variant="primary"
-              onClick={handleSave}
-              disabled={!email || (authType === 'local' && password.length < 6)}
+              onClick={handleSave} isDisabled={!email || (authType === 'local' && password.length < 6)}
             />
           </HStack>
         </LayoutFooter>
@@ -169,7 +168,7 @@ function EditAdminRoleDialogContent({
             <Selector
               label="Peran / Hak Akses"
               value={role}
-              onChange={setRole}
+              onChange={(val) => setRole(val as any)}
               options={[
                 { value: 'viewer', label: 'Viewer / Pengawas (Hanya baca data)' },
                 { value: 'admin', label: 'Admin (Operasional, tanpa hapus/settings)' },
@@ -254,7 +253,7 @@ export default function RolesTemplate() {
           <HStack gap={2} hAlign="end">
             <Button variant="ghost" label="Batal" onClick={() => dialog.hide()} />
             <Button
-              color="error"
+              variant="destructive"
               label="Hapus"
               onClick={() => {
                 apiAction.execute(
@@ -281,10 +280,10 @@ export default function RolesTemplate() {
       width: proportional(1.5),
       renderCell: (item: AdminRow) => (
         <HStack gap={2} vAlign="center">
-          <Avatar size="sm" name={item.name || item.email} src={item.avatar_url} />
+          <Avatar size="small" name={item.name || item.email} src={item.avatar_url} />
           <VStack>
             <Text type="body" weight="medium">{item.name || 'Pengurus Koperasi'}</Text>
-            <Text type="supporting" color="secondary" size="xs">{item.email}</Text>
+            <Text type="supporting" color="secondary">{item.email}</Text>
           </VStack>
         </HStack>
       ),
@@ -341,7 +340,6 @@ export default function RolesTemplate() {
                 icon={<Icon icon={TrashIcon} />}
                 label="Hapus"
                 variant="ghost"
-                color="error"
                 size="sm"
                 onClick={() => handleDeleteAdmin(item)}
               />
@@ -355,7 +353,7 @@ export default function RolesTemplate() {
   // Deny access if not superadmin / manage:users
   if (!isLoading && !hasPermission('manage:users')) {
     return (
-      <Center height="100%">
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
         <Card style={{ padding: '32px', maxWidth: '400px', textAlign: 'center' }}>
           <VStack gap={4} hAlign="center">
             <Heading level={2}>Akses Ditolak</Heading>
@@ -364,7 +362,7 @@ export default function RolesTemplate() {
             </Text>
           </VStack>
         </Card>
-      </Center>
+      </div>
     );
   }
 

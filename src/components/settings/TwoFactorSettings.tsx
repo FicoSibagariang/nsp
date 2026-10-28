@@ -42,9 +42,9 @@ export function TwoFactorSettings({
 }: TwoFactorSettingsProps) {
   return (
     <VStack gap={3}>
-      <HStack justify="space-between">
+      <HStack justify="between">
         <div>
-          <Text type="body" fontWeight="600">Otentikasi Dua Langkah (2FA)</Text>
+          <Text type="body" weight="semibold">Otentikasi Dua Langkah (2FA)</Text>
           <Text type="supporting" color="secondary">
             Tambahkan lapisan keamanan ekstra pada akun Anda.
           </Text>
@@ -82,7 +82,7 @@ export function TwoFactorSettings({
             />
             <Button
               label="Nonaktifkan 2FA"
-              variant="danger"
+              variant="destructive"
               size="sm"
               onClick={onDisable}
             />
@@ -172,7 +172,7 @@ export function TwoFactorSettings({
                   >
                     <Text
                       type="body"
-                      fontWeight="600"
+                      weight="semibold"
                       style={{ color: 'var(--color-text-primary)', marginBottom: '8px' }}
                     >
                       Kode Pemulihan (simpan dengan aman!)
@@ -196,7 +196,7 @@ export function TwoFactorSettings({
                 <Button
                   label="Saya Sudah Memindai QR Code"
                   variant="primary"
-                  fullWidth
+                  style={{ width: '100%' }}
                   onClick={() => onSetStep('verify')}
                 />
               </>
@@ -212,7 +212,6 @@ export function TwoFactorSettings({
                   placeholder="000000"
                   value={verifyToken}
                   onChange={onVerifyTokenChange}
-                  maxLength={6}
                   style={{ marginBottom: '16px' }}
                 />
                 <HStack gap={3}>
@@ -221,7 +220,7 @@ export function TwoFactorSettings({
                     variant="secondary"
                     onClick={() => onSetStep('setup')}
                   />
-                  <Button label="Verifikasi" variant="primary" fullWidth onClick={onVerify} />
+                  <Button label="Verifikasi" variant="primary" style={{ width: '100%' }} onClick={onVerify} />
                 </HStack>
               </>
             )}

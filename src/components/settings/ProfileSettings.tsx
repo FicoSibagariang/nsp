@@ -60,27 +60,27 @@ export function ProfileSettings({
           label="Nama Koperasi"
           value={koperasiName}
           onChange={onKoperasiNameChange}
-          disabled={!canUpdate}
+          isDisabled={!canUpdate}
         />
         <TextInput
           label="Alamat Lengkap"
           value={alamat}
           onChange={onAlamatChange}
-          disabled={!canUpdate}
+          isDisabled={!canUpdate}
         />
         <Grid columns={2} gap={4}>
           <TextInput
             label="No. Telepon"
             value={telepon}
             onChange={onTeleponChange}
-            disabled={!canUpdate}
+            isDisabled={!canUpdate}
           />
           <TextInput
             label="Email Resmi"
             type="email"
             value={email}
             onChange={onEmailChange}
-            disabled={!canUpdate}
+            isDisabled={!canUpdate}
           />
         </Grid>
 
@@ -97,14 +97,14 @@ export function ProfileSettings({
             value={coopBankName}
             onChange={onCoopBankNameChange}
             placeholder="Bank Mandiri"
-            disabled={!canUpdate}
+            isDisabled={!canUpdate}
           />
           <TextInput
             label="Nomor Rekening"
             value={coopBankAccountNumber}
             onChange={onCoopBankAccountNumberChange}
             placeholder="1060022716008"
-            disabled={!canUpdate}
+            isDisabled={!canUpdate}
           />
         </Grid>
         <TextInput
@@ -112,7 +112,7 @@ export function ProfileSettings({
           value={coopBankAccountName}
           onChange={onCoopBankAccountNameChange}
           placeholder="Koperasi Jasa Nusa Sejahtera Prima"
-          disabled={!canUpdate}
+          isDisabled={!canUpdate}
         />
 
         {canUpdate && (

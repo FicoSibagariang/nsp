@@ -95,7 +95,7 @@ export function ShuSettings({
       <VStack gap={6}>
         {/* Seksi 1: Distribusi SHU Netto */}
         <VStack gap={3}>
-          <HStack justify="space-between" vAlign="center">
+          <HStack justify="between" vAlign="center">
             <VStack gap={0}>
               <Text type="body" weight="semibold">
                 1. Distribusi SHU Netto
@@ -105,54 +105,48 @@ export function ShuSettings({
               </Text>
             </VStack>
             <Badge
-              variant={isPrimaryValid ? 'success' : 'critical'}
+              variant={isPrimaryValid ? 'success' : 'error'}
               label={`Total: ${primaryTotal}% ${isPrimaryValid ? '✓ Pas' : primaryTotal > 100 ? `(Lebih ${(primaryTotal - 100).toFixed(1)}%)` : `(Kurang ${(100 - primaryTotal).toFixed(1)}%)`}`}
-              size="sm"
             />
           </HStack>
 
           <Grid columns={3} gap={4}>
             <TextInput
               label="Alokasi Anggota (%)"
-              type="number"
               value={formValues.anggotaPct}
               onChange={(v) => handleChange('anggotaPct', v)}
-              disabled={!canUpdate || isLoading}
+              isDisabled={!canUpdate || isLoading}
             />
             <TextInput
               label="Dana Cadangan (%)"
-              type="number"
               value={formValues.cadanganPct}
               onChange={(v) => handleChange('cadanganPct', v)}
-              disabled={!canUpdate || isLoading}
+              isDisabled={!canUpdate || isLoading}
             />
             <TextInput
               label="Jasa Pengurus (%)"
-              type="number"
               value={formValues.pengurusPct}
               onChange={(v) => handleChange('pengurusPct', v)}
-              disabled={!canUpdate || isLoading}
+              isDisabled={!canUpdate || isLoading}
             />
             <TextInput
               label="Dana Sosial (%)"
-              type="number"
               value={formValues.sosialPct}
               onChange={(v) => handleChange('sosialPct', v)}
-              disabled={!canUpdate || isLoading}
+              isDisabled={!canUpdate || isLoading}
             />
             <TextInput
               label="Dana Pembangunan Kerja (%)"
-              type="number"
               value={formValues.pembangunanPct}
               onChange={(v) => handleChange('pembangunanPct', v)}
-              disabled={!canUpdate || isLoading}
+              isDisabled={!canUpdate || isLoading}
             />
           </Grid>
         </VStack>
 
         {/* Seksi 2: Porsi Bagian Anggota */}
         <VStack gap={3}>
-          <HStack justify="space-between" vAlign="center">
+          <HStack justify="between" vAlign="center">
             <VStack gap={0}>
               <Text type="body" weight="semibold">
                 2. Pembagian Alokasi Anggota
@@ -162,26 +156,23 @@ export function ShuSettings({
               </Text>
             </VStack>
             <Badge
-              variant={isMemberValid ? 'success' : 'critical'}
+              variant={isMemberValid ? 'success' : 'error'}
               label={`Total: ${memberTotal}% ${isMemberValid ? '✓ Pas' : memberTotal > 100 ? `(Lebih ${(memberTotal - 100).toFixed(1)}%)` : `(Kurang ${(100 - memberTotal).toFixed(1)}%)`}`}
-              size="sm"
             />
           </HStack>
 
           <Grid columns={2} gap={4}>
             <TextInput
               label="Jasa Simpanan / Modal (%)"
-              type="number"
               value={formValues.jasaSimpananPct}
               onChange={(v) => handleChange('jasaSimpananPct', v)}
-              disabled={!canUpdate || isLoading}
+              isDisabled={!canUpdate || isLoading}
             />
             <TextInput
               label="Jasa Pinjaman / Usaha (%)"
-              type="number"
               value={formValues.jasaPinjamanPct}
               onChange={(v) => handleChange('jasaPinjamanPct', v)}
-              disabled={!canUpdate || isLoading}
+              isDisabled={!canUpdate || isLoading}
             />
           </Grid>
         </VStack>
@@ -202,7 +193,7 @@ export function ShuSettings({
             description="Jika aktif, anggota yang mengundurkan diri sebelum tutup tahun tetap berhak atas SHU jasa modal/usaha secara adil dan pro-rata berbasis Saldo Rata-Rata Harian (ADB) selama menjadi anggota di tahun berjalan."
             value={formValues.includeInactiveMembers ?? true}
             onChange={(checked) => setFormValues((prev) => ({ ...prev, includeInactiveMembers: checked }))}
-            disabled={!canUpdate || isLoading}
+            isDisabled={!canUpdate || isLoading}
           />
         </VStack>
 

@@ -19,7 +19,7 @@ export interface StatusBadgeProps {
   label?: string;
 }
 
-type BadgeVariant = 'success' | 'neutral' | 'warning' | 'critical' | 'info';
+type BadgeVariant = 'success' | 'neutral' | 'warning' | 'error' | 'info';
 
 const statusConfig: Record<StatusType, { variant: BadgeVariant }> = {
   // Member status
@@ -29,13 +29,13 @@ const statusConfig: Record<StatusType, { variant: BadgeVariant }> = {
   // Loan status
   Menunggu: { variant: 'warning' },
   Disetujui: { variant: 'info' },
-  Ditolak: { variant: 'critical' },
+  Ditolak: { variant: 'error' },
   Lunas: { variant: 'success' },
-  Macet: { variant: 'critical' },
+  Macet: { variant: 'error' },
 
   // Generic status
   success: { variant: 'success' },
-  error: { variant: 'critical' },
+  error: { variant: 'error' },
   warning: { variant: 'warning' },
   info: { variant: 'info' },
 };
