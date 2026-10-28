@@ -66,28 +66,21 @@ export async function saveEwaFeeTiers(
   return getEwaFeeTiers(db);
 }
 
+import { calculateEwaFeeFromTiers } from "../lib/calculations";
+
 export async function calculateEwaFee(
   db: Db,
   requestedAmount: number,
   isMember: boolean
 ): Promise<{ feeAmount: number; feePercentage: number; tier: EwaFeeTier | null }> {
   const tiers = await getEwaFeeTiers(db);
-  const matched = tiers.find((t) => {
-    if (requestedAmount < t.minAmount) return false;
-    if (t.maxAmount != null && requestedAmount > t.maxAmount) return false;
-    return true;
-  });
-
-  if (matched) {
-    const feeAmount = isMember ? matched.memberFee : matched.nonMemberFee;
-    const feePercentage = requestedAmount > 0 ? Math.round((feeAmount / requestedAmount) * 10000) / 100 : 0;
-    return { feeAmount, feePercentage, tier: matched };
-  }
-
-  // Fallback to percentage if no tier matched
-  const feePercentage = isMember ? EWA_MEMBER_FEE_PCT : EWA_NON_MEMBER_FEE_PCT;
-  const feeAmount = Math.round((requestedAmount * feePercentage) / 100);
-  return { feeAmount, feePercentage, tier: null };
+  return calculateEwaFeeFromTiers(
+    tiers,
+    requestedAmount,
+    isMember,
+    EWA_MEMBER_FEE_PCT,
+    EWA_NON_MEMBER_FEE_PCT
+  );
 }
 
 export function getEwaPayrollCutoffDay(): number {

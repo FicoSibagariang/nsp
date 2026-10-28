@@ -1,10 +1,14 @@
-export class ServiceError extends Error {
-  readonly status: number;
+import { HTTPException } from "hono/http-exception";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+
+export class ServiceError extends HTTPException {
+  readonly status: ContentfulStatusCode;
 
   constructor(message: string, status = 400) {
-    super(message);
+    const validStatus = (status || 400) as ContentfulStatusCode;
+    super(validStatus, { message });
     this.name = "ServiceError";
-    this.status = status;
+    this.status = validStatus;
   }
 
   get statusCode(): number {

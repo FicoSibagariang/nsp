@@ -36,4 +36,23 @@ describe("serviceResponse", () => {
     const body = await res.json();
     expect(body).toEqual({ success: false, message: "Not found" });
   });
+
+  test("ServiceError inherits HTTPException and is caught by centralized app.onError", async () => {
+    const app = new Hono();
+    app.onError((err, c) => {
+      if (err instanceof ServiceError) {
+        return c.json({ success: false, message: err.message }, err.status);
+      }
+      return c.json({ success: false, message: "Internal Server Error" }, 500);
+    });
+
+    app.get("/unhandled-service-error", () => {
+      throw new ServiceError("Akun tidak ditemukan", 404);
+    });
+
+    const res = await app.request("/unhandled-service-error");
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body).toEqual({ success: false, message: "Akun tidak ditemukan" });
+  });
 });

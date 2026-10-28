@@ -4,108 +4,19 @@ import { addMonthsYmd, resolveCalendarDateIso, generateLoanDueDates } from "../l
 import { ServiceError } from "./errors";
 import { recordAutoJournal } from "./accountingService";
 import { notifyLoanRejection } from "./waNotificationService";
+import {
+  calculateLoanInterest,
+  getPaymentTolerance,
+  buildAmortizationSchedule,
+  type AmortizationRow,
+} from "../lib/calculations";
 
-export function calculateLoanInterest(amount: number, tenor: string | number, bungaRate: number) {
-  const tenorMonths = Math.max(1, parseInt(String(tenor)) || 1);
-
-  if (bungaRate <= 0) {
-    return {
-      interestAmount: 0,
-      totalAmount: amount,
-      monthlyPayment: Math.ceil(amount / tenorMonths),
-    };
-  }
-
-  const i = bungaRate / 1200;
-  const power = Math.pow(1 + i, tenorMonths);
-  const monthlyPayment = (amount * (i * power)) / (power - 1);
-
-  const roundedMonthlyPayment = Math.ceil(monthlyPayment);
-  const totalAmount = roundedMonthlyPayment * tenorMonths;
-  const interestAmount = totalAmount - amount;
-
-  return {
-    interestAmount,
-    totalAmount,
-    monthlyPayment: roundedMonthlyPayment,
-  };
-}
-
-/**
- * Resolves the loan payment rounding tolerance from environment variable LOAN_PAYMENT_TOLERANCE.
- * Defaults to 100 rupiah if not set or invalid.
- */
-export function getPaymentTolerance(): number {
-  const val =
-    process.env.LOAN_PAYMENT_TOLERANCE ||
-    (typeof Bun !== "undefined" ? Bun.env.LOAN_PAYMENT_TOLERANCE : undefined);
-  const parsed = parseFloat(val || "100");
-  return isNaN(parsed) ? 100 : Math.max(0, parsed);
-}
-
-export type AmortizationRow = {
-  installmentNo: number;
-  principalAmount: number;
-  interestAmount: number;
+export {
+  calculateLoanInterest,
+  getPaymentTolerance,
+  buildAmortizationSchedule,
+  type AmortizationRow,
 };
-
-/**
- * Classical declining-balance (annuity) schedule:
- * - fixed monthly installment (principal + interest ≈ monthlyPayment)
- * - early periods: higher interest, lower principal
- * - later periods: lower interest, higher principal
- * - sum of principalAmount === original principal
- */
-export function buildAmortizationSchedule(
-  principal: number,
-  tenor: string | number,
-  annualRatePercent: number
-): { monthlyPayment: number; totalAmount: number; interestAmount: number; rows: AmortizationRow[] } {
-  const tenorMonths = Math.max(1, parseInt(String(tenor)) || 1);
-  const amount = Math.max(0, Math.round(Number(principal) || 0));
-  const { monthlyPayment, totalAmount, interestAmount } = calculateLoanInterest(
-    amount,
-    tenorMonths,
-    annualRatePercent
-  );
-
-  const monthlyRate = annualRatePercent > 0 ? annualRatePercent / 1200 : 0;
-  let balance = amount;
-  const rows: AmortizationRow[] = [];
-
-  for (let month = 1; month <= tenorMonths; month++) {
-    const interestPart =
-      monthlyRate > 0 && balance > 0 ? Math.round(balance * monthlyRate) : 0;
-
-    let principalPart: number;
-    if (month === tenorMonths) {
-      // Final installment clears remaining principal (handles rounding drift)
-      principalPart = balance;
-    } else if (monthlyRate <= 0) {
-      principalPart = Math.floor(amount / tenorMonths);
-    } else {
-      principalPart = monthlyPayment - interestPart;
-      if (principalPart < 0) principalPart = 0;
-      if (principalPart > balance) principalPart = balance;
-    }
-
-    rows.push({
-      installmentNo: month,
-      principalAmount: principalPart,
-      interestAmount: interestPart,
-    });
-    balance -= principalPart;
-  }
-
-  // Safety: if rounding left a residual (should be 0), fold into last principal
-  if (balance !== 0 && rows.length > 0) {
-    const last = rows[rows.length - 1];
-    last.principalAmount += balance;
-    balance = 0;
-  }
-
-  return { monthlyPayment, totalAmount, interestAmount, rows };
-}
 
 export type CreateLoanInput = {
   id?: string;
