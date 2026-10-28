@@ -1,3 +1,5 @@
+import { hc } from 'hono/client';
+import type { AppType } from '../../server/index';
 import { apiFetch } from '../config';
 
 export class ApiError extends Error {
@@ -35,6 +37,24 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
+/**
+ * Type-Safe Hono RPC Client.
+ * Provides end-to-end type safety, autocompletion on endpoints,
+ * and typed payloads/responses synchronized with backend route declarations.
+ */
+const rpcBaseUrl = typeof window !== 'undefined'
+  ? (import.meta.env.VITE_API_URL || window.location.origin)
+  : 'http://localhost:3000';
+
+const createRpcClient = () => hc<AppType>('');
+export type RpcClient = ReturnType<typeof createRpcClient>;
+
+export const rpc: RpcClient = hc<AppType>(`${rpcBaseUrl}/api/v1`, {
+  fetch: (input: string | URL | Request, init?: RequestInit) => {
+    return apiFetch(input.toString(), init);
+  },
+});
+
 export const api = {
   get: <T = unknown>(path: string, options?: RequestInit) => 
     request<T>(path, { ...options, method: 'GET' }),
@@ -62,5 +82,8 @@ export const api = {
     }),
     
   delete: <T = unknown>(path: string, options?: RequestInit) => 
-    request<T>(path, { ...options, method: 'DELETE' })
+    request<T>(path, { ...options, method: 'DELETE' }),
+
+  /** Direct reference to typed RPC Client */
+  rpc,
 };

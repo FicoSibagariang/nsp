@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
-import { api } from '../services/api'
+import { api, rpc } from '../services/api'
 import { hasPermission as verifyPermission, type Permission } from '@shared/permissions'
 
 interface AuthContextType {
@@ -41,14 +41,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const data = await api.post<{ token: string; role: string }>('/api/auth/login', { email, password })
+    const res = await rpc.auth.login.$post({ json: { email, password } })
+    const json = (await res.json()) as any
+    if (!json.success || !json.data) {
+      throw new Error(json.message || 'Login gagal')
+    }
+    const data = json.data
     localStorage.setItem('token', data.token)
     localStorage.setItem('role', data.role)
     setRole(data.role)
   }, [])
 
   const loginWithGoogle = useCallback(async (credential: string) => {
-    const data = await api.post<{ token: string; role: string }>('/api/auth/google', { credential })
+    const res = await rpc.auth.google.$post({ json: { credential } })
+    const json = (await res.json()) as any
+    if (!json.success || !json.data) {
+      throw new Error(json.message || 'Login Google gagal')
+    }
+    const data = json.data
     localStorage.setItem('token', data.token)
     localStorage.setItem('role', data.role)
     setRole(data.role)
@@ -60,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     try {
-      await api.post('/api/auth/logout')
+      await rpc.auth.logout.$post()
     } catch {
       // ignore
     }

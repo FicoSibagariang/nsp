@@ -123,36 +123,39 @@ app.use('/api/v1/*', authMiddleware)
 // When behind nginx reverse proxy with rate limiting, this can be disabled
 app.use('/api/v1/*', apiRateLimit)
 
-app.route('/api/v1/auth', authRoutes)
-app.route('/api/v1/cron', cronRoutes)
-app.route('/api/v1/member-auth', memberAuthRoutes)
-app.route('/api/v1/portal', memberSelfServiceRoutes)
+const apiRoutes = new Hono()
+  .route('/auth', authRoutes)
+  .route('/cron', cronRoutes)
+  .route('/member-auth', memberAuthRoutes)
+  .route('/portal', memberSelfServiceRoutes)
+  .route('/members', membersRoutes)
+  .route('/loans', loansRoutes)
+  .route('/settings', settingsRoutes)
+  .route('/shu', shuRoutes)
+  .route('/stats', statsRoutes)
+  .route('/admins', adminsRoutes)
+  .route('/savings', savingsRoutes)
+  .route('/cashflow', cashflowRoutes)
+  .route('/npl', nplRoutes)
+  .route('/reports', reportsRoutes)
+  .route('/audit-logs', auditRoutes)
+  .route('/accounting', accountingRoutes)
+  .route('/ewa', ewaRoutes)
+  .route('/upload', uploadRoutes)
+  .route('/letters', lettersRoutes)
+  .route('/feedbacks', feedbacksRoutes)
+
+app.route('/api/v1', apiRoutes)
 registerLegacyAuthAliases(app)
-app.route('/api/v1/members', membersRoutes)
-app.route('/api/v1/loans', loansRoutes)
-app.route('/api/v1/settings', settingsRoutes)
-app.route('/api/v1/shu', shuRoutes)
-app.route('/api/v1/stats', statsRoutes)
-app.route('/api/v1/admins', adminsRoutes)
-app.route('/api/v1/savings', savingsRoutes)
-app.route('/api/v1/cashflow', cashflowRoutes)
-app.route('/api/v1/npl', nplRoutes)
-app.route('/api/v1/reports', reportsRoutes)
-app.route('/api/v1/audit-logs', auditRoutes)
-app.route('/api/v1/accounting', accountingRoutes)
-app.route('/api/v1/ewa', ewaRoutes)
-app.route('/api/v1/upload', uploadRoutes)
-app.route('/api/v1/letters', lettersRoutes)
-app.route('/api/v1/feedbacks', feedbacksRoutes)
 app.route('/api', mobileRoutes)
 
 // Serve uploaded files statically
 app.use('/uploads/*', serveStatic({ root: './' }))
 
-// OpenAPI spec + Swagger UI (development only)
-if (process.env.NODE_ENV !== 'production') {
-  app.route('/', docsRoutes)
-}
+// OpenAPI spec + Swagger UI (available in dev/test/staging)
+app.route('/', docsRoutes)
+
+export type { AppContractType as AppType } from './openapi'
 
 const port = parseInt(process.env.PORT || '3000', 10)
 
