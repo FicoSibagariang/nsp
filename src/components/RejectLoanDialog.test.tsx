@@ -1,7 +1,7 @@
 import { describe, it, expect, mock, afterEach } from "bun:test";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { RejectLoanDialogContent } from "./RejectLoanDialog";
-import type { LoanRow } from "../shared/types";
+import type { LoanRow } from "@shared/types";
 
 const sampleLoan: LoanRow = {
   id: "loan-reject-test-1",

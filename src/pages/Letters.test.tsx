@@ -52,7 +52,7 @@ describe("Letters Page", () => {
   let apiFetchSpy: ReturnType<typeof spyOn>;
 
   beforeEach(() => {
-    apiGetSpy = spyOn(apiModule.api, "get").mockImplementation((url: string) => {
+    apiGetSpy = spyOn(apiModule.api, "get").mockImplementation(((url: string) => {
       if (url.includes("/api/letters/categories")) {
         return Promise.resolve(mockCategories);
       }
@@ -63,7 +63,7 @@ describe("Letters Page", () => {
         return Promise.resolve(mockLettersData);
       }
       return Promise.resolve(null);
-    });
+    }) as any);
 
     apiFetchSpy = spyOn(configModule, "apiFetch").mockImplementation((path: string, options?: RequestInit) => {
       if (options?.method === "PUT" && path.includes("/api/v1/letters/letter-123")) {

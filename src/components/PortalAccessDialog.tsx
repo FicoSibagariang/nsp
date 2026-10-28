@@ -5,7 +5,7 @@ import {VStack, HStack} from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Button} from '@astryxdesign/core/Button';
-import type {MemberRow} from '../shared/types';
+import type {MemberRow} from '@shared/types';
 import {useDemoMode} from '../contexts/DemoModeContext';
 import {maskName, maskEmail} from '../utils/privacyMask';
 

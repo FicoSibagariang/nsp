@@ -14,40 +14,12 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
 import { SunIcon, MoonIcon, BanknotesIcon, ClipboardDocumentCheckIcon, ChartBarIcon, SparklesIcon } from '@heroicons/react/24/outline';
 import { useThemeMode } from '../contexts/ThemeContext';
-import type { EwaFeeTier } from '../../shared/types';
+import type { EwaFeeTier } from '@shared/types';
 
 const PREVIEW_TOKEN_KEY = 'memberPreviewToken';
 const PREVIEW_NAME_KEY = 'memberPreviewName';
 const PREVIEW_RETURN_KEY = 'memberPreviewReturn';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-
-// Google Identity Services (loaded via index.html)
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: {
-            client_id: string;
-            callback: (response: { credential: string }) => void;
-            auto_select?: boolean;
-          }) => void;
-          renderButton: (
-            element: HTMLElement | null,
-            options: {
-              theme?: 'outline' | 'filled_blue' | 'filled_black';
-              size?: 'large' | 'medium' | 'small';
-              width?: string | number;
-              text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin';
-              shape?: 'rectangular' | 'pill' | 'circle' | 'square';
-              locale?: string;
-            }
-          ) => void;
-        };
-      };
-    };
-  }
-}
 
 function readPortalToken(): string | null {
   return sessionStorage.getItem(PREVIEW_TOKEN_KEY) || localStorage.getItem('memberToken');
@@ -809,7 +781,7 @@ export default function MemberPortal() {
         width: pixel(100),
         renderCell: (i) => {
           const variant =
-            i.status === 'Paid' ? 'success' : i.status === 'Late' ? 'critical' : 'neutral';
+            i.status === 'Paid' ? 'success' : i.status === 'Late' ? 'error' : 'neutral';
           const label =
             i.status === 'Paid' ? 'Lunas' : i.status === 'Late' ? 'Terlambat' : 'Belum';
           return <Badge variant={variant} label={label} />;
@@ -842,7 +814,7 @@ export default function MemberPortal() {
         header: 'Jumlah Bayar',
         width: pixel(160),
         renderCell: (p) => (
-          <Text type="body" weight="semibold" color="success">
+          <Text type="body" weight="semibold" style={{ color: 'var(--color-text-success)' }}>
             {formatRp(p.amount)}
           </Text>
         ),
@@ -890,14 +862,14 @@ export default function MemberPortal() {
             />
           </div>
           <VStack gap={6}>
-            <Heading level={2} align="center">
+            <Heading level={2} justify="center">
               Portal Anggota
             </Heading>
-            <Text type="body" color="secondary" align="center">
+            <Text type="body" color="secondary" justify="center">
               Masuk untuk melihat simpanan, pinjaman, dan jadwal angsuran Anda.
             </Text>
             {error ? (
-              <Text type="supporting" color="critical">
+              <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                 {error}
               </Text>
             ) : null}
@@ -915,7 +887,7 @@ export default function MemberPortal() {
                     pointerEvents: loading ? 'none' : 'auto',
                   }}
                 />
-                <Text type="supporting" color="secondary" align="center">
+                <Text type="supporting" color="secondary" justify="center">
                   Email Google harus sama dengan email portal yang didaftarkan pengurus.
                 </Text>
                 <HStack gap={2} vAlign="center" style={{ width: '100%' }}>
@@ -972,7 +944,7 @@ export default function MemberPortal() {
               />
             </form>
 
-            <Text type="supporting" color="secondary" align="center">
+            <Text type="supporting" color="secondary" justify="center">
               Pengurus koperasi?{' '}
               <a
                 href="/login"
@@ -1081,10 +1053,10 @@ export default function MemberPortal() {
       header: 'Status',
       width: pixel(120),
       renderCell: (i) => {
-        let variant: 'success' | 'warning' | 'critical' | 'neutral' = 'neutral';
+        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
         if (i.status === 'Menunggu') variant = 'warning';
         else if (i.status === 'Disetujui') variant = 'success';
-        else if (i.status === 'Ditolak') variant = 'critical';
+        else if (i.status === 'Ditolak') variant = 'error';
         return <Badge variant={variant} label={i.status} />;
       },
     },
@@ -1095,14 +1067,14 @@ export default function MemberPortal() {
       renderCell: (i) => {
         if (i.status === 'Ditolak' && i.rejectionReason) {
           return (
-            <Text type="supporting" color="critical">
+            <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
               Alasan ditolak: {i.rejectionReason}
             </Text>
           );
         }
         if (i.status === 'Disetujui' && i.approvedAt) {
           return (
-            <Text type="supporting" color="success">
+            <Text type="supporting" style={{ color: 'var(--color-text-success)' }}>
               Dicairkan pada {new Date(i.approvedAt).toLocaleDateString('id-ID')}
             </Text>
           );
@@ -1125,10 +1097,10 @@ export default function MemberPortal() {
       width: pixel(150),
       renderCell: (i) => {
         let label = 'Simpanan Sukarela';
-        let variant: 'primary' | 'neutral' | 'success' = 'neutral';
+        let variant: 'info' | 'neutral' | 'success' = 'neutral';
         if (i.savingsType === 'pokok') {
           label = 'Simpanan Pokok';
-          variant = 'primary';
+          variant = 'info';
         } else if (i.savingsType === 'wajib') {
           label = 'Simpanan Wajib';
           variant = 'success';
@@ -1193,10 +1165,10 @@ export default function MemberPortal() {
       header: 'Status',
       width: pixel(120),
       renderCell: (i) => {
-        let variant: 'success' | 'warning' | 'critical' | 'neutral' = 'neutral';
+        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
         if (i.status === 'Menunggu') variant = 'warning';
         else if (i.status === 'Diverifikasi') variant = 'success';
-        else if (i.status === 'Ditolak') variant = 'critical';
+        else if (i.status === 'Ditolak') variant = 'error';
         return <Badge variant={variant} label={i.status} />;
       },
     },
@@ -1207,14 +1179,14 @@ export default function MemberPortal() {
       renderCell: (i) => {
         if (i.status === 'Ditolak' && i.rejectionReason) {
           return (
-            <Text type="supporting" color="critical">
+            <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
               Alasan ditolak: {i.rejectionReason}
             </Text>
           );
         }
         if (i.status === 'Diverifikasi' && i.verifiedAt) {
           return (
-            <Text type="supporting" color="success">
+            <Text type="supporting" style={{ color: 'var(--color-text-success)' }}>
               Diverifikasi pada {new Date(i.verifiedAt).toLocaleDateString('id-ID')}
             </Text>
           );
@@ -1296,12 +1268,12 @@ export default function MemberPortal() {
       header: 'Status',
       width: pixel(140),
       renderCell: (i) => {
-        const statusMap: Record<string, { variant: 'success' | 'warning' | 'critical' | 'neutral'; label: string }> = {
+        const statusMap: Record<string, { variant: 'success' | 'warning' | 'error' | 'neutral'; label: string }> = {
           Disetujui: { variant: 'success', label: 'Disetujui' },
           Lunas: { variant: 'success', label: 'Lunas' },
           Menunggu: { variant: 'warning', label: 'Menunggu' },
-          Ditolak: { variant: 'critical', label: 'Ditolak' },
-          Macet: { variant: 'critical', label: 'Macet' },
+          Ditolak: { variant: 'error', label: 'Ditolak' },
+          Macet: { variant: 'error', label: 'Macet' },
         };
         const s = statusMap[i.status] || { variant: 'neutral', label: i.status };
         return (
@@ -1310,9 +1282,7 @@ export default function MemberPortal() {
             {i.status === 'Ditolak' && i.rejectionReason && (
               <Text
                 type="supporting"
-                color="critical"
-                style={{ fontSize: 11, wordBreak: 'break-word', maxWidth: 160 }}
-                title={i.rejectionReason}
+                style={{ color: 'var(--color-text-error)',  fontSize: 11, wordBreak: 'break-word', maxWidth: 160  }}
               >
                 Alasan: {i.rejectionReason}
               </Text>
@@ -1405,7 +1375,7 @@ export default function MemberPortal() {
                   border: '1px solid var(--color-warning-500, #f59e0b)',
                 }}
               >
-                <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
                   <VStack gap={1}>
                     <Text type="body" weight="bold">
                       Mode pratinjau admin
@@ -1421,7 +1391,7 @@ export default function MemberPortal() {
             )}
 
           {error ? (
-            <Text type="supporting" color="critical">
+            <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
               {error}
             </Text>
           ) : null}
@@ -1450,7 +1420,7 @@ export default function MemberPortal() {
               </Card>
               <Card>
                 <VStack gap={2}>
-                  <HStack justify="space-between" vAlign="center">
+                  <HStack justify="between" vAlign="center">
                     <Text type="supporting">Sukarela</Text>
                     {(profile?.simpananSukarela || 0) > 0 && (
                       <button
@@ -1482,7 +1452,7 @@ export default function MemberPortal() {
             </Grid>
           ) : (
             <Card style={{ padding: 20, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-primary-500, #3b82f6)' }}>
-              <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+              <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
                 <VStack gap={1}>
                   <HStack gap={2} vAlign="center">
                     <Badge variant="info" label="Karyawan Perusahaan Induk" />
@@ -1585,7 +1555,7 @@ export default function MemberPortal() {
 
           <Card>
             <VStack gap={4}>
-              <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+              <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
                 <Heading level={4}>
                   {activeTab === 'savings'
                     ? 'Riwayat Simpanan'
@@ -1669,13 +1639,13 @@ export default function MemberPortal() {
                     <Heading level={4}>Formulir Pengajuan Pinjaman Baru</Heading>
 
                     {applyError ? (
-                      <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 600  }}>
                         ⚠️ {applyError}
                       </Text>
                     ) : null}
 
                     {applySuccess ? (
-                      <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" style={{ color: 'var(--color-text-success)', fontWeight: 600 }}>
                         ✅ {applySuccess}
                       </Text>
                     ) : null}
@@ -1728,7 +1698,7 @@ export default function MemberPortal() {
 
                     {/* Lampiran Dokumen Pendukung */}
                     <VStack gap={2}>
-                      <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                      <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
                         <Text type="supporting">Lampiran Dokumen Pendukung (Wajib)</Text>
                         <Text type="supporting" size="sm" color="secondary">
                           PDF, JPG, PNG, WEBP (Maks. 10 MB)
@@ -1775,7 +1745,7 @@ export default function MemberPortal() {
                         </div>
                       ) : (
                         <Card style={{ padding: 12, backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
-                          <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                          <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
                             <HStack vAlign="center" gap={2}>
                               <span style={{ fontSize: '24px' }}>
                                 {attachmentName.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}
@@ -1814,7 +1784,7 @@ export default function MemberPortal() {
                       )}
 
                       {attachmentError && (
-                        <Text type="supporting" color="critical" style={{ fontWeight: 500 }}>
+                        <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 500  }}>
                           ⚠️ {attachmentError}
                         </Text>
                       )}
@@ -1824,12 +1794,12 @@ export default function MemberPortal() {
                     {parseFloat(applyAmount.replace(/\D/g, '')) > 0 && (
                       <Card style={{ padding: 16, backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
                         <VStack gap={2}>
-                          <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                          <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
                             <Text type="supporting" color="secondary">
                               Estimasi Angsuran Per Bulan
                             </Text>
                           </HStack>
-                          <HStack justify="space-between" vAlign="baseline" wrap="wrap" gap={2}>
+                          <HStack justify="between" wrap="wrap" gap={2} style={{ alignItems: 'baseline' }}>
                             <VStack gap={0}>
                               <Heading level={3} color="primary">
                                 {(() => {
@@ -1862,9 +1832,9 @@ export default function MemberPortal() {
                       </Card>
                     )}
 
-                    <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                    <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
                       {!attachmentUrl ? (
-                        <Text type="supporting" size="sm" color="critical">
+                        <Text type="supporting" size="sm" style={{ color: 'var(--color-text-error)' }}>
                           * Lampiran dokumen pendukung wajib diunggah
                         </Text>
                       ) : <div />}
@@ -1899,13 +1869,13 @@ export default function MemberPortal() {
                     </VStack>
 
                     {depositError && (
-                      <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 600  }}>
                         ⚠️ {depositError}
                       </Text>
                     )}
 
                     {depositSuccess && (
-                      <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" style={{ color: 'var(--color-text-success)', fontWeight: 600 }}>
                         ✅ {depositSuccess}
                       </Text>
                     )}
@@ -1916,7 +1886,7 @@ export default function MemberPortal() {
                         <Text type="supporting" weight="bold" color="primary">
                           🏦 Rekening Tujuan Transfer Koperasi:
                         </Text>
-                        <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                        <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
                           <VStack gap={0}>
                             <Text type="body" weight="bold">
                               {profile?.coopBank?.bankName || 'Bank Mandiri'}: {profile?.coopBank?.accountNumber || '1060022716008'}
@@ -2035,7 +2005,7 @@ export default function MemberPortal() {
                         )}
                         {depositProofUrl && !depositUploadingProof && (
                           <HStack gap={2} vAlign="center">
-                            <Text type="supporting" color="success" weight="medium">
+                            <Text type="supporting" weight="medium" style={{ color: 'var(--color-text-success)' }}>
                               ✓ Bukti terunggah: {depositProofName}
                             </Text>
                             <button
@@ -2074,7 +2044,7 @@ export default function MemberPortal() {
                       />
                     </VStack>
 
-                    <HStack justify="flex-end" gap={2}>
+                    <HStack justify="end" gap={2}>
                       <Button
                         label="Batal"
                         variant="ghost"
@@ -2103,20 +2073,20 @@ export default function MemberPortal() {
                     </VStack>
 
                     {withdrawError && (
-                      <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 600  }}>
                         ⚠️ {withdrawError}
                       </Text>
                     )}
 
                     {withdrawSuccess && (
-                      <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" style={{ color: 'var(--color-text-success)', fontWeight: 600 }}>
                         ✅ {withdrawSuccess}
                       </Text>
                     )}
 
                     {/* Saldo Sukarela Card & Quick Percentage Presets */}
                     <Card style={{ padding: 12, backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
-                      <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                      <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
                         <VStack gap={0}>
                           <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>
                             Saldo Simpanan Sukarela Tersedia:
@@ -2222,7 +2192,7 @@ export default function MemberPortal() {
                       />
                     </VStack>
 
-                    <HStack justify="flex-end" gap={2}>
+                    <HStack justify="end" gap={2}>
                       <Button
                         label="Batal"
                         variant="ghost"
@@ -2245,7 +2215,7 @@ export default function MemberPortal() {
                   {/* Status Konfirmasi Setoran Simpanan (Transfer Masuk) */}
                   {savingsDeposits.length > 0 && (
                     <VStack gap={2}>
-                      <HStack justify="space-between" vAlign="center">
+                      <HStack justify="between" vAlign="center">
                         <Text type="body" weight="bold">
                           Riwayat Konfirmasi Setoran Simpanan (Transfer Bank)
                         </Text>
@@ -2261,7 +2231,7 @@ export default function MemberPortal() {
                   {/* Status Permohonan Penarikan Sukarela */}
                   {savingsWithdrawals.length > 0 && (
                     <VStack gap={2}>
-                      <HStack justify="space-between" vAlign="center">
+                      <HStack justify="between" vAlign="center">
                         <Text type="body" weight="bold">
                           Riwayat Pengajuan Penarikan Simpanan Sukarela
                         </Text>
@@ -2294,7 +2264,7 @@ export default function MemberPortal() {
                     {/* EWA Header Info & Non-Member Conversion Banner */}
                     {!profile?.isCoopMember && (
                       <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-warning-500, #f59e0b)' }}>
-                        <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                        <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
                           <VStack gap={1}>
                             <Text type="body" weight="bold">
                               💡 Hemat Biaya Layanan & Dapatkan SHU!
@@ -2317,10 +2287,10 @@ export default function MemberPortal() {
                       <Card style={{ padding: 16, backgroundColor: 'var(--color-background-danger-subtle)', border: '1px solid var(--color-critical-500)' }}>
                         <HStack gap={3} vAlign="center">
                           <VStack gap={1}>
-                            <Text type="body" weight="bold" color="critical">
+                            <Text type="body" weight="bold" style={{ color: 'var(--color-text-error)' }}>
                               ⚠️ Pengajuan EWA Tidak Tersedia
                             </Text>
-                            <Text type="supporting" color="critical">
+                            <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                               {ewaQuota?.ineligibilityReason || 'Masa kontrak kerja Anda telah berakhir atau status kepegawaian tidak aktif.'}
                             </Text>
                           </VStack>
@@ -2368,9 +2338,9 @@ export default function MemberPortal() {
 
                       <Card style={{ padding: 16, backgroundColor: 'var(--color-background-primary-subtle, #eff6ff)', border: '1px solid var(--color-primary-500, #0171E3)' }}>
                         <VStack gap={1}>
-                          <HStack justify="space-between" vAlign="center">
+                          <HStack justify="between" vAlign="center">
                             <Text type="supporting" weight="semibold">Sisa Kuota Siap Ditarik</Text>
-                            <Badge variant="info" size="sm" label="Hari Ini" />
+                            <Badge variant="info" label="Hari Ini" />
                           </HStack>
                           <Heading level={3} color="primary">{formatRp(ewaQuota?.remainingQuota || 0)}</Heading>
                           <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
@@ -2394,7 +2364,7 @@ export default function MemberPortal() {
                       return (
                         <Card style={{ padding: 16, border: '1px solid var(--color-border-primary)' }}>
                           <VStack gap={2}>
-                            <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                            <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
                               <VStack gap={0}>
                                 <Text type="body" weight="bold">
                                   Alokasi Plafon Siklus Payroll ({ewaQuota.cycleStartDate} s/d {ewaQuota.cycleEndDate})
@@ -2405,7 +2375,6 @@ export default function MemberPortal() {
                               </VStack>
                               <Badge
                                 variant="neutral"
-                                size="sm"
                                 label={`Hari ke-${ewaQuota.currentDayInCycle || 1} dari ${ewaQuota.totalDaysInCycle || 30} hari`}
                               />
                             </HStack>
@@ -2486,12 +2455,12 @@ export default function MemberPortal() {
                         </VStack>
 
                         {ewaError && (
-                          <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
+                          <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 600  }}>
                             ⚠️ {ewaError}
                           </Text>
                         )}
                         {ewaSuccess && (
-                          <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
+                          <Text type="supporting" style={{ color: 'var(--color-text-success)', fontWeight: 600 }}>
                             ✅ {ewaSuccess}
                           </Text>
                         )}
@@ -2519,9 +2488,9 @@ export default function MemberPortal() {
                         {/* Info Rekening Payroll Tujuan Pencairan */}
                         <Card style={{ padding: 14, backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
                           <VStack gap={2}>
-                            <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                            <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
                               <Text type="supporting" weight="semibold">Rekening Payroll Tujuan Pencairan:</Text>
-                              <Badge variant="neutral" size="sm" label="Rekening Resmi Payroll" />
+                              <Badge variant="neutral" label="Rekening Resmi Payroll" />
                             </HStack>
                             <HStack gap={4} wrap="wrap">
                               <VStack gap={0}>
@@ -2564,15 +2533,15 @@ export default function MemberPortal() {
                             <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
                               <VStack gap={2}>
                                 <Text type="body" weight="bold">Rincian & Simulasi Potongan Gaji</Text>
-                                <HStack justify="space-between" wrap="wrap" gap={2}>
+                                <HStack justify="between" wrap="wrap" gap={2}>
                                   <Text type="supporting">Nominal Dana Yang Diterima:</Text>
-                                  <Text type="body" weight="semibold" color="success">+{formatRp(numericAmount)}</Text>
+                                  <Text type="body" weight="semibold" style={{ color: 'var(--color-text-success)' }}>+{formatRp(numericAmount)}</Text>
                                 </HStack>
-                                <HStack justify="space-between" wrap="wrap" gap={2}>
+                                <HStack justify="between" wrap="wrap" gap={2}>
                                   <Text type="supporting">Biaya Admin ({tierLabel}):</Text>
                                   <Text type="supporting">{formatRp(feeAmount)}</Text>
                                 </HStack>
-                                <HStack justify="space-between" wrap="wrap" gap={2} style={{ paddingTop: 6, borderTop: '1px solid var(--color-border-primary)' }}>
+                                <HStack justify="between" wrap="wrap" gap={2} style={{ paddingTop: 6, borderTop: '1px solid var(--color-border-primary)' }}>
                                   <Text type="body" weight="bold">Total Potongan Gaji Saat Payroll:</Text>
                                   <Text type="body" weight="bold" color="primary">
                                     {formatRp(totalDeduction)}
@@ -2631,18 +2600,18 @@ export default function MemberPortal() {
                                   </td>
                                   <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                                     {(() => {
-                                      const statusMap: Record<string, { label: string; variant: 'info' | 'success' | 'critical' | 'warning' }> = {
+                                      const statusMap: Record<string, { label: string; variant: 'info' | 'success' | 'error' | 'warning' }> = {
                                         PENDING: { label: 'Menunggu Cair', variant: 'warning' },
                                         DISBURSED: { label: 'Sudah Cair', variant: 'info' },
                                         PAID_SETTLED: { label: 'Lunas Payroll', variant: 'success' },
-                                        REJECTED: { label: 'Ditolak', variant: 'critical' },
+                                        REJECTED: { label: 'Ditolak', variant: 'error' },
                                       };
                                       const st = statusMap[h.status] || { label: h.status, variant: 'neutral' as const };
                                       return (
                                         <VStack gap={1} hAlign="center">
-                                          <Badge variant={st.variant} label={st.label} size="sm" />
+                                          <Badge variant={st.variant} label={st.label} />
                                           {h.status === 'REJECTED' && h.rejectionReason && (
-                                            <Text type="supporting" color="critical" style={{ fontSize: 11 }}>
+                                            <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontSize: 11  }}>
                                               Alasan: {h.rejectionReason}
                                             </Text>
                                           )}
@@ -2719,7 +2688,7 @@ export default function MemberPortal() {
                       <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-border-primary)' }}>
                         <VStack gap={2}>
                           <Text type="body" weight="bold">Keseimbangan Neraca (Aset = Kewajiban + Ekuitas)</Text>
-                          <HStack justify="space-between" wrap="wrap" gap={2}>
+                          <HStack justify="between" wrap="wrap" gap={2}>
                             <Text type="supporting">Total Aset: {formatRp(balanceData?.totalAssets || 0)}</Text>
                             <Text type="body" weight="semibold">
                               Total Pasiva: {formatRp((balanceData?.totalLiabilities || 0) + (balanceData?.totalEquity || 0))}
@@ -2736,19 +2705,19 @@ export default function MemberPortal() {
                         <Card style={{ padding: 16 }}>
                           <VStack gap={1}>
                             <Text type="supporting">Total Kas Masuk (Inflow)</Text>
-                            <Heading level={3} color="success">{formatRp(cashflowData?.totalInflow || 0)}</Heading>
+                            <Heading level={3} style={{ color: 'var(--color-text-success)' }}>{formatRp(cashflowData?.totalInflow || 0)}</Heading>
                           </VStack>
                         </Card>
                         <Card style={{ padding: 16 }}>
                           <VStack gap={1}>
                             <Text type="supporting">Total Kas Keluar (Outflow)</Text>
-                            <Heading level={3} color="error">{formatRp(cashflowData?.totalOutflow || 0)}</Heading>
+                            <Heading level={3} style={{ color: 'var(--color-text-error)' }}>{formatRp(cashflowData?.totalOutflow || 0)}</Heading>
                           </VStack>
                         </Card>
                         <Card style={{ padding: 16 }}>
                           <VStack gap={1}>
                             <Text type="supporting">Arus Kas Bersih (Net Cash)</Text>
-                            <Heading level={3} color={(cashflowData?.netCashFlow || 0) >= 0 ? "success" : "error"}>
+                            <Heading level={3} style={{ color: (cashflowData?.netCashFlow || 0) >= 0 ? 'var(--color-text-success)' : 'var(--color-text-error)' }}>
                               {formatRp(cashflowData?.netCashFlow || 0)}
                             </Heading>
                           </VStack>
@@ -2768,12 +2737,12 @@ export default function MemberPortal() {
                           <Grid gap={4}>
                             {/* Inflow List */}
                             <VStack gap={2}>
-                              <Text type="supporting" weight="semibold" color="success">Penerimaan Kas (Inflow):</Text>
+                              <Text type="supporting" weight="semibold" style={{ color: 'var(--color-text-success)' }}>Penerimaan Kas (Inflow):</Text>
                               {cashflowData?.inflows?.length > 0 ? (
                                 cashflowData.inflows.map((item: any, idx: number) => (
-                                  <HStack key={idx} justify="space-between" style={{ padding: '6px 0', borderBottom: '1px solid var(--color-border-primary)' }}>
+                                  <HStack key={idx} justify="between" style={{ padding: '6px 0', borderBottom: '1px solid var(--color-border-primary)' }}>
                                     <Text type="supporting">{item.label}</Text>
-                                    <Text type="body" weight="medium" color="success">+{formatRp(item.total)}</Text>
+                                    <Text type="body" weight="medium" style={{ color: 'var(--color-text-success)' }}>+{formatRp(item.total)}</Text>
                                   </HStack>
                                 ))
                               ) : (
@@ -2783,12 +2752,12 @@ export default function MemberPortal() {
 
                             {/* Outflow List */}
                             <VStack gap={2}>
-                              <Text type="supporting" weight="semibold" color="error">Pengeluaran Kas (Outflow):</Text>
+                              <Text type="supporting" weight="semibold" style={{ color: 'var(--color-text-error)' }}>Pengeluaran Kas (Outflow):</Text>
                               {cashflowData?.outflows?.length > 0 ? (
                                 cashflowData.outflows.map((item: any, idx: number) => (
-                                  <HStack key={idx} justify="space-between" style={{ padding: '6px 0', borderBottom: '1px solid var(--color-border-primary)' }}>
+                                  <HStack key={idx} justify="between" style={{ padding: '6px 0', borderBottom: '1px solid var(--color-border-primary)' }}>
                                     <Text type="supporting">{item.label}</Text>
-                                    <Text type="body" weight="medium" color="error">-{formatRp(item.total)}</Text>
+                                    <Text type="body" weight="medium" style={{ color: 'var(--color-text-error)' }}>-{formatRp(item.total)}</Text>
                                   </HStack>
                                 ))
                               ) : (
@@ -2806,13 +2775,13 @@ export default function MemberPortal() {
                   <Spinner size="md" />
                 ) : shuError ? (
                   <Card style={{ padding: 16, borderColor: 'var(--color-danger-500, #ef4444)' }}>
-                    <Text color="danger">{shuError}</Text>
+                    <Text style={{ color: 'var(--color-text-error)' }}>{shuError}</Text>
                   </Card>
                 ) : (
                   <VStack gap={6}>
                     {/* 1. Header Banner */}
                     <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
-                      <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                      <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
                         <HStack gap={3} vAlign="center">
                           <div
                             style={{
@@ -2853,7 +2822,7 @@ export default function MemberPortal() {
                       {/* Kartu Realisasi Berjalan */}
                       <Card style={{ padding: 20 }}>
                         <VStack gap={3}>
-                          <HStack justify="space-between" vAlign="center">
+                          <HStack justify="between" vAlign="center">
                             <Text type="supporting" weight="bold">Realisasi Berjalan (YTD)</Text>
                             <Badge variant="neutral" label="s/d Hari Ini" />
                           </HStack>
@@ -2866,13 +2835,13 @@ export default function MemberPortal() {
 
                           <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--color-border-primary, #e2e8f0)' }}>
                             <VStack gap={2}>
-                              <HStack justify="space-between">
+                              <HStack justify="between">
                                 <Text type="supporting">Jasa Modal (Simpanan):</Text>
                                 <Text type="body" weight="semibold">
                                   {formatRp(shuData?.realization?.member?.savingsShare || 0)}
                                 </Text>
                               </HStack>
-                              <HStack justify="space-between">
+                              <HStack justify="between">
                                 <Text type="supporting">Jasa Usaha (Pinjaman):</Text>
                                 <Text type="body" weight="semibold">
                                   {formatRp(shuData?.realization?.member?.loansShare || 0)}
@@ -2892,14 +2861,14 @@ export default function MemberPortal() {
                         }}
                       >
                         <VStack gap={3}>
-                          <HStack justify="space-between" vAlign="center">
+                          <HStack justify="between" vAlign="center">
                             <HStack gap={1} vAlign="center">
                               <SparklesIcon style={{ width: 16, height: 16, color: 'var(--color-primary-500, #3b82f6)' }} />
                               <Text type="supporting" weight="bold" color="primary">
                                 Proyeksi Akhir Tahun (s/d 31 Des)
                               </Text>
                             </HStack>
-                            <Badge variant="primary" label="Estimasi RAT" />
+                            <Badge variant="info" label="Estimasi RAT" />
                           </HStack>
                           <Heading level={2} color="primary">
                             {formatRp(shuData?.projection?.member?.shu || 0)}
@@ -2912,13 +2881,13 @@ export default function MemberPortal() {
 
                           <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--color-border-primary, #e2e8f0)' }}>
                             <VStack gap={2}>
-                              <HStack justify="space-between">
+                              <HStack justify="between">
                                 <Text type="supporting">Estimasi Jasa Modal (Simpanan):</Text>
                                 <Text type="body" weight="semibold">
                                   {formatRp(shuData?.projection?.member?.savingsShare || 0)}
                                 </Text>
                               </HStack>
-                              <HStack justify="space-between">
+                              <HStack justify="between">
                                 <Text type="supporting">Estimasi Jasa Usaha (Pinjaman):</Text>
                                 <Text type="body" weight="semibold">
                                   {formatRp(shuData?.projection?.member?.loansShare || 0)}
@@ -2969,7 +2938,7 @@ export default function MemberPortal() {
                         {/* Pilar Jasa Simpanan */}
                         <Card style={{ padding: 18 }}>
                           <VStack gap={3}>
-                            <HStack justify="space-between" vAlign="center">
+                            <HStack justify="between" vAlign="center">
                               <Text type="body" weight="bold">1. Jasa Modal / Simpanan</Text>
                               <Badge variant="neutral" label={`Alokasi ${shuData?.config?.jasaSimpananPct ?? 50}% Bagian Anggota`} />
                             </HStack>
@@ -2978,15 +2947,15 @@ export default function MemberPortal() {
                             </Text>
                             <div style={{ backgroundColor: 'var(--color-background-secondary)', padding: 14, borderRadius: 8 }}>
                               <VStack gap={2}>
-                                <HStack justify="space-between">
+                                <HStack justify="between">
                                   <Text type="supporting">Rata-rata Simpanan Anda:</Text>
                                   <Text type="body" weight="medium">{formatRp(shuData?.projection?.member?.averageSavings || 0)}</Text>
                                 </HStack>
-                                <HStack justify="space-between">
+                                <HStack justify="between">
                                   <Text type="supporting">Total Simpanan Koperasi:</Text>
                                   <Text type="body" weight="medium">{formatRp(shuData?.projection?.totalCoopSavings || 0)}</Text>
                                 </HStack>
-                                <HStack justify="space-between">
+                                <HStack justify="between">
                                   <Text type="supporting">Proporsi Kontribusi:</Text>
                                   <Text type="body" weight="bold" color="primary">
                                     {shuData?.projection?.totalCoopSavings > 0
@@ -2994,12 +2963,12 @@ export default function MemberPortal() {
                                       : '0%'}
                                   </Text>
                                 </HStack>
-                                <HStack justify="space-between">
+                                <HStack justify="between">
                                   <Text type="supporting">Dana Pool Jasa Simpanan (Proyeksi):</Text>
                                   <Text type="body" weight="semibold">{formatRp(shuData?.projection?.jasaSimpananPool || 0)}</Text>
                                 </HStack>
                                 <div style={{ borderTop: '1px dashed var(--color-border-primary, #cbd5e1)', paddingTop: 6 }}>
-                                  <HStack justify="space-between">
+                                  <HStack justify="between">
                                     <Text type="body" weight="bold">Estimasi Jasa Modal Anda:</Text>
                                     <Text type="body" weight="bold" color="primary">
                                       {formatRp(shuData?.projection?.member?.savingsShare || 0)}
@@ -3014,7 +2983,7 @@ export default function MemberPortal() {
                         {/* Pilar Jasa Pinjaman */}
                         <Card style={{ padding: 18 }}>
                           <VStack gap={3}>
-                            <HStack justify="space-between" vAlign="center">
+                            <HStack justify="between" vAlign="center">
                               <Text type="body" weight="bold">2. Jasa Usaha / Pinjaman</Text>
                               <Badge variant="neutral" label={`Alokasi ${shuData?.config?.jasaPinjamanPct ?? 50}% Bagian Anggota`} />
                             </HStack>
@@ -3025,22 +2994,22 @@ export default function MemberPortal() {
                             </Text>
                             <div style={{ backgroundColor: 'var(--color-background-secondary)', padding: 14, borderRadius: 8 }}>
                               <VStack gap={2}>
-                                <HStack justify="space-between">
+                                <HStack justify="between">
                                   <Text type="supporting">Realisasi Bunga Terbayar YTD:</Text>
                                   <Text type="body" weight="medium">
                                     {formatRp(shuData?.realization?.member?.loansShare || 0)} (Alokasi YTD)
                                   </Text>
                                 </HStack>
-                                <HStack justify="space-between">
+                                <HStack justify="between">
                                   <Text type="supporting">Proyeksi Angsuran s/d 31 Des:</Text>
                                   <Text type="body" weight="medium">Termasuk sisa jadwal aktif</Text>
                                 </HStack>
-                                <HStack justify="space-between">
+                                <HStack justify="between">
                                   <Text type="supporting">Dana Pool Jasa Pinjaman (Proyeksi):</Text>
                                   <Text type="body" weight="semibold">{formatRp(shuData?.projection?.jasaPinjamanPool || 0)}</Text>
                                 </HStack>
                                 <div style={{ borderTop: '1px dashed var(--color-border-primary, #cbd5e1)', paddingTop: 6 }}>
-                                  <HStack justify="space-between">
+                                  <HStack justify="between">
                                     <Text type="body" weight="bold">Estimasi Jasa Pinjaman Anda:</Text>
                                     <Text type="body" weight="bold" color="primary">
                                       {formatRp(shuData?.projection?.member?.loansShare || 0)}
@@ -3126,7 +3095,7 @@ export default function MemberPortal() {
 
                       {/* Riwayat Pembayaran Masuk */}
                       <VStack gap={2}>
-                        <HStack hAlign="space-between" vAlign="center">
+                        <HStack hAlign="between" vAlign="center">
                           <Heading level={5}>Riwayat Pembayaran Masuk</Heading>
                           {payments.length > 0 && (
                             <Text type="supporting" color="secondary">

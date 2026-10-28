@@ -22,7 +22,7 @@ import {formatRp} from '../utils/format';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
 
-import type {NplRow, NplResponse} from '../shared/types';
+import type {NplRow, NplResponse} from '@shared/types';
 
 const fieldDefs = [
   {key: 'name', type: 'string', label: 'Nama Anggota'},
@@ -48,7 +48,7 @@ export default function NPLTemplate() {
   const [selectedTab, setSelectedTab] = useState<'ALL' | 'LANCAR' | 'DPK' | 'KURANG_LANCAR' | 'DIRAGUKAN' | 'MACET'>('ALL');
 
   const filtered = useMemo(() => {
-    let list = applyFilters(filters, localLoans);
+    let list = (applyFilters as any)(filters, localLoans) as NplRow[];
     if (selectedTab === 'LANCAR') {
       list = list.filter((i) => i.collectibility === 'Lancar' || (!i.dpd && i.status !== 'Macet'));
     } else if (selectedTab === 'DPK') {
@@ -113,7 +113,7 @@ export default function NPLTemplate() {
         const dpd = item.dpd || 0;
         if (dpd === 0) {
           return (
-            <Text type="supporting" color="success" style={{ fontWeight: 500 }}>
+            <Text type="supporting" style={{ fontWeight: 500, color: 'var(--color-success-500)' }}>
               0 Hari (Lancar)
             </Text>
           );

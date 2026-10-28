@@ -76,7 +76,7 @@ describe("Shell Component", () => {
   test("shows badge counters when pending actions exist", async () => {
     localStorage.setItem("token", "test-token");
     localStorage.setItem("role", "admin");
-    spyOn(apiModule.api, "get").mockImplementation(async (path: string) => {
+    spyOn(apiModule.api, "get").mockImplementation(((async (path: string) => {
       if (path.includes("pending-actions")) {
         return {
           totalPending: 5,
@@ -89,7 +89,7 @@ describe("Shell Component", () => {
         };
       }
       return {};
-    });
+    }) as any));
     renderShell();
     await waitFor(() => {
       expect(screen.getByText("Kotak Masukan & Bug")).toBeTruthy();

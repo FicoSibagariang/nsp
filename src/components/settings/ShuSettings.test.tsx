@@ -68,7 +68,7 @@ describe('ShuSettings Component', () => {
     fireEvent.click(saveBtn);
 
     expect(onSave).toHaveBeenCalledTimes(1);
-    const calledWith = onSave.mock.calls[0][0];
+    const calledWith = (onSave as any).mock.calls[0][0];
     expect(calledWith.anggotaPct).toBe('45');
     expect(calledWith.jasaSimpananPct).toBe('60');
   });

@@ -2,7 +2,7 @@ import { expect, test, describe, afterEach, mock } from "bun:test";
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 import { NotificationBell } from "./NotificationBell";
 import { ThemeProvider } from "../contexts/ThemeContext";
-import type { PendingActionsData } from "../../shared/types";
+import type { PendingActionsData } from "@shared/types";
 
 describe("NotificationBell Component", () => {
   afterEach(() => {

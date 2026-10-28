@@ -4,7 +4,7 @@ import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { formatRp } from '../utils/format';
-import type { SavingsDepositRow } from '../shared/types';
+import type { SavingsDepositRow } from '@shared/types';
 import { useDemoMode } from '../contexts/DemoModeContext';
 import { maskName } from '../utils/privacyMask';
 
@@ -82,26 +82,26 @@ export function ApproveSavingsDepositDialogContent({
             border: '1px solid var(--color-border-primary, #e5e7eb)',
           }}
         >
-          <HStack justify="space-between" vAlign="center">
+          <HStack justify="between" vAlign="center">
             <Text type="supporting" color="secondary">Anggota:</Text>
             <Text type="body" weight="semibold">{displayName}</Text>
           </HStack>
-          <HStack justify="space-between" vAlign="center">
+          <HStack justify="between" vAlign="center">
             <Text type="supporting" color="secondary">Jenis Simpanan:</Text>
             <Text type="body" weight="semibold" color="primary">
               {getSavingsTypeLabel(deposit.savingsType)}
             </Text>
           </HStack>
-          <HStack justify="space-between" vAlign="center">
+          <HStack justify="between" vAlign="center">
             <Text type="supporting" color="secondary">Nominal Setoran:</Text>
             <Text type="body" weight="bold" color="primary">{formatRp(deposit.amount)}</Text>
           </HStack>
-          <HStack justify="space-between" vAlign="center">
+          <HStack justify="between" vAlign="center">
             <Text type="supporting" color="secondary">Tanggal Transfer:</Text>
             <Text type="body" weight="medium">{deposit.transferDate}</Text>
           </HStack>
           {(deposit.senderBank || deposit.senderAccount || deposit.senderName) && (
-            <HStack justify="space-between" vAlign="center">
+            <HStack justify="between" vAlign="center">
               <Text type="supporting" color="secondary">Rekening Pengirim:</Text>
               <Text type="body" weight="medium">
                 {deposit.senderBank || '-'} {deposit.senderAccount ? `(${deposit.senderAccount})` : ''}{' '}
@@ -110,7 +110,7 @@ export function ApproveSavingsDepositDialogContent({
             </HStack>
           )}
           {deposit.proofUrl && (
-            <HStack justify="space-between" vAlign="center">
+            <HStack justify="between" vAlign="center">
               <Text type="supporting" color="secondary">Bukti Transfer:</Text>
               <a
                 href={deposit.proofUrl}
@@ -128,7 +128,7 @@ export function ApproveSavingsDepositDialogContent({
             </HStack>
           )}
           {deposit.notes && (
-            <HStack justify="space-between" vAlign="flex-start">
+            <HStack justify="between" vAlign="start">
               <Text type="supporting" color="secondary">Catatan:</Text>
               <Text type="supporting" style={{ maxWidth: 300, textAlign: 'right' }}>{deposit.notes}</Text>
             </HStack>
@@ -168,7 +168,7 @@ export function ApproveSavingsDepositDialogContent({
           </select>
         </VStack>
 
-        <HStack justify="flex-end" gap={2} style={{ marginTop: 8 }}>
+        <HStack justify="end" gap={2} style={{ marginTop: 8 }}>
           <Button label="Batal" variant="ghost" onClick={onClose} isDisabled={isLoading} />
           <Button
             label={isLoading ? 'Memproses...' : 'Verifikasi & Bukukan'}

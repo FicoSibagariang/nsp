@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <Center style={{ height: '100vh', backgroundColor: '#f9fafb' }}>
           <VStack gap={4} style={{ alignItems: 'center', textAlign: 'center', maxWidth: 400 }}>
-            <Heading level={2} color="error">Terjadi Kesalahan</Heading>
+            <Heading level={2} style={{ color: 'var(--color-text-error)' }}>Terjadi Kesalahan</Heading>
             <Text type="body" color="secondary">
               Maaf, aplikasi mengalami masalah tak terduga. Silakan muat ulang halaman.
             </Text>

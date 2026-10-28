@@ -16,7 +16,7 @@ import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 import { getCategoricalColor, getThemedTooltipProps } from '../design/chartTheme';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ShuConfigDialog } from '../components/ShuConfigDialog';
-import type { ShuConfig } from '../shared/types';
+import type { ShuConfig } from '@shared/types';
 
 interface SHUData {
   year: string;
@@ -104,7 +104,7 @@ export default function SHU() {
             <HStack gap={2} vAlign="center">
               <Text type="body">{displayName}</Text>
               {item.status && item.status.toLowerCase() !== 'aktif' && (
-                <Badge variant="neutral" label={item.status} size="sm" />
+                <Badge variant="neutral" label={item.status} />
               )}
             </HStack>
           );
@@ -151,7 +151,7 @@ export default function SHU() {
       key: 'shu',
       header: isProjection ? 'Estimasi SHU Akhir Tahun' : 'Alokasi SHU',
       width: proportional(1.2),
-      renderCell: (item) => <Text type="body" color="success">+{formatRp(item.shu)}</Text>,
+      renderCell: (item) => <Text type="body" style={{ color: 'var(--color-text-success)' }}>+{formatRp(item.shu)}</Text>,
     });
 
     return cols;
@@ -321,17 +321,17 @@ export default function SHU() {
               <HStack gap={4} wrap="wrap">
                 <Card style={{ flex: '1 1 200px', padding: 20 }}>
                   <VStack gap={1}>
-                    <HStack justify="space-between" vAlign="center">
+                    <HStack justify="between" vAlign="center">
                       <Text type="supporting" color="secondary">
                         {isProjection ? 'Proyeksi Pendapatan' : 'Total Pendapatan (Bunga dsb.)'}
                       </Text>
                       {isProjection && (
-                        <Badge variant="info" size="sm" label="Proyeksi" />
+                        <Badge variant="info" label="Proyeksi" />
                       )}
                     </HStack>
-                    <Heading level={3} color="success">{formatRp(data.pendapatan)}</Heading>
+                    <Heading level={3} style={{ color: 'var(--color-text-success)' }}>{formatRp(data.pendapatan)}</Heading>
                     {isProjection && data.projectedPendapatan !== undefined && data.projectedPendapatan > 0 && (
-                      <Text type="caption" color="secondary">
+                      <Text type="supporting" color="secondary">
                         Realisasi: {formatRp(data.realizedPendapatan ?? 0)} + Proyeksi: {formatRp(data.projectedPendapatan)}
                       </Text>
                     )}
@@ -340,8 +340,8 @@ export default function SHU() {
                 <Card style={{ flex: '1 1 200px', padding: 20 }}>
                   <VStack gap={1}>
                     <Text type="supporting" color="secondary">Biaya Operasional</Text>
-                    <Heading level={3} color="error">{formatRp(data.biayaOperasional)}</Heading>
-                    <Text type="caption" color="secondary">Realisasi Beban Akuntansi</Text>
+                    <Heading level={3} style={{ color: 'var(--color-text-error)' }}>{formatRp(data.biayaOperasional)}</Heading>
+                    <Text type="supporting" color="secondary">Realisasi Beban Akuntansi</Text>
                   </VStack>
                 </Card>
                 <Card style={{ flex: '1 1 200px', padding: 20, backgroundColor: 'var(--color-background-primary-subtle)' }}>
@@ -351,7 +351,7 @@ export default function SHU() {
                     </Text>
                     <Heading level={3} color="primary">{formatRp(data.shuNetto)}</Heading>
                     {isProjection && (
-                      <Text type="caption" color="primary">Potensi Hasil Akhir Tahun</Text>
+                      <Text type="supporting" color="primary">Potensi Hasil Akhir Tahun</Text>
                     )}
                   </VStack>
                 </Card>
@@ -378,7 +378,7 @@ export default function SHU() {
                               <Cell key={`cell-${index}`} fill={getCategoricalColor(index)} />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value: number) => formatRp(value)} {...getThemedTooltipProps()} />
+                          <Tooltip formatter={(value: any) => formatRp(value)} {...getThemedTooltipProps()} />
                           <Legend />
                         </PieChart>
                       </ResponsiveContainer>
@@ -417,7 +417,7 @@ export default function SHU() {
 
               {/* Table Alokasi Anggota */}
               <VStack gap={4}>
-                <HStack justify="space-between" vAlign="center">
+                <HStack justify="between" vAlign="center">
                   <Heading level={4}>Alokasi per Anggota</Heading>
                   {hasPermission('export:reports') && (
                     <HStack gap={2}>

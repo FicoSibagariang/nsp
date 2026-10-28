@@ -29,7 +29,7 @@ describe("Loans Component", () => {
   });
 
   test("renders Rekening Tujuan column and displays member bank details", async () => {
-    getSpy = spyOn(apiModule.api, "get").mockImplementation((url: string) => {
+    getSpy = spyOn(apiModule.api, "get").mockImplementation(((url: string) => {
       if (url.includes('/api/loans')) {
         return Promise.resolve({
           data: [
@@ -66,7 +66,7 @@ describe("Loans Component", () => {
         });
       }
       return Promise.resolve({ data: [], total: 0, page: 1, limit: 20 });
-    });
+    }) as any);
 
     renderLoans();
 
@@ -79,7 +79,7 @@ describe("Loans Component", () => {
   });
 
   test("renders rejection reason when loan status is Ditolak", async () => {
-    getSpy = spyOn(apiModule.api, "get").mockImplementation((url: string) => {
+    getSpy = spyOn(apiModule.api, "get").mockImplementation(((url: string) => {
       if (url.includes('/api/loans')) {
         return Promise.resolve({
           data: [
@@ -101,7 +101,7 @@ describe("Loans Component", () => {
         });
       }
       return Promise.resolve({ data: [], total: 0, page: 1, limit: 20 });
-    });
+    }) as any);
 
     renderLoans();
 

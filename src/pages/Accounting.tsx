@@ -19,7 +19,7 @@ import { useA11yDialog } from '../hooks/useA11yDialog';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { DateInput } from '@astryxdesign/core/DateInput';
 import { Selector } from '@astryxdesign/core/Selector';
-import type { AccountRow, JournalEntryRow } from '../shared/types';
+import type { AccountRow, JournalEntryRow } from '@shared/types';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { api } from '../services/api';
 import { formatRp } from '../utils/format';
@@ -89,8 +89,8 @@ function JournalDialog({
       
       <DateInput
         label="Tanggal"
-        value={date}
-        onChange={setDate}
+        value={date as any}
+        onChange={(v) => setDate(v || '')}
       />
       <TextInput
         label="Deskripsi/Keterangan"
@@ -114,11 +114,9 @@ function JournalDialog({
       )}
 
       <div style={{ marginTop: 16 }}>
-        <HStack hAlign="space-between" vAlign="center" style={{ marginBottom: 8 }}>
+        <HStack hAlign="between" vAlign="center" style={{ marginBottom: 8 }}>
           <Text style={{ fontWeight: 600 }}>Baris Jurnal</Text>
-          <Button variant="secondary" onClick={() => setLines([...lines, { account_id: '', debit: '', credit: '' }])} style={{ padding: '4px 8px' }}>
-            <PlusIcon width={16} /> Tambah Baris
-          </Button>
+          <Button label="Tambah Baris" icon={<PlusIcon width={16} />} variant="secondary" onClick={() => setLines([...lines, { account_id: '', debit: '', credit: '' }])} style={{ padding: '4px 8px' }} />
         </HStack>
         
         {lines.map((line, idx) => (
@@ -132,31 +130,32 @@ function JournalDialog({
                   newLines[idx].account_id = v;
                   setLines(newLines);
                 }}
-                label={idx === 0 ? "Akun" : undefined}
+                label={idx === 0 ? "Akun" : "Akun"}
+                isLabelHidden={idx !== 0}
               />
             </div>
             <div style={{ flex: 1 }}>
               <TextInput
-                type="number"
                 value={line.debit}
                 onChange={(v) => {
                   const newLines = [...lines];
                   newLines[idx].debit = v;
                   setLines(newLines);
                 }}
-                label={idx === 0 ? "Debit" : undefined}
+                label={idx === 0 ? "Debit" : "Debit"}
+                isLabelHidden={idx !== 0}
               />
             </div>
             <div style={{ flex: 1 }}>
               <TextInput
-                type="number"
                 value={line.credit}
                 onChange={(v) => {
                   const newLines = [...lines];
                   newLines[idx].credit = v;
                   setLines(newLines);
                 }}
-                label={idx === 0 ? "Kredit" : undefined}
+                label={idx === 0 ? "Kredit" : "Kredit"}
+                isLabelHidden={idx !== 0}
               />
             </div>
             <div style={{ flex: 0.2, marginTop: idx === 0 ? 24 : 0 }}>
@@ -180,12 +179,12 @@ function JournalDialog({
           <Text>Total Debit: <b>{formatRp(totalDebit)}</b></Text>
           <Text>Total Kredit: <b>{formatRp(totalCredit)}</b></Text>
         </HStack>
-        {!isBalance && <Text color="critical" type="supporting" style={{ textAlign: 'right', marginTop: 4 }}>Jurnal belum balance (selisih {formatRp(Math.abs(totalDebit - totalCredit))})</Text>}
+        {!isBalance && <Text type="supporting" style={{ color: 'var(--color-text-error)',  textAlign: 'right', marginTop: 4  }}>Jurnal belum balance (selisih {formatRp(Math.abs(totalDebit - totalCredit))})</Text>}
       </div>
 
       <HStack gap={2} hAlign="end" style={{ marginTop: 16 }}>
         <Button label="Batal" variant="secondary" onClick={onClose} />
-        <Button label="Simpan Jurnal" variant="primary" onClick={handleSave} disabled={!isBalance || isZero} />
+        <Button label="Simpan Jurnal" variant="primary" onClick={handleSave} isDisabled={!isBalance || isZero} />
       </HStack>
     </VStack>
   )
@@ -254,9 +253,6 @@ export default function Accounting() {
               isLoading={isLoading}
               error={error}
               onRetry={refetch}
-              hasData={journalRows.length > 0}
-              emptyTitle="Belum ada catatan jurnal"
-              emptyMessage="Transaksi jurnal akan muncul di sini"
             >
               <VStack gap={4}>
             <div style={{ backgroundColor: 'var(--color-background-surface)', border: '1px solid var(--color-border)', borderRadius: 8, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -291,6 +287,8 @@ export default function Accounting() {
                           <HStack gap={1} hAlign="center">
                             {entry.reference_type !== 'reversal_of' && (
                               <Button
+                                label="Koreksi"
+                                icon={<ArrowPathIcon width={14} />}
                                 size="sm"
                                 variant="secondary"
                                 onClick={() => {
@@ -304,15 +302,12 @@ export default function Accounting() {
                                     }
                                   );
                                 }}
-                              >
-                                <HStack gap={1} vAlign="center">
-                                  <ArrowPathIcon width={14} />
-                                  <span>Koreksi</span>
-                                </HStack>
-                              </Button>
+                              />
                             )}
                             {isSuperAdmin && (
                               <Button
+                                label="Hapus"
+                                icon={<TrashIcon width={14} />}
                                 size="sm"
                                 variant="destructive"
                                 onClick={() => {
@@ -326,12 +321,7 @@ export default function Accounting() {
                                     }
                                   );
                                 }}
-                              >
-                                <HStack gap={1} vAlign="center">
-                                  <TrashIcon width={14} />
-                                  <span>Hapus</span>
-                                </HStack>
-                              </Button>
+                              />
                             )}
                           </HStack>
                         </td>

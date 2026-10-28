@@ -212,12 +212,12 @@ export function ImportSavingsDialogContent({
 
             {/* Messages */}
             {errorMsg && (
-              <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
+              <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 600  }}>
                 ⚠️ {errorMsg}
               </Text>
             )}
             {resultMsg && (
-              <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
+              <Text type="supporting" style={{ fontWeight: 600, color: 'var(--color-text-success)' }}>
                 ✅ {resultMsg}
               </Text>
             )}
@@ -225,14 +225,14 @@ export function ImportSavingsDialogContent({
             {/* Preview Section */}
             {rows.length > 0 && (
               <VStack gap={3}>
-                <HStack hAlign="space-between" vAlign="center">
+                <HStack hAlign="between" vAlign="center">
                   <Heading level={4}>3. Pratinjau Data ({rows.length} baris)</Heading>
                   <HStack gap={2}>
-                    <Text type="supporting" color="success">
+                    <Text type="supporting" style={{ color: 'var(--color-text-success)' }}>
                       Valid: {validRows.length}
                     </Text>
                     {invalidRows.length > 0 && (
-                      <Text type="supporting" color="critical">
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                         Error: {invalidRows.length}
                       </Text>
                     )}
@@ -296,12 +296,11 @@ export function ImportSavingsDialogContent({
       footer={
         <LayoutFooter>
           <HStack gap={2} hAlign="end">
-            <Button label="Batal" variant="secondary" onClick={onClose} disabled={isSubmitting} />
+            <Button label="Batal" variant="secondary" onClick={onClose} isDisabled={isSubmitting} />
             <Button
               label={isSubmitting ? 'Memproses...' : `Import ${validRows.length} Data`}
               variant="primary"
-              onClick={handleImport}
-              disabled={validRows.length === 0 || isSubmitting || isParsing}
+              onClick={handleImport} isDisabled={validRows.length === 0 || isSubmitting || isParsing}
             />
           </HStack>
         </LayoutFooter>

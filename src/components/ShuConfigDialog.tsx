@@ -10,7 +10,7 @@ import { Badge } from '@astryxdesign/core/Badge';
 import { Grid } from '@astryxdesign/core/Grid';
 import { CheckboxInput } from '@astryxdesign/core/CheckboxInput';
 import { api } from '../services/api';
-import type { ShuConfig } from '../shared/types';
+import type { ShuConfig } from '@shared/types';
 
 interface ShuConfigDialogProps {
   currentConfig?: ShuConfig | null;
@@ -148,83 +148,74 @@ export function ShuConfigDialog({ currentConfig, onClose, onSuccess }: ShuConfig
 
             {/* Bagian 1: Distribusi SHU Netto */}
             <VStack gap={3}>
-              <HStack justify="space-between" vAlign="center">
+              <HStack justify="between" vAlign="center">
                 <Text type="body" weight="semibold">
                   1. Distribusi SHU Netto
                 </Text>
                 <Badge
-                  variant={isPrimaryValid ? 'success' : 'critical'}
+                  variant={isPrimaryValid ? 'success' : 'error'}
                   label={`Total: ${primaryTotal}% ${isPrimaryValid ? '✓' : primaryTotal > 100 ? `(+${(primaryTotal - 100).toFixed(1)}%)` : `(-${(100 - primaryTotal).toFixed(1)}%)`}`}
-                  size="sm"
                 />
               </HStack>
 
               <Grid columns={2} gap={3}>
                 <TextInput
                   label="Alokasi Anggota (%)"
-                  type="number"
                   value={form.anggotaPct}
                   onChange={(v) => setForm((p) => ({ ...p, anggotaPct: v }))}
-                  disabled={isSubmitting}
+                  isDisabled={isSubmitting}
                 />
                 <TextInput
                   label="Dana Cadangan (%)"
-                  type="number"
                   value={form.cadanganPct}
                   onChange={(v) => setForm((p) => ({ ...p, cadanganPct: v }))}
-                  disabled={isSubmitting}
+                  isDisabled={isSubmitting}
                 />
                 <TextInput
                   label="Jasa Pengurus (%)"
-                  type="number"
                   value={form.pengurusPct}
                   onChange={(v) => setForm((p) => ({ ...p, pengurusPct: v }))}
-                  disabled={isSubmitting}
+                  isDisabled={isSubmitting}
                 />
                 <TextInput
                   label="Dana Sosial (%)"
-                  type="number"
                   value={form.sosialPct}
                   onChange={(v) => setForm((p) => ({ ...p, sosialPct: v }))}
-                  disabled={isSubmitting}
+                  isDisabled={isSubmitting}
                 />
               </Grid>
               <TextInput
                 label="Dana Pembangunan Kerja (%)"
-                type="number"
                 value={form.pembangunanPct}
                 onChange={(v) => setForm((p) => ({ ...p, pembangunanPct: v }))}
-                disabled={isSubmitting}
+                isDisabled={isSubmitting}
               />
             </VStack>
 
             {/* Bagian 2: Pembagian Alokasi Anggota */}
             <VStack gap={3}>
-              <HStack justify="space-between" vAlign="center">
+              <HStack justify="between" vAlign="center">
                 <Text type="body" weight="semibold">
                   2. Pembagian Porsi Anggota
                 </Text>
                 <Badge
-                  variant={isMemberValid ? 'success' : 'critical'}
+                  variant={isMemberValid ? 'success' : 'error'}
                   label={`Total: ${memberTotal}% ${isMemberValid ? '✓' : memberTotal > 100 ? `(+${(memberTotal - 100).toFixed(1)}%)` : `(-${(100 - memberTotal).toFixed(1)}%)`}`}
-                  size="sm"
                 />
               </HStack>
 
               <Grid columns={2} gap={3}>
                 <TextInput
                   label="Jasa Modal / Simpanan (%)"
-                  type="number"
                   value={form.jasaSimpananPct}
                   onChange={(v) => setForm((p) => ({ ...p, jasaSimpananPct: v }))}
-                  disabled={isSubmitting}
+                  isDisabled={isSubmitting}
                 />
                 <TextInput
                   label="Jasa Usaha / Pinjaman (%)"
-                  type="number"
                   value={form.jasaPinjamanPct}
                   onChange={(v) => setForm((p) => ({ ...p, jasaPinjamanPct: v }))}
-                  disabled={isSubmitting}
+                  isDisabled={isSubmitting}
                 />
               </Grid>
             </VStack>
@@ -239,12 +230,12 @@ export function ShuConfigDialog({ currentConfig, onClose, onSuccess }: ShuConfig
                 description="Anggota yang mengundurkan diri sebelum akhir tahun tetap berhak atas SHU pro-rata sesuai saldo rata-rata harian (ADB) saat masih aktif. Jika tidak dicentang, hak SHU hangus bagi anggota nonaktif."
                 value={form.includeInactiveMembers}
                 onChange={(v) => setForm((p) => ({ ...p, includeInactiveMembers: v }))}
-                disabled={isSubmitting}
+                isDisabled={isSubmitting}
               />
             </VStack>
 
             {/* Tombol Aksi */}
-            <HStack justify="space-between" vAlign="center" style={{ marginTop: 8 }}>
+            <HStack justify="between" vAlign="center" style={{ marginTop: 8 }}>
               <Button
                 label="Reset Default AD/ART"
                 variant="ghost"

@@ -29,8 +29,8 @@ import React, { Suspense, type ReactNode } from 'react';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { Badge } from '@astryxdesign/core/Badge';
 import { useAuth } from '../hooks/useAuth';
-import type { Permission } from '../../shared/permissions';
-import type { SettingsData, PendingActionsData } from '../../shared/types';
+import type { Permission } from '@shared/permissions';
+import type { SettingsData, PendingActionsData } from '@shared/types';
 import { useThemeMode } from '../contexts/ThemeContext';
 import { useDemoMode } from '../contexts/DemoModeContext';
 import { IconButton } from '@astryxdesign/core/IconButton';
@@ -54,7 +54,7 @@ const Ledger = React.lazy(() => import('../pages/Ledger'));
 const EWA = React.lazy(() => import('../pages/EWA'));
 const Letters = React.lazy(() => import('../pages/Letters'));
 const Feedbacks = React.lazy(() => import('../pages/Feedbacks'));
-const ComingSoon = React.lazy(() => import('./ComingSoon.tsx'));
+const ComingSoon = React.lazy(() => import('./ComingSoon'));
 
 function ProtectedRoute({ permission, children }: { permission: Permission; children: ReactNode }) {
   const { hasPermission } = useAuth();
@@ -184,7 +184,7 @@ export default function Shell() {
               isSelected={path === '/savings'}
               onClick={() => navigate('/savings')}
               endContent={pendingSavingsCount > 0 ? (
-                <Badge variant="warning" size="sm" label={String(pendingSavingsCount)} />
+                <Badge variant="warning" label={String(pendingSavingsCount)} />
               ) : undefined}
             />
             <SideNavItem 
@@ -199,7 +199,7 @@ export default function Shell() {
               isSelected={path === '/ewa'}
               onClick={() => navigate('/ewa')}
               endContent={pendingEwaCount > 0 ? (
-                <Badge variant="warning" size="sm" label={String(pendingEwaCount)} />
+                <Badge variant="warning" label={String(pendingEwaCount)} />
               ) : undefined}
             />
           </SideNavSection>
@@ -239,7 +239,7 @@ export default function Shell() {
               isSelected={path === '/loans'}
               onClick={() => navigate('/loans')}
               endContent={pendingLoansCount > 0 ? (
-                <Badge variant="warning" size="sm" label={String(pendingLoansCount)} />
+                <Badge variant="warning" label={String(pendingLoansCount)} />
               ) : undefined}
             />
             <SideNavItem
@@ -255,7 +255,7 @@ export default function Shell() {
                 isSelected={path === '/npl'}
                 onClick={() => navigate('/npl')}
                 endContent={overdueLoansCount > 0 ? (
-                  <Badge variant="error" size="sm" label={String(overdueLoansCount)} />
+                  <Badge variant="error" label={String(overdueLoansCount)} />
                 ) : undefined}
               />
             )}
@@ -289,7 +289,7 @@ export default function Shell() {
               isSelected={path === '/feedbacks' || path === '/feedback'}
               onClick={() => navigate('/feedbacks')}
               endContent={openFeedbacksCount > 0 ? (
-                <Badge variant="info" size="sm" label={String(openFeedbacksCount)} />
+                <Badge variant="info" label={String(openFeedbacksCount)} />
               ) : undefined}
             />
             <SideNavItem label="Keluar" icon={ArrowRightOnRectangleIcon} onClick={logout} />

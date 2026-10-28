@@ -18,7 +18,7 @@ import { ClipboardDocumentCheckIcon } from '@heroicons/react/24/solid';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { DataStateView } from '../components/DataStateView';
 
-interface AuditLogEntry {
+interface AuditLogEntry extends Record<string, unknown> {
   id: string;
   actor: string;
   action: string;
@@ -189,7 +189,7 @@ export default function AuditLog() {
                 <Heading level={4}>Filter Riwayat</Heading>
                 <HStack gap={4} wrap="wrap">
                   <VStack gap={1}>
-                    <Text type="supporting" size="xs">Aktor</Text>
+                    <Text type="supporting">Aktor</Text>
                     <select
                       value={filters.actor}
                       onChange={(e) => setFilters(f => ({ ...f, actor: e.target.value }))}
@@ -203,7 +203,7 @@ export default function AuditLog() {
                   </VStack>
 
                   <VStack gap={1}>
-                    <Text type="supporting" size="xs">Aksi</Text>
+                    <Text type="supporting">Aksi</Text>
                     <select
                       value={filters.action}
                       onChange={(e) => setFilters(f => ({ ...f, action: e.target.value }))}
@@ -217,7 +217,7 @@ export default function AuditLog() {
                   </VStack>
 
                   <VStack gap={1}>
-                    <Text type="supporting" size="xs">Entitas</Text>
+                    <Text type="supporting">Entitas</Text>
                     <select
                       value={filters.entity}
                       onChange={(e) => setFilters(f => ({ ...f, entity: e.target.value }))}
@@ -231,7 +231,7 @@ export default function AuditLog() {
                   </VStack>
 
                   <VStack gap={1}>
-                    <Text type="supporting" size="xs">Dari Tanggal</Text>
+                    <Text type="supporting">Dari Tanggal</Text>
                     <input
                       type="date"
                       value={filters.from}
@@ -241,7 +241,7 @@ export default function AuditLog() {
                   </VStack>
 
                   <VStack gap={1}>
-                    <Text type="supporting" size="xs">Sampai Tanggal</Text>
+                    <Text type="supporting">Sampai Tanggal</Text>
                     <input
                       type="date"
                       value={filters.to}

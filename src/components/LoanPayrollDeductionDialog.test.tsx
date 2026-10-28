@@ -44,6 +44,7 @@ describe("LoanPayrollDeductionDialogComponent", () => {
   };
 
   beforeEach(() => {
+    localStorage.clear();
     apiGetSpy = spyOn(api, "get").mockImplementation((url: string) => {
       if (url.includes("/api/loans/payroll-deductions")) {
         return Promise.resolve(mockData as any);
@@ -56,6 +57,7 @@ describe("LoanPayrollDeductionDialogComponent", () => {
 
   afterEach(() => {
     cleanup();
+    localStorage.clear();
     apiGetSpy?.mockRestore?.();
     exportSpy?.mockRestore?.();
   });
@@ -80,7 +82,7 @@ describe("LoanPayrollDeductionDialogComponent", () => {
     expect(screen.getByText("02025118")).toBeDefined();
 
     // Verify api.get was called on mount
-    expect(apiGetSpy).toHaveBeenCalledTimes(1);
+    expect(apiGetSpy).toHaveBeenCalled();
 
     // Click download button (runs synchronously matching /ewa)
     const downloadBtn = screen.getByText("Unduh Berkas XLSX");

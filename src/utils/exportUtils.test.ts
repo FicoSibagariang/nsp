@@ -75,7 +75,7 @@ describe("EWA Payroll XLSX Export Utilities", () => {
         });
 
         expect(writeFileSpy).toHaveBeenCalledTimes(1);
-        expect(capturedFilename).toBe("ewa-repayment-2026-08-26-sd-2026-09-25.xlsx");
+        expect(capturedFilename as unknown as string).toBe("ewa-repayment-2026-08-26-sd-2026-09-25.xlsx");
         expect(capturedWorkbook).not.toBeNull();
 
         const sheetNames = capturedWorkbook!.SheetNames;
@@ -191,7 +191,7 @@ describe("EWA Payroll XLSX Export Utilities", () => {
         exportLoanPayrollDeductionsToExcel(testItems, "potong_gaji_angsuran_september_2026.xlsx");
 
         expect(writeFileSpy).toHaveBeenCalledTimes(1);
-        expect(capturedFilename).toBe("potong_gaji_angsuran_september_2026.xlsx");
+        expect(capturedFilename as unknown as string).toBe("potong_gaji_angsuran_september_2026.xlsx");
         expect(capturedWorkbook).not.toBeNull();
 
         const sheetNames = capturedWorkbook!.SheetNames;

@@ -148,6 +148,9 @@ savings.get('/withdrawals', requirePermission('read:members'), async (c) => {
 // Approve voluntary savings withdrawal request
 savings.post('/withdrawals/:id/approve', requirePermission('update:savings'), async (c) => {
   const id = c.req.param('id')
+  if (!id) {
+    return c.json({ success: false, message: 'ID penarikan diperlukan' }, 400)
+  }
   const body = await c.req.json().catch(() => ({}))
   const parsed = savingsWithdrawalApproveSchema.safeParse(body)
 
@@ -205,6 +208,9 @@ savings.post('/withdrawals/:id/approve', requirePermission('update:savings'), as
 // Reject voluntary savings withdrawal request
 savings.post('/withdrawals/:id/reject', requirePermission('update:savings'), async (c) => {
   const id = c.req.param('id')
+  if (!id) {
+    return c.json({ success: false, message: 'ID penarikan diperlukan' }, 400)
+  }
   const body = await c.req.json().catch(() => ({}))
   const parsed = savingsWithdrawalRejectSchema.safeParse(body)
 

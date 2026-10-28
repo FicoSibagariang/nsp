@@ -16,7 +16,7 @@ import { useApiQuery } from '../hooks/useApiQuery';
 import { apiFetch } from '../config';
 import { formatRp, formatDate } from '../utils/format';
 
-interface OfficialLetter {
+interface OfficialLetter extends Record<string, unknown> {
   id: string;
   letterNumber: string;
   seqNumber: number;
@@ -352,7 +352,7 @@ export default function LettersPage() {
         <VStack gap={0}>
           <Text type="body" weight="semibold">{item.partyName}</Text>
           {item.amount && item.amount > 0 ? (
-            <Text type="supporting" size="sm" color="success" style={{ fontWeight: 600 }}>
+            <Text type="supporting" size="sm" style={{ fontWeight: 600, color: 'var(--color-text-success)' }}>
               Nilai: {formatRp(item.amount)}
             </Text>
           ) : null}
@@ -382,7 +382,7 @@ export default function LettersPage() {
         <IconButton
           icon={<Icon icon={PaperClipIcon} />}
           label="Buka File"
-          title={item.attachmentName ? `Buka ${item.attachmentName}` : 'Buka File'}
+          tooltip={item.attachmentName ? `Buka ${item.attachmentName}` : 'Buka File'}
           size="sm"
           variant="secondary"
           onClick={() => window.open(item.attachmentUrl!, '_blank')}
@@ -400,7 +400,7 @@ export default function LettersPage() {
           <IconButton
             icon={<Icon icon={PencilIcon} />}
             label="Edit"
-            title="Edit"
+            tooltip="Edit"
             size="sm"
             variant="ghost"
             onClick={() => handleOpenEdit(item)}
@@ -408,7 +408,7 @@ export default function LettersPage() {
           <IconButton
             icon={<Icon icon={TrashIcon} />}
             label="Hapus"
-            title="Hapus"
+            tooltip="Hapus"
             size="sm"
             variant="ghost"
             onClick={() => handleDeleteLetter(item)}
@@ -486,7 +486,7 @@ export default function LettersPage() {
 
             {/* Filter Bar */}
             <Card style={{ padding: 16 }}>
-              <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+              <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
                 <HStack gap={3} vAlign="center" wrap="wrap">
                   <div style={{ minWidth: 240 }}>
                     <input
@@ -533,7 +533,6 @@ export default function LettersPage() {
                 columns={columns}
                 idKey="id"
                 density="balanced"
-                emptyStateMessage={isLoading ? 'Memuat daftar surat...' : 'Belum ada surat resmi yang terdaftar untuk filter ini.'}
               />
             </Card>
           </VStack>
@@ -590,12 +589,12 @@ export default function LettersPage() {
                 <form onSubmit={handleCreateLetter} style={{ padding: '20px 24px' }}>
                   <VStack gap={4}>
                     {formError && (
-                      <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 600  }}>
                         ⚠️ {formError}
                       </Text>
                     )}
                     {formSuccess && (
-                      <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" style={{ fontWeight: 600, color: 'var(--color-text-success)' }}>
                         ✅ {formSuccess}
                       </Text>
                     )}
@@ -609,7 +608,7 @@ export default function LettersPage() {
                         <Heading level={3} color="primary">
                           {isManualNumber ? (manualNumber || 'Contoh: 040/KOPNUTERA/SPP/IX/2026') : (previewRes?.letterNumber || 'Memuat nomor...')}
                         </Heading>
-                        <HStack justify="space-between" vAlign="center" style={{ marginTop: 4 }}>
+                        <HStack justify="between" vAlign="center" style={{ marginTop: 4 }}>
                           <Text type="supporting" size="sm" color="secondary">
                             Bebas duplikasi nomor, tersinkronisasi atomik dengan sequence database.
                           </Text>
@@ -726,7 +725,7 @@ export default function LettersPage() {
 
                     {/* Unggah Berkas Fisik / Scan */}
                     <VStack gap={2}>
-                      <HStack justify="space-between" vAlign="center">
+                      <HStack justify="between" vAlign="center">
                         <Text type="supporting">Unggah Berkas Fisik / Scan Surat Bertandatangan (Opsional)</Text>
                         <Text type="supporting" size="sm" color="secondary">PDF / JPG / PNG (Maks 10 MB)</Text>
                       </HStack>
@@ -757,7 +756,7 @@ export default function LettersPage() {
                         </div>
                       ) : (
                         <Card style={{ padding: 12, backgroundColor: 'var(--color-background-secondary)' }}>
-                          <HStack justify="space-between" vAlign="center">
+                          <HStack justify="between" vAlign="center">
                             <HStack vAlign="center" gap={2}>
                               <span>📄</span>
                               <Text type="body" weight="bold">{formAttachmentName}</Text>
@@ -777,7 +776,7 @@ export default function LettersPage() {
                       )}
 
                       {uploadError && (
-                        <Text type="supporting" color="critical">⚠️ {uploadError}</Text>
+                        <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>⚠️ {uploadError}</Text>
                       )}
                     </VStack>
 
@@ -854,12 +853,12 @@ export default function LettersPage() {
                 <form onSubmit={handleSaveEdit} style={{ padding: '20px 24px' }}>
                   <VStack gap={4}>
                     {editFormError && (
-                      <Text type="supporting" color="critical" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 600  }}>
                         ⚠️ {editFormError}
                       </Text>
                     )}
                     {editFormSuccess && (
-                      <Text type="supporting" color="success" style={{ fontWeight: 600 }}>
+                      <Text type="supporting" style={{ fontWeight: 600, color: 'var(--color-text-success)' }}>
                         ✅ {editFormSuccess}
                       </Text>
                     )}
@@ -867,7 +866,7 @@ export default function LettersPage() {
                     {/* Informasi Nomor Surat Resmi & Kategori (Terkunci) */}
                     <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-border-primary)' }}>
                       <VStack gap={2}>
-                        <HStack justify="space-between" vAlign="center" wrap="wrap" gap={2}>
+                        <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
                           <VStack gap={0}>
                             <Text type="supporting" color="secondary" size="sm">
                               Nomor Surat Resmi (Terkunci):
@@ -941,7 +940,7 @@ export default function LettersPage() {
 
                     {/* Unggah / Ganti Berkas Fisik */}
                     <VStack gap={2}>
-                      <HStack justify="space-between" vAlign="center">
+                      <HStack justify="between" vAlign="center">
                         <Text type="supporting">Lampiran Berkas Fisik / Scan Surat (Opsional)</Text>
                         <Text type="supporting" size="sm" color="secondary">PDF / JPG / PNG (Maks 10 MB)</Text>
                       </HStack>
@@ -972,7 +971,7 @@ export default function LettersPage() {
                         </div>
                       ) : (
                         <Card style={{ padding: 12, backgroundColor: 'var(--color-background-secondary)' }}>
-                          <HStack justify="space-between" vAlign="center">
+                          <HStack justify="between" vAlign="center">
                             <HStack vAlign="center" gap={2}>
                               <span>📄</span>
                               <Text type="body" weight="bold">{editAttachmentName || 'Lampiran Surat'}</Text>
@@ -1000,7 +999,7 @@ export default function LettersPage() {
                       )}
 
                       {editUploadError && (
-                        <Text type="supporting" color="critical">⚠️ {editUploadError}</Text>
+                        <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>⚠️ {editUploadError}</Text>
                       )}
                     </VStack>
 

@@ -27,9 +27,9 @@ import {
 import { Icon } from '@astryxdesign/core/Icon';
 import { Pagination } from '../components/Pagination';
 import { CopyableAccountNumber } from '../components/CopyableAccountNumber';
-import type { CompanyEmployee, EWARequest, EwaFeeTier } from '../../shared/types';
+import type { CompanyEmployee, EWARequest, EwaFeeTier } from '@shared/types';
 import { useDemoMode } from '../contexts/DemoModeContext';
-import { maskName, maskNip, maskNik, maskEmail } from '../utils/privacyMask';
+import { maskName, maskNip, maskNik, maskEmail, maskAccountNumber } from '../utils/privacyMask';
 
 export default function EWA() {
   const { hasPermission } = useAuth();
@@ -597,7 +597,7 @@ export default function EWA() {
                 <Text type="supporting" color="secondary">
                   NIP: {empNip}
                 </Text>
-                <Badge variant={r.isMember ? 'success' : 'neutral'} size="sm" label={r.isMember ? 'Anggota' : 'Non-Anggota'} />
+                <Badge variant={r.isMember ? 'success' : 'neutral'} label={r.isMember ? 'Anggota' : 'Non-Anggota'} />
               </HStack>
             </VStack>
           );
@@ -646,7 +646,7 @@ export default function EWA() {
         width: pixel(180),
         renderCell: (r: EWARequest) => {
           let variant: any = 'neutral';
-          let label = r.status;
+          let label: string = r.status;
           if (r.status === 'PENDING') {
             variant = 'warning';
             label = 'Menunggu Cair';
@@ -657,14 +657,14 @@ export default function EWA() {
             variant = 'success';
             label = 'Lunas Payroll';
           } else if (r.status === 'REJECTED') {
-            variant = 'critical';
+            variant = 'error';
             label = 'Ditolak';
           }
           const reason = r.rejectionReason || (r as any).rejection_reason;
           const isDisbursedOrSettled = r.status === 'DISBURSED' || r.status === 'PAID_SETTLED';
           return (
             <VStack gap={1} hAlign="start">
-              <Badge variant={variant} label={label} size="sm" />
+              <Badge variant={variant} label={label} />
               {isDisbursedOrSettled && (
                 <>
                   {r.disbursedByName && (
@@ -680,7 +680,7 @@ export default function EWA() {
                 </>
               )}
               {r.status === 'REJECTED' && reason && (
-                <Text type="supporting" color="critical" style={{ fontSize: 11, lineHeight: 1.2 }}>
+                <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontSize: 11, lineHeight: 1.2  }}>
                   Alasan: {reason}
                 </Text>
               )}
@@ -793,8 +793,8 @@ export default function EWA() {
           const isExpired = today > endStr;
           return (
             <VStack gap={0}>
-              <Badge variant={isExpired ? 'critical' : 'warning'} size="sm" label={isExpired ? 'Kontrak Berakhir' : 'Kontrak Aktif'} />
-              <Text type="supporting" color={isExpired ? 'critical' : 'secondary'} style={{ fontSize: 11 }}>
+              <Badge variant={isExpired ? 'error' : 'warning'} label={isExpired ? 'Kontrak Berakhir' : 'Kontrak Aktif'} />
+              <Text type="supporting" color={isExpired ? undefined : 'secondary'} style={{ fontSize: 11, ...(isExpired ? { color: 'var(--color-text-error)' } : {}) }}>
                 s/d {endStr}
               </Text>
             </VStack>
@@ -959,7 +959,7 @@ export default function EWA() {
         width: proportional(1.2),
         renderCell: (t: EwaFeeTier) => (
           <VStack gap={0}>
-            <Text type="body" weight="bold" color="success">
+            <Text type="body" weight="bold" style={{ color: 'var(--color-text-success)' }}>
               {formatRp(t.memberFee)}
             </Text>
             <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
@@ -1129,7 +1129,7 @@ export default function EWA() {
                   <tab.icon style={{ width: 18, height: 18, color: 'currentColor' }} />
                   <span>{tab.label}</span>
                   {typeof tab.count === 'number' && tab.count > 0 && (
-                    <Badge variant={isActive ? 'success' : 'neutral'} size="sm" label={String(tab.count)} />
+                    <Badge variant={isActive ? 'success' : 'neutral'} label={String(tab.count)} />
                   )}
                 </button>
               );
@@ -1140,7 +1140,7 @@ export default function EWA() {
           {activeTab === 'requests' && (
             <Card>
               <VStack gap={4}>
-                <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
                   <Heading level={4}>Daftar Pengajuan Penarikan Gaji Awal</Heading>
                   <HStack gap={3} vAlign="center" wrap="wrap">
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -1240,7 +1240,7 @@ export default function EWA() {
           {activeTab === 'employees' && canViewEmployees && (
             <Card>
               <VStack gap={4}>
-                <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
                   <VStack gap={0}>
                     <Heading level={4}>Master Data Karyawan Perusahaan Induk</Heading>
                     <Text type="supporting" color="secondary">
@@ -1292,7 +1292,7 @@ export default function EWA() {
             <VStack gap={4}>
               <Card>
                 <VStack gap={4}>
-                  <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                  <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
                     <VStack gap={1}>
                       <Heading level={4}>Rekap Tagihan Potongan Gaji ke HRD</Heading>
                       <Text type="supporting" color="secondary">
@@ -1381,7 +1381,7 @@ export default function EWA() {
                                 <td style={{ padding: '10px 12px' }}>{isDemoMode ? maskNip(it.employeeId, it.nip) : it.nip}</td>
                                 <td style={{ padding: '10px 12px', fontWeight: 600 }}>{isDemoMode ? maskName(it.employeeId, it.name) : it.name}</td>
                                 <td style={{ padding: '10px 12px' }}>
-                                  <Badge variant={it.isMember ? 'success' : 'neutral'} size="sm" label={it.isMember ? 'Anggota' : 'Non-Anggota'} />
+                                  <Badge variant={it.isMember ? 'success' : 'neutral'} label={it.isMember ? 'Anggota' : 'Non-Anggota'} />
                                 </td>
                                 <td style={{ padding: '10px 12px', textAlign: 'right' }}>{formatRp(it.totalAdvances)}</td>
                                 <td style={{ padding: '10px 12px', textAlign: 'center' }}>{it.txCount ? `${it.txCount}x` : '1x'}</td>
@@ -1397,7 +1397,7 @@ export default function EWA() {
 
                       <HStack justify="end" gap={3} vAlign="center" wrap="wrap">
                         {payrollRecap.isFullySettled ? (
-                          <Badge variant="success" size="lg" label="✅ Periode Ini Sudah Lunas Payroll" />
+                          <Badge variant="success" label="✅ Periode Ini Sudah Lunas Payroll" />
                         ) : (
                           <>
                             <HStack gap={2} vAlign="center">
@@ -1442,7 +1442,7 @@ export default function EWA() {
           {activeTab === 'fee-tiers' && (
             <Card>
               <VStack gap={4}>
-                <HStack justify="space-between" vAlign="center" wrap="wrap" gap={3}>
+                <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
                   <VStack gap={1}>
                     <Heading level={4}>Skema Tabel Tarif Biaya Admin EWA</Heading>
                     <Text type="supporting" color="secondary">
@@ -1465,7 +1465,6 @@ export default function EWA() {
                   <Table<EwaFeeTier>
                     data={feeTiers}
                     columns={feeTierColumns}
-                    emptyContent="Belum ada rentang tarif yang diatur. Klik 'Tambah Rentang Tarif' untuk membuat skema tarif baru."
                   />
                 )}
               </VStack>
@@ -1496,35 +1495,35 @@ export default function EWA() {
                     
                     <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)' }}>
                       <VStack gap={2}>
-                        <HStack justify="space-between">
+                        <HStack justify="between">
                           <Text type="supporting">Karyawan:</Text>
                           <Text type="body" weight="semibold">
                             {isDemoMode ? maskName(selectedDisburseReq.employeeId || selectedDisburseReq.id, selectedDisburseReq.employeeName) : selectedDisburseReq.employeeName}
                           </Text>
                         </HStack>
-                        <HStack justify="space-between">
+                        <HStack justify="between">
                           <Text type="supporting">NIP / NIK:</Text>
                           <Text type="body">
                             {isDemoMode ? maskNip(selectedDisburseReq.employeeId || selectedDisburseReq.id, selectedDisburseReq.employeeNip) : (selectedDisburseReq.employeeNip || '-')}
                           </Text>
                         </HStack>
-                        <HStack justify="space-between">
+                        <HStack justify="between">
                           <Text type="supporting">Nominal Dicairkan:</Text>
-                          <Text type="body" weight="bold" color="success">
+                          <Text type="body" weight="bold" style={{ color: 'var(--color-text-success)' }}>
                             {formatRp(selectedDisburseReq.disbursedAmount)}
                           </Text>
                         </HStack>
-                        <HStack justify="space-between">
+                        <HStack justify="between">
                           <Text type="supporting">Biaya Admin EWA:</Text>
                           <Text type="body">{formatRp(selectedDisburseReq.feeAmount)}</Text>
                         </HStack>
-                        <HStack justify="space-between">
+                        <HStack justify="between">
                           <Text type="supporting">Total Potong Payroll:</Text>
                           <Text type="body" weight="bold">
                             {formatRp(selectedDisburseReq.totalPayrollDeduction)}
                           </Text>
                         </HStack>
-                        <HStack justify="space-between" vAlign="center">
+                        <HStack justify="between" vAlign="center">
                           <Text type="supporting">Tujuan Transfer:</Text>
                           <CopyableAccountNumber
                             bankName={selectedDisburseReq.destinationBank}
@@ -1532,7 +1531,7 @@ export default function EWA() {
                             showHolder={false}
                           />
                         </HStack>
-                        <HStack justify="space-between">
+                        <HStack justify="between">
                           <Text type="supporting">Atas Nama:</Text>
                           <Text type="body">{selectedDisburseReq.destinationName}</Text>
                         </HStack>
@@ -1647,7 +1646,7 @@ export default function EWA() {
                       />
                       <Button
                         label={actionLoading ? 'Menolak...' : 'Konfirmasi Tolak'}
-                        variant="critical"
+                        variant="destructive"
                         type="submit"
                         isDisabled={actionLoading}
                       />
@@ -1684,7 +1683,7 @@ export default function EWA() {
                     </Text>
 
                     {tierError && (
-                      <Text type="supporting" color="critical">
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                         ⚠️ {tierError}
                       </Text>
                     )}
@@ -1715,7 +1714,7 @@ export default function EWA() {
                       </VStack>
 
                       <VStack gap={1}>
-                        <HStack justify="space-between" vAlign="center">
+                        <HStack justify="between" vAlign="center">
                           <Text type="supporting" style={{ fontWeight: 500 }}>Batas Atas Nominal (Rp):</Text>
                           <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
                             <input
@@ -1848,12 +1847,12 @@ export default function EWA() {
                     </Text>
 
                     {importError && (
-                      <Text type="supporting" color="critical">
+                      <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                         ⚠️ {importError}
                       </Text>
                     )}
                     {importSuccess && (
-                      <Text type="supporting" color="success">
+                      <Text type="supporting" style={{ color: 'var(--color-text-success)' }}>
                         ✅ {importSuccess}
                       </Text>
                     )}

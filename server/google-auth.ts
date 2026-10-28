@@ -34,7 +34,7 @@ export async function verifyGoogleToken(credential: string): Promise<GoogleUser 
       return null;
     }
 
-    const payload = await res.json();
+    const payload = (await res.json()) as any;
 
     // Validate audience matches our client ID
     if (payload.aud !== googleClientId) {

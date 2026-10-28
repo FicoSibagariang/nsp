@@ -7,7 +7,6 @@ export function createUpdateEwaAccountCodeMigration(db: {
   };
 }): Migration {
   return {
-    id: "0028_update_ewa_account_code",
     name: "0028_update_ewa_account_code",
     up: async () => {
       // 1. Check if 41201 exists, update code to 41103

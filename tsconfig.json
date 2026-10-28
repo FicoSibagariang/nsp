@@ -20,6 +20,8 @@
     }
   },
   "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
     "server/**/*.ts",
     "shared/**/*.ts"
   ],

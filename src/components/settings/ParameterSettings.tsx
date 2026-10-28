@@ -43,24 +43,21 @@ export function ParameterSettings({
         <Grid columns={3} gap={4}>
           <TextInput
             label="Bunga Pinjaman (% per Tahun)"
-            type="number"
             value={bungaPinjaman}
             onChange={onBungaPinjamanChange}
-            disabled={!canUpdate}
+            isDisabled={!canUpdate}
           />
           <TextInput
             label="Bunga Simpanan (%)"
-            type="number"
             value={bungaSimpanan}
             onChange={onBungaSimpananChange}
-            disabled={!canUpdate}
+            isDisabled={!canUpdate}
           />
           <TextInput
             label="Denda Keterlambatan (%)"
-            type="number"
             value={denda}
             onChange={onDendaChange}
-            disabled={!canUpdate}
+            isDisabled={!canUpdate}
           />
         </Grid>
         {canUpdate && (

@@ -19,7 +19,7 @@ import {
   ArrowRightIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
-import type { PendingActionsData, PendingActionDetailItem } from '../../shared/types';
+import type { PendingActionsData, PendingActionDetailItem } from '@shared/types';
 import { formatDate } from '../utils/format';
 
 interface NotificationBellProps {
@@ -152,11 +152,10 @@ export function NotificationBell({
           {totalCount > 0 ? (
             <Badge
               variant={hasCritical ? 'error' : 'warning'}
-              size="sm"
               label={`${totalCount} Menunggu`}
             />
           ) : (
-            <Badge variant="success" size="sm" label="Semua Tertangani" />
+            <Badge variant="success" label="Semua Tertangani" />
           )}
           {onRefresh && (
             <IconButton
@@ -193,7 +192,7 @@ export function NotificationBell({
                 cursor: 'pointer',
               }}
             >
-              <Badge variant={cat.variant} size="sm" label={`${cat.label}: ${cat.count}`} />
+              <Badge variant={cat.variant} label={`${cat.label}: ${cat.count}`} />
             </button>
           ))}
         </div>
@@ -219,7 +218,7 @@ export function NotificationBell({
           >
             <Icon icon={CheckCircleIcon} size="lg" color="success" />
             <Heading level={4}>Semua Antrean Bersih</Heading>
-            <Text type="supporting" color="secondary" align="center">
+            <Text type="supporting" color="secondary" justify="center">
               Tidak ada permohonan anggota atau cicilan jatuh tempo yang memerlukan perhatian pengurus saat ini.
             </Text>
           </div>

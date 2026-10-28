@@ -3,7 +3,7 @@ import { VStack, HStack } from '@astryxdesign/core/Layout';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { formatRp } from '../utils/format';
-import type { SavingsDepositRow } from '../shared/types';
+import type { SavingsDepositRow } from '@shared/types';
 import { useDemoMode } from '../contexts/DemoModeContext';
 import { maskName } from '../utils/privacyMask';
 
@@ -70,17 +70,17 @@ export function RejectSavingsDepositDialogContent({
             border: '1px solid var(--color-border-primary, #e5e7eb)',
           }}
         >
-          <HStack justify="space-between" vAlign="center">
+          <HStack justify="between" vAlign="center">
             <Text type="supporting" color="secondary">Anggota:</Text>
             <Text type="body" weight="semibold">{displayName}</Text>
           </HStack>
-          <HStack justify="space-between" vAlign="center">
+          <HStack justify="between" vAlign="center">
             <Text type="supporting" color="secondary">Jenis Simpanan:</Text>
             <Text type="body" weight="semibold">{getSavingsTypeLabel(deposit.savingsType)}</Text>
           </HStack>
-          <HStack justify="space-between" vAlign="center">
+          <HStack justify="between" vAlign="center">
             <Text type="supporting" color="secondary">Nominal Setoran:</Text>
-            <Text type="body" weight="bold" color="critical">{formatRp(deposit.amount)}</Text>
+            <Text type="body" weight="bold" style={{ color: 'var(--color-text-error)' }}>{formatRp(deposit.amount)}</Text>
           </HStack>
         </VStack>
 
@@ -111,17 +111,17 @@ export function RejectSavingsDepositDialogContent({
             required
           />
           {error && (
-            <Text type="supporting" color="critical" style={{ fontSize: 12 }}>
+            <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontSize: 12  }}>
               {error}
             </Text>
           )}
         </VStack>
 
-        <HStack justify="flex-end" gap={2} style={{ marginTop: 8 }}>
+        <HStack justify="end" gap={2} style={{ marginTop: 8 }}>
           <Button label="Batal" variant="ghost" onClick={onClose} isDisabled={isLoading} />
           <Button
             label={isLoading ? 'Menolak...' : 'Tolak Setoran'}
-            variant="critical"
+            variant="destructive"
             type="submit"
             isDisabled={isLoading}
           />

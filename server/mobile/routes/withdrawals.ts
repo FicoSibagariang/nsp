@@ -57,7 +57,7 @@ withdrawalRouter.get("/", authMiddleware, async (c) => {
 
 // GET /api/withdrawals/:id
 withdrawalRouter.get("/:id", authMiddleware, async (c) => {
-  const id = parseInt(c.req.param("id"), 10);
+  const id = parseInt(c.req.param("id") || "", 10);
 
   if (isNaN(id)) {
     return c.json({ message: "Not found." }, 404);
