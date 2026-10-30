@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join, extname } from 'node:path';
+import { validateFileBufferWithExtension } from '../lib/fileValidation';
 
 const upload = new Hono();
 
@@ -38,11 +39,22 @@ upload.post('/loan-attachment', async (c) => {
       }, 400);
     }
 
+    const buffer = await file.arrayBuffer();
+    const validation = validateFileBufferWithExtension(buffer, rawExt);
+    if (!validation.valid) {
+      return c.json({
+        success: false,
+        message: validation.error || 'Format file tidak sesuai dengan konten biner dokumen.'
+      }, 400);
+    }
+
+    const jwtPayload = c.get('jwtPayload') as Record<string, unknown> | undefined;
+    const ownerId = (jwtPayload?.sub || jwtPayload?.memberId || 'anonymous') as string;
+    const safeOwnerId = ownerId.replace(/[^a-zA-Z0-9_-]/g, '');
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const uniqueName = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}_${safeName}`;
+    const uniqueName = `${Date.now()}_${safeOwnerId}_${crypto.randomUUID().slice(0, 8)}_${safeName}`;
     const targetPath = join(LOANS_DIR, uniqueName);
 
-    const buffer = await file.arrayBuffer();
     await Bun.write(targetPath, buffer);
 
     const fileUrl = `/uploads/loans/${uniqueName}`;
@@ -53,7 +65,7 @@ upload.post('/loan-attachment', async (c) => {
         url: fileUrl,
         name: file.name,
         size: file.size,
-        type: file.type,
+        type: validation.detectedMime || file.type,
       },
     });
   } catch (err) {
@@ -86,11 +98,22 @@ upload.post('/savings-proof', async (c) => {
       }, 400);
     }
 
+    const buffer = await file.arrayBuffer();
+    const validation = validateFileBufferWithExtension(buffer, rawExt);
+    if (!validation.valid) {
+      return c.json({
+        success: false,
+        message: validation.error || 'Format file tidak sesuai dengan konten biner dokumen.'
+      }, 400);
+    }
+
+    const jwtPayload = c.get('jwtPayload') as Record<string, unknown> | undefined;
+    const ownerId = (jwtPayload?.sub || jwtPayload?.memberId || 'anonymous') as string;
+    const safeOwnerId = ownerId.replace(/[^a-zA-Z0-9_-]/g, '');
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const uniqueName = `${Date.now()}_${crypto.randomUUID().slice(0, 8)}_${safeName}`;
+    const uniqueName = `${Date.now()}_${safeOwnerId}_${crypto.randomUUID().slice(0, 8)}_${safeName}`;
     const targetPath = join(SAVINGS_DIR, uniqueName);
 
-    const buffer = await file.arrayBuffer();
     await Bun.write(targetPath, buffer);
 
     const fileUrl = `/uploads/savings/${uniqueName}`;
@@ -101,7 +124,7 @@ upload.post('/savings-proof', async (c) => {
         url: fileUrl,
         name: file.name,
         size: file.size,
-        type: file.type,
+        type: validation.detectedMime || file.type,
       },
     });
   } catch (err) {

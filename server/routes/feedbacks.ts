@@ -3,7 +3,8 @@ import { verify } from 'hono/jwt';
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import db from '../db';
-import { secretKey } from '../middleware';
+import { secretKey, checkRateLimit } from '../middleware';
+import { getClientIp } from '../lib/audit';
 import { createFeedbackSchema, updateFeedbackStatusSchema } from '../schemas';
 import {
   createUserFeedback,
@@ -58,6 +59,14 @@ async function requireAdminAuth(c: any, next: () => Promise<void>) {
  * Open to authenticated members/admins, and gracefully accepts unauthenticated input.
  */
 feedbacks.post('/', async (c) => {
+  const ip = getClientIp(c);
+  if (!(await checkRateLimit(`feedback:${ip}`, 5, 60 * 60 * 1000))) {
+    return c.json({
+      success: false,
+      message: 'Terlalu banyak pengiriman masukan. Silakan coba lagi nanti.',
+    }, 429);
+  }
+
   try {
     const raw = await c.req.json();
     const parsed = createFeedbackSchema.safeParse(raw);

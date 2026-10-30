@@ -1,4 +1,6 @@
 import { Hono } from 'hono'
+import { existsSync } from 'node:fs'
+import { join, basename, extname } from 'node:path'
 import db from '../db'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
@@ -256,6 +258,56 @@ savings.get('/deposits', requirePermission('read:members'), async (c) => {
   return c.json({
     success: true,
     data: result,
+  })
+})
+
+// Get proof document with IDOR check
+savings.get('/deposits/:id/proof', async (c) => {
+  const id = c.req.param('id')
+  if (!id) {
+    return c.json({ success: false, message: 'ID konfirmasi setoran diperlukan' }, 400)
+  }
+
+  const deposit = await db
+    .query('SELECT id, member_id, proof_url FROM savings_deposits WHERE id = ?')
+    .get<any>(id)
+
+  if (!deposit || !deposit.proof_url) {
+    return c.json({ success: false, message: 'Bukti transfer tidak ditemukan' }, 404)
+  }
+
+  const jwtPayload = c.get('jwtPayload') as Record<string, unknown> | undefined
+  const role = jwtPayload?.role as string | undefined
+  const sub = (jwtPayload?.sub || jwtPayload?.memberId) as string | undefined
+
+  if (role !== 'admin' && role !== 'superadmin' && sub !== deposit.member_id) {
+    return c.json({ success: false, message: 'Akses ditolak: Dokumen bukan milik Anda' }, 403)
+  }
+
+  const safeFilename = basename(deposit.proof_url)
+  const filePath = join(process.cwd(), 'uploads', 'savings', safeFilename)
+  if (!existsSync(filePath)) {
+    return c.json({ success: false, message: 'File bukti transfer tidak ditemukan' }, 404)
+  }
+
+  const ext = extname(safeFilename).toLowerCase()
+  const mimeMap: Record<string, string> = {
+    '.pdf': 'application/pdf',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.heic': 'image/heic',
+  }
+  const contentType = mimeMap[ext] || 'application/octet-stream'
+  const file = Bun.file(filePath)
+
+  return new Response(file, {
+    headers: {
+      'Content-Type': contentType,
+      'X-Content-Type-Options': 'nosniff',
+      'Cache-Control': 'private, no-cache, no-store, must-revalidate',
+    },
   })
 })
 

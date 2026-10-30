@@ -5,6 +5,7 @@ import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
 import { Selector } from '@astryxdesign/core/Selector';
 import { formatRp } from '../../../utils/format';
+import { getAuthenticatedFileUrl } from '../../../utils/fileUrl';
 import { Grid } from './Grid';
 import type { MemberProfile } from '../types';
 
@@ -267,7 +268,7 @@ export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
                     size="sm"
                     variant="secondary"
                     type="button"
-                    onClick={() => window.open(attachmentUrl, '_blank')}
+                    onClick={() => window.open(getAuthenticatedFileUrl(attachmentUrl), '_blank')}
                   />
                   <Button
                     label="Hapus"

@@ -17,6 +17,7 @@ import { LoanPaymentSection } from './loan/LoanPaymentSection';
 import { CopyableAccountNumber } from './CopyableAccountNumber';
 import { useDemoMode } from '../contexts/DemoModeContextDef';
 import { maskName } from '../utils/privacyMask';
+import { getAuthenticatedFileUrl } from '../utils/fileUrl';
 
 interface Payment extends Record<string, unknown> {
   id: string;
@@ -208,7 +209,7 @@ export function LoanDetailDialogContent({
                     label="Buka / Unduh Lampiran"
                     variant="secondary"
                     size="sm"
-                    onClick={() => window.open(loan.attachmentUrl!, '_blank')}
+                    onClick={() => window.open(getAuthenticatedFileUrl(loan.attachmentUrl), '_blank')}
                   />
                 </HStack>
               </VStack>

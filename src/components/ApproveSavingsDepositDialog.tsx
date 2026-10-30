@@ -8,6 +8,7 @@ import { formatRp } from '../utils/format';
 import type { SavingsDepositRow } from '@shared/types';
 import { useDemoMode } from '../contexts/DemoModeContextDef';
 import { maskName } from '../utils/privacyMask';
+import { getAuthenticatedFileUrl } from '../utils/fileUrl';
 
 interface Props {
   deposit: SavingsDepositRow;
@@ -114,7 +115,7 @@ export function ApproveSavingsDepositDialogContent({
             <HStack justify="between" vAlign="center">
               <Text type="supporting" color="secondary">Bukti Transfer:</Text>
               <a
-                href={deposit.proofUrl}
+                href={getAuthenticatedFileUrl(deposit.proofUrl)}
                 target="_blank"
                 rel="noreferrer"
                 style={{

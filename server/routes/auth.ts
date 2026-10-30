@@ -21,7 +21,7 @@ import {
   updateRecoveryCodes,
 } from '../services/authService'
 import { loginSchema } from '../schemas'
-import { secretKey, checkRateLimit } from '../middleware'
+import { secretKey, checkRateLimit, isKeyRateLimited, clearRateLimit } from '../middleware'
 import { verifyGoogleToken } from '../google-auth'
 import { generateSecret, verifyToken, generateRecoveryCodes, totpUrl } from '../lib/totp'
 import { getClientIp } from '../lib/audit'
@@ -52,17 +52,29 @@ auth.post('/login', async (c) => {
     }
 
     const { email, password } = parsed.data
+    const normalizedEmail = email.toLowerCase().trim()
+    const emailKey = `login:failed:email:${normalizedEmail}`
+
+    if (await isKeyRateLimited(emailKey, 5)) {
+      return c.json({
+        success: false,
+        message: 'Too many failed login attempts for this account. Please try again later.'
+      }, 429)
+    }
 
     const admin = await findAdminByEmail(db, email)
     if (!admin) {
+      await checkRateLimit(emailKey, 5, 15 * 60 * 1000)
       return c.json({ success: false, message: 'Invalid credentials' }, 401)
     }
 
     if (!admin.password) {
+      await checkRateLimit(emailKey, 5, 15 * 60 * 1000)
       return c.json({ success: false, message: 'Invalid credentials' }, 401)
     }
     const isMatch = await Bun.password.verify(password, admin.password)
     if (!isMatch) {
+      await checkRateLimit(emailKey, 5, 15 * 60 * 1000)
       return c.json({ success: false, message: 'Invalid credentials' }, 401)
     }
 
@@ -79,13 +91,18 @@ auth.post('/login', async (c) => {
 
       // Verify TOTP token
       if (!admin.totp_secret) {
+        await checkRateLimit(emailKey, 5, 15 * 60 * 1000)
         return c.json({ success: false, message: 'Invalid two-factor authentication code' }, 401);
       }
       const valid = verifyToken(admin.totp_secret, token);
       if (!valid) {
+        await checkRateLimit(emailKey, 5, 15 * 60 * 1000)
         return c.json({ success: false, message: 'Invalid two-factor authentication code' }, 401);
       }
     }
+
+    // Clear failed attempts upon successful login
+    await clearRateLimit(emailKey)
 
     // Generate unique JWT ID (jti) for token blacklist by jti
     const accessJti = crypto.randomUUID();
