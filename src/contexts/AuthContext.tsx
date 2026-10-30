@@ -1,21 +1,9 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, type ReactNode } from 'react'
 import { api, rpc } from '../services/api'
 import { hasPermission as verifyPermission, type Permission } from '@shared/permissions'
+import { AuthContext, type AuthContextType } from './AuthContextDef'
 
-interface AuthContextType {
-  isAuthenticated: boolean
-  isChecking: boolean
-  role: string
-  isAdmin: boolean
-  isSuperAdmin: boolean
-  hasPermission: (permission: Permission) => boolean
-  login: (email: string, password: string) => Promise<void>
-  loginWithGoogle: (credential: string) => Promise<void>
-  confirmLogin: () => void
-  logout: () => Promise<void>
-}
-
-const AuthContext = createContext<AuthContextType | null>(null)
+export type { AuthContextType }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -96,10 +84,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth(): AuthContextType {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within an AuthProvider')
-  return ctx
 }

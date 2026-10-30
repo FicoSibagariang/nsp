@@ -22,7 +22,7 @@ import {
   exportLoanPayrollDeductionsToExcel,
   type LoanPayrollDeductionExportItem,
 } from '../utils/exportUtils';
-import { useDemoMode } from '../contexts/DemoModeContext';
+import { useDemoMode } from '../contexts/DemoModeContextDef';
 import { maskName, maskNip } from '../utils/privacyMask';
 
 interface DeductionItem {

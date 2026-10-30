@@ -5,7 +5,6 @@ import { getActor, getClientIp, audit } from '../lib/audit';
 import { notifyEwaDisbursed } from '../services/waNotificationService';
 import {
   getEwaRequestsList,
-  getEwaRequestById,
   disburseEwa,
   rejectEwa,
   getPayrollRecap,

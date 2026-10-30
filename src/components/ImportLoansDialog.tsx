@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { DialogHeader } from '@astryxdesign/core/Dialog';
 import {
   Layout,
@@ -56,7 +56,7 @@ function parseLoanImportFile(file: File): Promise<ParsedRow[]> {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const text = (e.target?.result as string).replace(/^\uFEFF/, '');
+        const text = (typeof e.target?.result === 'string' ? e.target.result : '').replace(/^\uFEFF/, '');
         const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
         if (lines.length < 2) throw new Error('File kosong atau hanya berisi header');
 

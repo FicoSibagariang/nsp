@@ -18,7 +18,7 @@ import { useA11yDialog } from '../../../hooks/useA11yDialog';
 import { ApproveSavingsWithdrawalDialogContent } from '../../../components/ApproveSavingsWithdrawalDialog';
 import { RejectSavingsWithdrawalDialogContent } from '../../../components/RejectSavingsWithdrawalDialog';
 import { useAuth } from '../../../hooks/useAuth';
-import { useDemoMode } from '../../../contexts/DemoModeContext';
+import { useDemoMode } from '../../../contexts/DemoModeContextDef';
 import { maskName, maskNik } from '../../../utils/privacyMask';
 import type { SavingsWithdrawalRow, PaginatedResponse } from '@shared/types';
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChatBubbleLeftRightIcon, CameraIcon } from '@heroicons/react/24/outline';
+import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { FeedbackDialog } from './FeedbackDialog';
 
 export const FeedbackWidget: React.FC = () => {

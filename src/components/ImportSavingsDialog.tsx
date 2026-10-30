@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import { DialogHeader } from '@astryxdesign/core/Dialog';
 import {
   Layout,
@@ -16,7 +16,6 @@ import {
   ParsedSavingsImportRow,
 } from '../utils/importSavingsUtils';
 import { formatRp } from '../utils/format';
-import { exportToExcel } from '../utils/exportUtils';
 import { useApiAction } from '../hooks/useApiAction';
 import { api } from '../services/api';
 import { apiFetch } from '../config';
@@ -30,7 +29,7 @@ interface ImportSavingsDialogContentProps {
 export function ImportSavingsDialogContent({
   onClose,
   onSuccess,
-  membersWithoutPokok = [],
+  membersWithoutPokok: _membersWithoutPokok = [],
 }: ImportSavingsDialogContentProps) {
   const [fileName, setFileName] = useState<string | null>(null);
   const [rows, setRows] = useState<ParsedSavingsImportRow[]>([]);

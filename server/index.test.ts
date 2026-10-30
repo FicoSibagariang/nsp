@@ -1,5 +1,4 @@
 import { expect, test, describe, afterAll, beforeAll } from "bun:test";
-import { unlinkSync, existsSync } from "node:fs";
 import server, { _test } from "./index";
 import db from "./db";
 

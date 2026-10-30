@@ -129,19 +129,19 @@ export default function AuditLog() {
 
   // Extract unique values for filter dropdowns
   const uniqueActors = useMemo(() => {
-    const actors = new Set(entries.map(e => e.actor));
+    const actors = new Set((data || []).map(e => e.actor));
     return Array.from(actors).sort();
-  }, [entries]);
+  }, [data]);
 
   const uniqueActions = useMemo(() => {
-    const actions = new Set(entries.map(e => e.action));
+    const actions = new Set((data || []).map(e => e.action));
     return Array.from(actions).sort();
-  }, [entries]);
+  }, [data]);
 
   const uniqueEntities = useMemo(() => {
-    const entities = new Set(entries.map(e => e.entity));
+    const entities = new Set((data || []).map(e => e.entity));
     return Array.from(entities).sort();
-  }, [entries]);
+  }, [data]);
 
   // Columns for the table
   const columns: TableColumn<AuditLogEntry>[] = [

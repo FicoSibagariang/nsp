@@ -39,8 +39,7 @@ settings.post('/test-wa', requirePermission('update:settings'), async (c) => {
 })
 
 settings.put('/', requirePermission('update:settings'), async (c) => {
-  try {
-    const body = await c.req.json()
+  const body = await c.req.json()
     const parsed = settingsSchema.safeParse(body)
 
     if (!parsed.success) {
@@ -62,9 +61,6 @@ settings.put('/', requirePermission('update:settings'), async (c) => {
 
     clearStatsCache()
     return c.json({ success: true })
-  } catch (error) {
-    throw error
-  }
 })
 
 export default settings

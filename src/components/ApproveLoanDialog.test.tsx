@@ -1,12 +1,12 @@
 import { describe, it, expect, mock, beforeEach, afterEach, spyOn } from "bun:test";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { ApproveLoanDialogContent } from "./ApproveLoanDialog";
 import {
-  ApproveLoanDialogContent,
   getEndOfMonth,
   isEndOfMonthStr,
   getDefaultFirstDueDate,
   computeScheduleDueDates,
-} from "./ApproveLoanDialog";
+} from "../utils/loanDueDates";
 import type { LoanRow } from "@shared/types";
 import * as apiQueryModule from "../hooks/useApiQuery";
 

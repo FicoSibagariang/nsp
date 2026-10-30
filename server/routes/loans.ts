@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import * as XLSX from 'xlsx'
 import db from '../db'
-import type { LoanPaymentRow, LoanRow } from '../db/entities'
 import {
   loanDisbursementDateSchema,
   loanSchema,
@@ -17,8 +16,6 @@ import {
   createLoan,
   deleteLoan,
   deleteLoanPayment,
-  enrichLoanForList,
-  getBungaRatePercent,
   getLoanSchedule,
   recordLoanPayment,
   regenerateLoanInstallmentSchedule,

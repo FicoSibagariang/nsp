@@ -10,9 +10,6 @@ import {
   LayoutContent,
   StackItem,
 } from '@astryxdesign/core/Layout';
-import {Spinner} from '@astryxdesign/core/Spinner';
-import {Center} from '@astryxdesign/core/Center';
-import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
@@ -22,7 +19,7 @@ import React, {useState, useEffect} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {useApiQuery} from './hooks/useApiQuery';
 import {DataStateView} from './components/DataStateView';
-import {formatRp, formatCompactRp, formatDate} from './utils/format';
+import {formatCompactRp} from './utils/format';
 import {
   LineChart,
   Line,
@@ -33,8 +30,6 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import {Grid} from '@astryxdesign/core/Grid';
-import {Table, proportional, pixel} from '@astryxdesign/core/Table';
-import type {TableColumn} from '@astryxdesign/core/Table';
 import {Icon} from '@astryxdesign/core/Icon';
 
 // ============= ICONS =============
@@ -132,24 +127,6 @@ function MonthlyChart({ data }: { data: DashboardData['monthlyData'] }) {
         <ChartLegendItem color={chartColors.pinjaman} label="Sisa Pinjaman" />
       </HStack>
     </VStack>
-  );
-}
-
-function Sparkline({data}: {data: number[]}) {
-  const chartData = data.map((v, i) => ({i, v}));
-  return (
-    <ResponsiveContainer width="100%" height={40}>
-      <LineChart data={chartData} accessibilityLayer>
-        <Line
-          type="linear"
-          dataKey="v"
-          stroke={chartColors.simpanan}
-          strokeWidth={1.5}
-          dot={false}
-          isAnimationActive={false}
-        />
-      </LineChart>
-    </ResponsiveContainer>
   );
 }
 

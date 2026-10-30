@@ -132,7 +132,7 @@ export function LoanPaymentSection({
     }
   };
 
-  const handleDelete = async (payment: Payment) => {
+  const handleDelete = useCallback(async (payment: Payment) => {
     if (
       !window.confirm(
         `Hapus angsuran ${formatRp(payment.amount)}? Jadwal dan sisa hutang akan dihitung ulang.`
@@ -150,7 +150,7 @@ export function LoanPaymentSection({
     } finally {
       setIsSubmitting(false);
     }
-  };
+  }, [cancelEdit, editing?.id, loanId, onSaved, toast]);
 
   const columns: TableColumn<Payment>[] = useMemo(() => {
     const cols: TableColumn<Payment>[] = [
@@ -214,7 +214,7 @@ export function LoanPaymentSection({
       });
     }
     return cols;
-  }, [canManagePayments, isSubmitting, remainingDebt]);
+  }, [canManagePayments, handleDelete, isSubmitting, startEdit]);
 
   return (
     <VStack gap={4}>

@@ -3,7 +3,7 @@
 'use client';
 
 import {AppShell} from '@astryxdesign/core/AppShell';
-import {VStack, HStack} from '@astryxdesign/core/Stack';
+import {HStack} from '@astryxdesign/core/Stack';
 import {TopNav, TopNavHeading} from '@astryxdesign/core/TopNav';
 import {SideNav, SideNavItem, SideNavSection} from '@astryxdesign/core/SideNav';
 import { NotificationBell } from './NotificationBell';
@@ -31,8 +31,8 @@ import { Badge } from '@astryxdesign/core/Badge';
 import { useAuth } from '../hooks/useAuth';
 import type { Permission } from '@shared/permissions';
 import type { SettingsData, PendingActionsData } from '@shared/types';
-import { useThemeMode } from '../contexts/ThemeContext';
-import { useDemoMode } from '../contexts/DemoModeContext';
+import { useThemeMode } from '../hooks/useThemeMode';
+import { useDemoMode } from '../contexts/DemoModeContextDef';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
 import { useApiQuery } from '../hooks/useApiQuery';
@@ -54,7 +54,6 @@ const Ledger = React.lazy(() => import('../pages/Ledger'));
 const EWA = React.lazy(() => import('../pages/EWA'));
 const Letters = React.lazy(() => import('../pages/Letters'));
 const Feedbacks = React.lazy(() => import('../pages/Feedbacks'));
-const ComingSoon = React.lazy(() => import('./ComingSoon'));
 
 function ProtectedRoute({ permission, children }: { permission: Permission; children: ReactNode }) {
   const { hasPermission } = useAuth();

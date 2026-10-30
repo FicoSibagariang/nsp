@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { sign } from 'hono/jwt'
 import db from '../db'
-import type { MemberRow, TransactionRow } from '../db/entities'
 import {
   memberCreateSchema,
   memberPortalAccessSchema,

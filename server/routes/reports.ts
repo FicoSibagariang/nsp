@@ -19,23 +19,15 @@ reports.get('/summary', requirePermission('read:reports'), async (c) => {
 })
 
 reports.get('/monthly-interest', requirePermission('read:reports'), async (c) => {
-  try {
-    const year = c.req.query('year') || new Date().getFullYear().toString()
-    const data = await getMonthlyInterestReport(year)
-    return c.json({ success: true, data })
-  } catch (error) {
-    throw error
-  }
+  const year = c.req.query('year') || new Date().getFullYear().toString()
+  const data = await getMonthlyInterestReport(year)
+  return c.json({ success: true, data })
 })
 
 reports.get('/revenue-projection', requirePermission('read:reports'), async (c) => {
-  try {
-    const year = c.req.query('year') || new Date().getFullYear().toString()
-    const data = await getRevenueProjectionReport(year)
-    return c.json({ success: true, data })
-  } catch (error) {
-    throw error
-  }
+  const year = c.req.query('year') || new Date().getFullYear().toString()
+  const data = await getRevenueProjectionReport(year)
+  return c.json({ success: true, data })
 })
 
 reports.get('/ar', requirePermission('read:reports'), async (c) => {

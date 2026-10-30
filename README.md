@@ -143,14 +143,20 @@ Dokumentasi API (dev): [http://localhost:3000/doc](http://localhost:3000/doc) (S
 ## Testing
 
 ```bash
-# Unit / integration (server + src); butuh Postgres yang reachable via DATABASE_URL
+# Unit test cepat & independen (tanpa butuh PostgreSQL aktif)
+bun run test:unit
+
+# Integration test (memerlukan koneksi PostgreSQL aktif via DATABASE_URL)
+bun run test:integration
+
+# Menjalankan seluruh test suite (unit + integration)
 bun run test
 
 # End-to-end Playwright
 bun run test:e2e
 ```
 
-Di CI, unit test memakai service Postgres 16; e2e memakai database terpisah (lihat `.github/workflows/`).
+Di CI, test suite dijalankan memakai service Postgres 16; e2e memakai database terpisah (lihat `.github/workflows/`).
 
 ## Build & production
 

@@ -1,14 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  BugAntIcon,
-  LightBulbIcon,
-  ChatBubbleBottomCenterTextIcon,
   ArrowPathIcon,
   MagnifyingGlassIcon,
   ArrowsPointingOutIcon,
   TrashIcon,
   XMarkIcon,
-  CheckCircleIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import { api } from '../../services/api';

@@ -276,7 +276,7 @@ memberAuth.post('/refresh', async (c) => {
     });
 
     return c.json({ success: true, data: { token: newAccessToken } });
-  } catch (err) {
+  } catch {
     return c.json({ success: false, message: 'Invalid refresh token' }, 401);
   }
 });

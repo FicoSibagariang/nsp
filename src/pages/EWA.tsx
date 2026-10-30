@@ -19,7 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Icon } from '@astryxdesign/core/Icon';
 import type { CompanyEmployee, EWARequest, EwaFeeTier } from '@shared/types';
-import { useDemoMode } from '../contexts/DemoModeContext';
+import { useDemoMode } from '../contexts/DemoModeContextDef';
 import { formatRp } from '../utils/format';
 import { maskName, maskNip } from '../utils/privacyMask';
 import {

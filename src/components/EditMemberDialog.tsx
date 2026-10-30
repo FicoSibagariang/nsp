@@ -13,7 +13,7 @@ import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Text} from '@astryxdesign/core/Text';
 import type {MemberRow} from '@shared/types';
-import {useDemoMode} from '../contexts/DemoModeContext';
+import {useDemoMode} from '../contexts/DemoModeContextDef';
 import {maskName, maskNik, hashString} from '../utils/privacyMask';
 
 export function EditMemberDialogContent({
@@ -27,24 +27,29 @@ export function EditMemberDialogContent({
 }) {
   const { isDemoMode } = useDemoMode();
 
-  const getInitialName = () => (isDemoMode ? maskName(initialData.id, initialData.name) : initialData.name);
-  const getInitialNik = () => (isDemoMode ? maskNik(initialData.id, initialData.nik) : (initialData.nik || ''));
-  const getInitialPhone = () => {
+  const initialName = isDemoMode ? maskName(initialData.id, initialData.name) : initialData.name;
+  const [name, setName] = useState(initialName);
+  const [nik, setNik] = useState(() => (isDemoMode ? maskNik(initialData.id, initialData.nik) : (initialData.nik || '')));
+  const [phone, setPhone] = useState(() => {
     if (!initialData.phone) return '';
     return isDemoMode ? `0812${String(10000000 + (hashString(initialData.id) % 90000000))}` : initialData.phone;
-  };
-
-  const [name, setName] = useState(getInitialName);
-  const [nik, setNik] = useState(getInitialNik);
-  const [phone, setPhone] = useState(getInitialPhone);
+  });
   const [role, setRole] = useState(initialData.role);
   const [status, setStatus] = useState(initialData.status);
   const [localError, setLocalError] = useState('');
 
   useEffect(() => {
-    setName(getInitialName());
-    setNik(getInitialNik());
-    setPhone(getInitialPhone());
+    const nextName = isDemoMode ? maskName(initialData.id, initialData.name) : initialData.name;
+    const nextNik = isDemoMode ? maskNik(initialData.id, initialData.nik) : (initialData.nik || '');
+    const nextPhone = !initialData.phone
+      ? ''
+      : isDemoMode
+      ? `0812${String(10000000 + (hashString(initialData.id) % 90000000))}`
+      : initialData.phone;
+
+    setName(nextName);
+    setNik(nextNik);
+    setPhone(nextPhone);
     setRole(initialData.role);
     setStatus(initialData.status);
     setLocalError('');
@@ -91,7 +96,7 @@ export function EditMemberDialogContent({
       header={
         <DialogHeader
           title="Edit Anggota"
-          subtitle={`Ubah data untuk ${getInitialName()}`}
+          subtitle={`Ubah data untuk ${initialName}`}
           onOpenChange={() => onClose()}
         />
       }

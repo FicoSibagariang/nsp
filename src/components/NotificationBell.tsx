@@ -5,7 +5,7 @@ import { Button } from '@astryxdesign/core/Button';
 import { Badge } from '@astryxdesign/core/Badge';
 import { Icon } from '@astryxdesign/core/Icon';
 import { Heading, Text } from '@astryxdesign/core/Text';
-import { HStack, VStack } from '@astryxdesign/core/Layout';
+import { HStack } from '@astryxdesign/core/Layout';
 import {
   BellIcon,
   BellAlertIcon,

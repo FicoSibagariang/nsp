@@ -12,8 +12,6 @@ import {
 } from '@astryxdesign/core/Layout';
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {Center} from '@astryxdesign/core/Center';
-import {EmptyState} from '@astryxdesign/core/EmptyState';
-import {ExclamationCircleIcon} from '@heroicons/react/24/outline';
 import {useToast} from '@astryxdesign/core/Toast';
 import {api} from '../services/api';
 import {useApiQuery} from '../hooks/useApiQuery';
@@ -33,7 +31,7 @@ import {Avatar} from '@astryxdesign/core/Avatar';
 import {Badge} from '@astryxdesign/core/Badge';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Selector} from '@astryxdesign/core/Selector';
-import { useDemoMode } from '../contexts/DemoModeContext';
+import { useDemoMode } from '../contexts/DemoModeContextDef';
 import { maskName } from '../utils/privacyMask';
 import {Table, proportional, pixel} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
@@ -78,7 +76,7 @@ export default function LoansTemplate() {
   const [statusFilter, setStatusFilter] = useState('');
 
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit] = useState(20);
 
   // Debounce search query (500ms agar tidak terinterupsi saat mengetik)
   useEffect(() => {
@@ -102,13 +100,6 @@ export default function LoansTemplate() {
 
   const { data: loansResponse, isLoading, error, refetch: fetchLoans } = useApiQuery<PaginatedResponse<LoanRow>>(`/api/loans?${queryParams.toString()}`);
   const loans = loansResponse?.data || [];
-  const [localLoans, setLocalLoans] = useState<LoanRow[]>([]);
-
-  useEffect(() => {
-    if (loansResponse?.data) {
-      setLocalLoans(loansResponse.data);
-    }
-  }, [loansResponse]);
 
   const handleUpdateStatus = useCallback(
     (
@@ -136,9 +127,6 @@ export default function LoansTemplate() {
           successMsg: status === 'Ditolak' ? 'Pengajuan pinjaman berhasil ditolak' : 'Status pinjaman berhasil diperbarui',
           errorMsg: 'Terjadi kesalahan sistem',
           onSuccess: () => {
-            setLocalLoans((loans) =>
-              loans.map((loan) => (loan.id === id ? ({ ...loan, status, rejectionReason: options?.rejectionReason } as LoanRow) : loan))
-            );
             fetchLoans();
           },
         }
@@ -409,7 +397,7 @@ export default function LoansTemplate() {
         );
       },
     },
-  ], [isDemoMode, hasPermission, handleUpdateStatus, handleApproveLoan, handleRejectLoan, dialog, fetchLoans, handleDeleteLoan]);
+  ], [isDemoMode, hasPermission, handleApproveLoan, handleRejectLoan, dialog, fetchLoans, handleDeleteLoan]);
 
   return (
     <>

@@ -1,1 +1,1 @@
-export { useAuth } from '../contexts/AuthContext'
+export { useAuth, type AuthContextType } from '../contexts/AuthContextDef'

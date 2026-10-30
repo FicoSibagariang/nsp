@@ -88,7 +88,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
   const { data: membersRes } = useApiQuery<PaginatedResponse<MemberRow>>('/api/members?page=1&limit=1000');
   const { data: settings } = useApiQuery<SettingsData>('/api/settings');
   
-  const members = membersRes?.data || [];
+  const members = useMemo(() => membersRes?.data || [], [membersRes?.data]);
   const bungaRate = parseFloat(settings?.bungaPinjaman || '0') || 0;
 
   const memberItems: SearchableItem[] = useMemo(() => {

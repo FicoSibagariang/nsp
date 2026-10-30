@@ -1,7 +1,7 @@
 import { expect, test, describe, beforeAll, afterAll } from "bun:test";
 import server from "../index";
 import db from "../db";
-import { sign, verify, decode } from "hono/jwt";
+import { sign, decode } from "hono/jwt";
 
 const secretKey = process.env.JWT_SECRET || Bun.env.JWT_SECRET;
 

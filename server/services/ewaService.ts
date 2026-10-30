@@ -448,7 +448,6 @@ export async function createEwaRequest(
   const feeCalc = await calculateEwaFee(db, requestedAmount, emp.isMember);
   const feePercentage = feeCalc.feePercentage;
   const feeAmount = feeCalc.feeAmount;
-  const disbursedAmount = requestedAmount;
   const totalPayrollDeduction = requestedAmount + feeAmount;
 
   const periodMonth = quota.periodMonth;
