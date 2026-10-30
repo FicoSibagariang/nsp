@@ -1,62 +1,39 @@
 'use client';
 
-import React, {useState} from 'react';
+import { useState } from 'react';
 import {
-  VStack,
   HStack,
   StackItem,
   Layout,
   LayoutContent,
   LayoutHeader,
 } from '@astryxdesign/core/Layout';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
-import {Text, Heading} from '@astryxdesign/core/Text';
-import {Card} from '@astryxdesign/core/Card';
-import {useApiQuery} from '../hooks/useApiQuery';
-import {useAuth} from '../hooks/useAuth';
-import {formatRp} from '../utils/format';
-import {DataStateView} from '../components/DataStateView';
-import {StatusBadge} from '../components/common/StatusBadge';
-import {chartColors, getThemedGridProps, getThemedAxisProps, getThemedTooltipProps} from '../design/chartTheme';
-import type {ReportData} from '@shared/types';
-import {useDemoMode} from '../contexts/DemoModeContext';
-import {maskName} from '../utils/privacyMask';
-
-type ReportType = 'cooperative_summary' | 'savings_summary' | 'loans_summary' | 'revenue_projection' | 'ar_summary' | 'savings_member' | 'cashflow_statement' | 'income_statement' | 'balance_sheet';
-
-export interface RevenueProjectionData {
-  year: string;
-  summary: {
-    totalRealizedInterest: number;
-    totalRealizedOtherRevenue?: number;
-    totalRealizedRevenue?: number;
-    totalProjectedInterest: number;
-    totalEstimatedFullYearInterest: number;
-    totalProjectedRevenue?: number;
-    totalRealizedExpense?: number;
-    projectedNetIncome?: number;
-    profitStatus?: 'profit' | 'loss' | 'even';
-    totalProjectedPrincipal: number;
-    totalProjectedCashInflow: number;
-    totalProjectedInstallments: number;
-  };
-  revenueBreakdown?: Array<{ code: string; name: string; total: number }>;
-  expenseBreakdown?: Array<{ code: string; name: string; total: number }>;
-  monthlyBreakdown: Array<{
-    monthKey: string;
-    monthName: string;
-    realizedInterest: number;
-    projectedInterest: number;
-    projectedPrincipal: number;
-    projectedTotal: number;
-    installmentsCount: number;
-  }>;
-}
+import { Text, Heading } from '@astryxdesign/core/Text';
+import { useApiQuery } from '../hooks/useApiQuery';
+import { useAuth } from '../hooks/useAuth';
+import { DataStateView } from '../components/DataStateView';
+import { useDemoMode } from '../contexts/DemoModeContext';
+import {
+  ReportsSidebar,
+  ReportPrintableArea,
+  exportReportCsv,
+} from '../features/reports';
+import type {
+  ReportType,
+  RevenueProjectionData,
+  ArReportRow,
+  SavingsMemberRow,
+  CashflowRow,
+  IncomeStatementData,
+  BalanceSheetData,
+} from '../features/reports';
+import type { ReportData, SettingsData } from '@shared/types';
 
 export default function ReportsTemplate() {
   const { hasPermission } = useAuth();
   const { isDemoMode } = useDemoMode();
   const canExportReports = hasPermission('export:reports');
+
   const [selectedReport, setSelectedReport] = useState<ReportType>('cooperative_summary');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [startDate, setStartDate] = useState('');
@@ -64,51 +41,95 @@ export default function ReportsTemplate() {
   const [projectionYear, setProjectionYear] = useState(new Date().getFullYear().toString());
   const [hideZeroBalance, setHideZeroBalance] = useState(true);
 
-  const { data: reportResponse, isLoading: isSummaryLoading, error: summaryError, refetch: fetchSummary } = useApiQuery<ReportData>('/api/reports/summary');
-  const { data: arRes, isLoading: isArLoading, error: arError, refetch: fetchAr } = useApiQuery<Array<{ memberName: string, principal: number, totalAmount: number, paidAmount: number, remainingAmount: number, status: string }>>('/api/reports/ar');
-  const { data: savingsMemberRes, isLoading: isSavingsMemberLoading, error: savingsMemberError, refetch: fetchSavingsMember } = useApiQuery<Array<{ memberName: string, simpananPokok: number, simpananWajib: number, simpananSukarela: number, totalSavings: number }>>('/api/reports/savings-member');
-  
+  // API Queries
+  const {
+    data: reportResponse,
+    isLoading: isSummaryLoading,
+    error: summaryError,
+    refetch: fetchSummary,
+  } = useApiQuery<ReportData>('/api/reports/summary');
+
+  const {
+    data: arRes,
+    isLoading: isArLoading,
+    error: arError,
+    refetch: fetchAr,
+  } = useApiQuery<ArReportRow[]>('/api/reports/ar');
+
+  const {
+    data: savingsMemberRes,
+    isLoading: isSavingsMemberLoading,
+    error: savingsMemberError,
+    refetch: fetchSavingsMember,
+  } = useApiQuery<SavingsMemberRow[]>('/api/reports/savings-member');
+
   const cashflowPath = `/api/reports/cashflow-statement?startDate=${startDate}&endDate=${endDate}`;
-  const { data: cashflowRes, isLoading: isCashflowLoading, error: cashflowError, refetch: fetchCashflow } = useApiQuery<Array<{
-    category: string;
-    subcategory: string;
-    accountCode?: string;
-    accountName?: string;
-    label: string;
-    total: number;
-  }>>(cashflowPath);
+  const {
+    data: cashflowRes,
+    isLoading: isCashflowLoading,
+    error: cashflowError,
+    refetch: fetchCashflow,
+  } = useApiQuery<CashflowRow[]>(cashflowPath);
 
   const incomePath = `/api/reports/income-statement?startDate=${startDate}&endDate=${endDate}`;
-  const { data: incomeRes, isLoading: isIncomeLoading, error: incomeError, refetch: fetchIncome } = useApiQuery<any>(incomePath);
+  const {
+    data: incomeRes,
+    isLoading: isIncomeLoading,
+    error: incomeError,
+    refetch: fetchIncome,
+  } = useApiQuery<IncomeStatementData>(incomePath);
 
   const balancePath = `/api/reports/balance-sheet?endDate=${endDate}`;
-  const { data: balanceRes, isLoading: isBalanceLoading, error: balanceError, refetch: fetchBalance } = useApiQuery<any>(balancePath);
+  const {
+    data: balanceRes,
+    isLoading: isBalanceLoading,
+    error: balanceError,
+    refetch: fetchBalance,
+  } = useApiQuery<BalanceSheetData>(balancePath);
 
   const projectionPath = `/api/reports/revenue-projection?year=${projectionYear}`;
-  const { data: projectionRes, isLoading: isProjectionLoading, error: projectionError, refetch: fetchProjection } = useApiQuery<RevenueProjectionData>(projectionPath);
+  const {
+    data: projectionRes,
+    isLoading: isProjectionLoading,
+    error: projectionError,
+    refetch: fetchProjection,
+  } = useApiQuery<RevenueProjectionData>(projectionPath);
 
-  const { data: settings } = useApiQuery<import('@shared/types').SettingsData>('/api/settings');
+  const { data: settings } = useApiQuery<SettingsData>('/api/settings');
   const koperasiName = settings?.koperasiName?.trim() || 'Koperasi';
-
 
   let isLoading = false;
   let error: string | null = null;
   let refetch = () => {};
 
   if (selectedReport === 'revenue_projection') {
-    isLoading = isProjectionLoading; error = projectionError; refetch = fetchProjection;
+    isLoading = isProjectionLoading;
+    error = projectionError;
+    refetch = fetchProjection;
   } else if (selectedReport === 'ar_summary') {
-    isLoading = isArLoading; error = arError; refetch = fetchAr;
+    isLoading = isArLoading;
+    error = arError;
+    refetch = fetchAr;
   } else if (selectedReport === 'savings_member') {
-    isLoading = isSavingsMemberLoading; error = savingsMemberError; refetch = fetchSavingsMember;
+    isLoading = isSavingsMemberLoading;
+    error = savingsMemberError;
+    refetch = fetchSavingsMember;
   } else if (selectedReport === 'cashflow_statement') {
-    isLoading = isCashflowLoading; error = cashflowError; refetch = fetchCashflow;
+    isLoading = isCashflowLoading;
+    error = cashflowError;
+    refetch = fetchCashflow;
   } else if (selectedReport === 'income_statement') {
-    isLoading = isIncomeLoading; error = incomeError; refetch = fetchIncome;
+    isLoading = isIncomeLoading;
+    error = incomeError;
+    refetch = fetchIncome;
   } else if (selectedReport === 'balance_sheet') {
-    isLoading = isBalanceLoading; error = balanceError; refetch = fetchBalance;
+    isLoading = isBalanceLoading;
+    error = balanceError;
+    refetch = fetchBalance;
   } else {
-    isLoading = isSummaryLoading; error = summaryError; refetch = fetchSummary;
+    isLoading = isSummaryLoading;
+    error = summaryError;
+    refetch = fetchSummary;
   }
 
   const handlePrint = () => {
@@ -116,109 +137,18 @@ export default function ReportsTemplate() {
   };
 
   const handleExportCSV = () => {
-    let csvContent = "";
-    let filename = "";
-    
-    if (selectedReport === 'cooperative_summary' && reportResponse) {
-        filename = "laporan_ringkasan_koperasi.csv";
-        csvContent += "Parameter Keuangan & Operasional,Nilai/Jumlah\r\n";
-        csvContent += `Total Anggota Terdaftar,${reportResponse.members.totalMembers}\r\n`;
-        csvContent += `Anggota Berstatus Aktif,${reportResponse.members.activeMembers}\r\n`;
-        csvContent += `Total Dana Simpanan Anggota,${reportResponse.members.totalSavings}\r\n`;
-        csvContent += `Total Pinjaman Tersalurkan (Kredit Aktif),${reportResponse.loans.totalLoansAmount}\r\n`;
-        csvContent += `Total Penerimaan Angsuran Pinjaman,${reportResponse.loans.totalPaymentsReceived}\r\n`;
-      } else if (selectedReport === 'savings_summary' && reportResponse) {
-        filename = "laporan_portfolio_simpanan.csv";
-        csvContent += "Jenis Simpanan,Total Akumulasi\r\n";
-        csvContent += `Simpanan Pokok (Modal Awal),${reportResponse.members.totalPokok}\r\n`;
-        csvContent += `Simpanan Wajib (Bulanan),${reportResponse.members.totalWajib}\r\n`;
-        csvContent += `Simpanan Sukarela (Tabungan Bebas),${reportResponse.members.totalSukarela}\r\n`;
-        csvContent += `Total Seluruh Simpanan,${reportResponse.members.totalSavings}\r\n`;
-      } else if (selectedReport === 'loans_summary' && reportResponse) {
-        filename = "laporan_portfolio_pinjaman.csv";
-        csvContent += "Status Portofolio Kredit,Total Nominal\r\n";
-        csvContent += `Kredit Lancar Aktif (Disetujui),${reportResponse.loans.activeLoansAmount}\r\n`;
-        csvContent += `Kredit Lunas (Telah Diselesaikan),${reportResponse.loans.paidLoansAmount}\r\n`;
-        csvContent += `Kredit Bermasalah (Macet / NPL),${reportResponse.loans.badLoansAmount}\r\n`;
-        csvContent += `Total Kumulatif Penyaluran Pinjaman,${reportResponse.loans.totalLoansAmount}\r\n`;
-      } else if (selectedReport === 'revenue_projection' && projectionRes) {
-        filename = `laporan_proyeksi_pendapatan_${projectionRes.year}.csv`;
-        csvContent += `Laporan Proyeksi Pendapatan & Kas Masuk Tahun ${projectionRes.year}\r\n\r\n`;
-        csvContent += "RINGKASAN TAHUNAN,NOMINAL\r\n";
-        csvContent += `Realisasi Pendapatan Masuk (s/d Saat Ini),${projectionRes.summary.totalRealizedRevenue ?? projectionRes.summary.totalRealizedInterest}\r\n`;
-        csvContent += `Proyeksi Pendapatan Bunga (Sisa Tahun),${projectionRes.summary.totalProjectedInterest}\r\n`;
-        csvContent += `Estimasi Total Pendapatan 1 Tahun,${projectionRes.summary.totalProjectedRevenue ?? projectionRes.summary.totalEstimatedFullYearInterest}\r\n`;
-        csvContent += `Pengeluaran / Beban Tercatat (s/d Saat Ini),${projectionRes.summary.totalRealizedExpense ?? 0}\r\n`;
-        csvContent += `Estimasi Laba / Rugi Akhir Tahun,${projectionRes.summary.projectedNetIncome ?? 0}\r\n`;
-        csvContent += `Status Proyeksi Akhir Tahun,"${(projectionRes.summary.projectedNetIncome ?? 0) > 0 ? 'UNTUNG (Surplus)' : (projectionRes.summary.projectedNetIncome ?? 0) < 0 ? 'RUGI (Defisit)' : 'IMPAS'}"\r\n`;
-        csvContent += `Proyeksi Pengembalian Pokok (Sisa Tahun),${projectionRes.summary.totalProjectedPrincipal}\r\n`;
-        csvContent += `Total Proyeksi Kas Masuk Angsuran (Sisa Tahun),${projectionRes.summary.totalProjectedCashInflow}\r\n`;
-        csvContent += `Jumlah Tagihan Angsuran Terjadwal,${projectionRes.summary.totalProjectedInstallments}\r\n\r\n`;
-
-        csvContent += "REKAPITULASI BULANAN\r\n";
-        csvContent += "Bulan,Realisasi Bunga,Jml Angsuran,Proyeksi Bunga,Proyeksi Pokok,Total Proyeksi Masuk\r\n";
-        for (const m of projectionRes.monthlyBreakdown) {
-          csvContent += `"${m.monthName}",${m.realizedInterest},${m.installmentsCount},${m.projectedInterest},${m.projectedPrincipal},${m.projectedTotal}\r\n`;
-        }
-      } else if (selectedReport === 'ar_summary' && arRes) {
-        filename = "laporan_piutang_pinjaman.csv";
-        csvContent += "Nama Anggota,Pokok Pinjaman,Total Tagihan,Telah Dibayar,Sisa Piutang,Status\r\n";
-        for (const item of arRes) {
-          const memberName = isDemoMode ? maskName(item.memberName, item.memberName) : item.memberName;
-          csvContent += `${memberName},${item.principal},${item.totalAmount},${item.paidAmount},${item.remainingAmount},${item.status}\r\n`;
-        }
-      } else if (selectedReport === 'savings_member' && savingsMemberRes) {
-        filename = "laporan_rekap_simpanan_anggota.csv";
-        csvContent += "Nama Anggota,Simpanan Pokok,Simpanan Wajib,Simpanan Sukarela,Total Simpanan\r\n";
-        for (const item of savingsMemberRes) {
-          const memberName = isDemoMode ? maskName(item.memberName, item.memberName) : item.memberName;
-          csvContent += `${memberName},${item.simpananPokok},${item.simpananWajib},${item.simpananSukarela},${item.totalSavings}\r\n`;
-        }
-      } else if (selectedReport === 'cashflow_statement' && cashflowRes) {
-        filename = "laporan_arus_kas.csv";
-        csvContent += "Kategori,Pos Transaksi Arus Kas,Total Nominal\r\n";
-        for (const item of cashflowRes) {
-          csvContent += `"${item.category === 'inflow' ? 'Arus Kas Masuk' : 'Arus Kas Keluar'}","${item.label || item.subcategory}","${item.total}"\r\n`;
-        }
-      } else if (selectedReport === 'income_statement' && incomeRes) {
-        filename = "laporan_laba_rugi.csv";
-        csvContent += "Kode Akun,Nama Akun,Saldo\r\n";
-        const revs = hideZeroBalance ? incomeRes.revenues.filter((r: any) => Number(r.balance) !== 0) : incomeRes.revenues;
-        const exps = hideZeroBalance ? incomeRes.expenses.filter((r: any) => Number(r.balance) !== 0) : incomeRes.expenses;
-        csvContent += "--- PENDAPATAN ---\r\n";
-        revs.forEach((r: any) => csvContent += `"${r.code}","${r.name}",${r.balance}\r\n`);
-        csvContent += `Total Pendapatan,,${incomeRes.totalRevenue}\r\n`;
-        csvContent += "--- BEBAN ---\r\n";
-        exps.forEach((r: any) => csvContent += `"${r.code}","${r.name}",${r.balance}\r\n`);
-        csvContent += `Total Beban,,${incomeRes.totalExpense}\r\n`;
-        csvContent += `Laba/Rugi Bersih,,${incomeRes.netIncome}\r\n`;
-      } else if (selectedReport === 'balance_sheet' && balanceRes) {
-        filename = "laporan_neraca.csv";
-        csvContent += "Kode Akun,Nama Akun,Saldo\r\n";
-        const ass = hideZeroBalance ? balanceRes.assets.filter((r: any) => Number(r.balance) !== 0) : balanceRes.assets;
-        const lia = hideZeroBalance ? balanceRes.liabilities.filter((r: any) => Number(r.balance) !== 0) : balanceRes.liabilities;
-        const equ = hideZeroBalance ? balanceRes.equity.filter((r: any) => Number(r.balance) !== 0) : balanceRes.equity;
-        csvContent += "--- ASET ---\r\n";
-        ass.forEach((r: any) => csvContent += `"${r.code}","${r.name}",${r.balance}\r\n`);
-        csvContent += `Total Aset,,${balanceRes.totalAssets}\r\n`;
-        csvContent += "--- KEWAJIBAN ---\r\n";
-        lia.forEach((r: any) => csvContent += `"${r.code}","${r.name}",${r.balance}\r\n`);
-        csvContent += `Total Kewajiban,,${balanceRes.totalLiabilities}\r\n`;
-        csvContent += "--- EKUITAS ---\r\n";
-        equ.forEach((r: any) => csvContent += `"${r.code}","${r.name}",${r.balance}\r\n`);
-        csvContent += `Total Ekuitas,,${balanceRes.totalEquity}\r\n`;
-        csvContent += `Total Kewajiban & Ekuitas,,${balanceRes.totalLiabilities + balanceRes.totalEquity}\r\n`;
-      }
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", filename);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    exportReportCsv({
+      selectedReport,
+      reportResponse,
+      projectionRes,
+      arRes,
+      savingsMemberRes,
+      cashflowRes,
+      incomeRes,
+      balanceRes,
+      isDemoMode,
+      hideZeroBalance,
+    });
   };
 
   const formattedDate = new Date().toLocaleDateString('id-ID', {
@@ -227,6 +157,26 @@ export default function ReportsTemplate() {
     month: 'long',
     day: 'numeric',
   });
+
+  const summaryReady = !!(reportResponse && reportResponse.members && reportResponse.loans);
+  const hasSelectedData =
+    selectedReport === 'cooperative_summary' ||
+    selectedReport === 'savings_summary' ||
+    selectedReport === 'loans_summary'
+      ? summaryReady
+      : selectedReport === 'revenue_projection'
+      ? !!projectionRes
+      : selectedReport === 'ar_summary'
+      ? Array.isArray(arRes)
+      : selectedReport === 'savings_member'
+      ? Array.isArray(savingsMemberRes)
+      : selectedReport === 'cashflow_statement'
+      ? Array.isArray(cashflowRes)
+      : selectedReport === 'income_statement'
+      ? !!incomeRes
+      : selectedReport === 'balance_sheet'
+      ? !!balanceRes
+      : false;
 
   return (
     <Layout
@@ -249,12 +199,18 @@ export default function ReportsTemplate() {
                     fontWeight: 500,
                     borderRadius: '6px',
                     border: '1px solid var(--color-border-primary)',
-                    backgroundColor: isSidebarCollapsed ? 'var(--color-primary-500)' : 'var(--color-background-primary)',
+                    backgroundColor: isSidebarCollapsed
+                      ? 'var(--color-primary-500)'
+                      : 'var(--color-background-primary)',
                     color: isSidebarCollapsed ? '#ffffff' : 'var(--color-text-primary)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}
-                  title={isSidebarCollapsed ? "Tampilkan panel menu laporan & filter" : "Sembunyikan panel untuk memperluas tampilan laporan"}
+                  title={
+                    isSidebarCollapsed
+                      ? 'Tampilkan panel menu laporan & filter'
+                      : 'Sembunyikan panel untuk memperluas tampilan laporan'
+                  }
                 >
                   <span>{isSidebarCollapsed ? '📑 Buka Menu Laporan' : '◀ Sembunyikan Menu'}</span>
                 </button>
@@ -262,42 +218,42 @@ export default function ReportsTemplate() {
             </StackItem>
             <StackItem>
               {canExportReports && (
-              <HStack gap={2}>
-                <button
-                  onClick={handleExportCSV}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: 'var(--color-success-500)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  📥 Ekspor CSV
-                </button>
-                <button
-                  onClick={handlePrint}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: 'var(--color-primary-500)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px'
-                  }}
-                >
-                  🖨️ Cetak Laporan
-                </button>
-              </HStack>
+                <HStack gap={2}>
+                  <button
+                    onClick={handleExportCSV}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: 'var(--color-success-500)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    📥 Ekspor CSV
+                  </button>
+                  <button
+                    onClick={handlePrint}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: 'var(--color-primary-500)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    🖨️ Cetak Laporan
+                  </button>
+                </HStack>
               )}
             </StackItem>
           </HStack>
@@ -307,1236 +263,95 @@ export default function ReportsTemplate() {
         <LayoutContent padding={3}>
           <style>{`
             @media print {
-              /* Hide everything */
-              body * {
-                visibility: hidden;
-              }
-
-              /* Only show the printable report area */
-              #printable-report-area,
-              #printable-report-area * {
-                visibility: visible;
-              }
-
-              /* Force the report to fill the entire page from the top-left corner */
+              body * { visibility: hidden; }
+              #printable-report-area, #printable-report-area * { visibility: visible; }
               #printable-report-area {
-                position: fixed;
-                left: 0;
-                top: 0;
-                right: 0;
-                bottom: auto;
-                width: 100%;
-                max-width: 100%;
-                margin: 0 !important;
-                padding: 16px 24px !important;
-                border: none !important;
-                box-shadow: none !important;
-                border-radius: 0 !important;
-                background: white !important;
-                color: black !important;
+                position: fixed; left: 0; top: 0; right: 0; bottom: auto;
+                width: 100%; max-width: 100%; margin: 0 !important;
+                padding: 16px 24px !important; border: none !important;
+                box-shadow: none !important; border-radius: 0 !important;
+                background: white !important; color: black !important;
                 box-sizing: border-box;
               }
-
-              /* Suppress sidebar and non-print elements */
-              .no-print {
-                display: none !important;
-              }
-
-              /* Ensure tables don't clip */
-              table {
-                width: 100% !important;
-                page-break-inside: auto;
-              }
-              tr {
-                page-break-inside: avoid;
-              }
-              .signature-block {
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-              }
+              .no-print { display: none !important; }
+              table { width: 100% !important; page-break-inside: auto; }
+              tr { page-break-inside: avoid; }
+              .signature-block { page-break-inside: avoid !important; break-inside: avoid !important; }
             }
           `}</style>
 
           <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', width: '100%' }}>
-            {/* Sidebar selector card */}
             {!isSidebarCollapsed && (
-              <div className="no-print" style={{ width: '280px', flexShrink: 0 }}>
-                <Card style={{ padding: '16px' }}>
-                  <VStack gap={3}>
-                    <HStack vAlign="center" style={{ justifyContent: 'space-between', width: '100%' }}>
-                      <Heading level={3}>Pilih Laporan</Heading>
-                      <button
-                        type="button"
-                        onClick={() => setIsSidebarCollapsed(true)}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '3px 8px',
-                          fontSize: '12px',
-                          fontWeight: 500,
-                          color: 'var(--color-text-secondary)',
-                          backgroundColor: 'transparent',
-                          border: '1px solid var(--color-border-primary)',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                        }}
-                        title="Sembunyikan panel ini"
-                      >
-                        ◀ Ciutkan
-                      </button>
-                    </HStack>
-                  <VStack gap={2}>
-                    {[
-                      { id: 'cooperative_summary' as const, label: 'Laporan Ringkasan Koperasi', icon: '📊' },
-                      { id: 'savings_summary' as const, label: 'Laporan Mutasi & Simpanan', icon: '💰' },
-                      { id: 'loans_summary' as const, label: 'Laporan Portofolio Pinjaman', icon: '📈' },
-                      { id: 'revenue_projection' as const, label: 'Proyeksi Pendapatan & Kas Masuk', icon: '🎯' },
-                      { id: 'ar_summary' as const, label: 'Daftar Piutang Pinjaman', icon: '📋' },
-                      { id: 'savings_member' as const, label: 'Rekap Simpanan Anggota', icon: '🗂️' },
-                      { id: 'cashflow_statement' as const, label: 'Laporan Arus Kas', icon: '💵' },
-                      { id: 'income_statement' as const, label: 'Laporan Laba Rugi', icon: '📈' },
-                      { id: 'balance_sheet' as const, label: 'Neraca Koperasi', icon: '⚖️' },
-                    ].map((item) => {
-                      const isSelected = selectedReport === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setSelectedReport(item.id)}
-                          style={{
-                            textAlign: 'left',
-                            padding: '10px 14px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            backgroundColor: isSelected ? 'var(--color-primary-500, #0171E3)' : 'transparent',
-                            color: isSelected ? '#ffffff' : 'var(--color-text-primary)',
-                            cursor: 'pointer',
-                            fontWeight: isSelected ? 600 : 500,
-                            fontSize: '14px',
-                            transition: 'all 0.15s ease',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            boxShadow: isSelected ? '0 1px 3px rgba(0, 0, 0, 0.15)' : 'none',
-                          }}
-                        >
-                          <span>{item.icon}</span>
-                          <span>{item.label}</span>
-                        </button>
-                      );
-                    })}
-                  </VStack>
-                  
-                  {['cashflow_statement', 'income_statement', 'balance_sheet'].includes(selectedReport) && (
-                    <VStack gap={2} style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--color-border-primary)' }}>
-                      <Heading level={4}>
-                        {selectedReport === 'balance_sheet' ? 'Filter Posisi Neraca' : 'Filter Periode Tanggal'}
-                      </Heading>
-                      {selectedReport !== 'balance_sheet' && (
-                        <div>
-                          <Text type="supporting">Mulai Tanggal</Text>
-                          <input 
-                            type="date" 
-                            value={startDate} 
-                            onChange={(e) => setStartDate(e.target.value)} 
-                            style={{
-                              width: '100%',
-                              padding: '8px 12px',
-                              borderRadius: 'var(--radius-md, 6px)',
-                              border: '1px solid var(--color-border-primary)',
-                              backgroundColor: 'var(--color-background-primary)',
-                              color: 'var(--color-text-primary)',
-                              marginTop: '4px',
-                              boxSizing: 'border-box'
-                            }} 
-                          />
-                        </div>
-                      )}
-                      <div>
-                        <Text type="supporting">
-                          {selectedReport === 'balance_sheet' ? 'Posisi Per Tanggal' : 'Sampai Tanggal'}
-                        </Text>
-                        <input 
-                          type="date" 
-                          value={endDate} 
-                          onChange={(e) => setEndDate(e.target.value)} 
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            borderRadius: 'var(--radius-md, 6px)',
-                            border: '1px solid var(--color-border-primary)',
-                            backgroundColor: 'var(--color-background-primary)',
-                            color: 'var(--color-text-primary)',
-                            marginTop: '4px',
-                            boxSizing: 'border-box'
-                          }} 
-                        />
-                      </div>
-                      {(startDate || endDate) && (
-                        <button
-                          type="button"
-                          onClick={() => { setStartDate(''); setEndDate(''); }}
-                          style={{
-                            padding: '6px 12px',
-                            fontSize: '12px',
-                            color: 'var(--color-text-secondary)',
-                            background: 'transparent',
-                            border: '1px dashed var(--color-border-primary)',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            marginTop: '4px'
-                          }}
-                        >
-                          🔄 Reset Filter
-                        </button>
-                      )}
-                      {['income_statement', 'balance_sheet'].includes(selectedReport) && (
-                        <div style={{ marginTop: '8px', paddingTop: '10px', borderTop: '1px dashed var(--color-border-primary)' }}>
-                          <label style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            fontSize: '13px',
-                            cursor: 'pointer',
-                            userSelect: 'none',
-                            color: 'var(--color-text-primary)'
-                          }}>
-                            <input 
-                              type="checkbox" 
-                              checked={hideZeroBalance} 
-                              onChange={(e) => setHideZeroBalance(e.target.checked)} 
-                              style={{ cursor: 'pointer', width: '16px', height: '16px' }}
-                            />
-                            <span style={{ fontWeight: 500 }}>Sembunyikan Saldo Nol</span>
-                          </label>
-                          <Text type="supporting" color="secondary" style={{ fontSize: '11px', marginTop: '3px', display: 'block' }}>
-                            {hideZeroBalance ? '✓ Akun Rp 0 disembunyikan' : 'Seluruh bagan akun ditampilkan'}
-                          </Text>
-                        </div>
-                      )}
-                    </VStack>
-                  )}
-
-                  {selectedReport === 'revenue_projection' && (
-                    <VStack gap={2} style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--color-border-primary)' }}>
-                      <Heading level={4}>Filter Tahun Proyeksi</Heading>
-                      <div>
-                        <Text type="supporting">Pilih Tahun Anggaran</Text>
-                        <select 
-                          value={projectionYear} 
-                          onChange={(e) => setProjectionYear(e.target.value)} 
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            borderRadius: 'var(--radius-md, 6px)',
-                            border: '1px solid var(--color-border-primary)',
-                            backgroundColor: 'var(--color-background-primary)',
-                            color: 'var(--color-text-primary)',
-                            marginTop: '4px',
-                            boxSizing: 'border-box'
-                          }}
-                        >
-                          {[-1, 0, 1, 2].map(offset => {
-                            const yr = (new Date().getFullYear() + offset).toString();
-                            return <option key={yr} value={yr}>{yr}</option>;
-                          })}
-                        </select>
-                      </div>
-                    </VStack>
-                  )}
-                </VStack>
-              </Card>
-            </div>
-          )}
-
-          {/* Preview area card */}
-          <div style={{ flex: '1 1 0', minWidth: 0, width: '100%' }}>
-            {isSidebarCollapsed && (
-              <div className="no-print" style={{ marginBottom: '12px' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsSidebarCollapsed(false)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-primary)',
-                    backgroundColor: 'var(--color-background-primary)',
-                    color: 'var(--color-text-primary)',
-                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <span>📑 Buka Pilihan Laporan & Filter</span>
-                </button>
-              </div>
+              <ReportsSidebar
+                selectedReport={selectedReport}
+                onSelectReport={setSelectedReport}
+                onCollapse={() => setIsSidebarCollapsed(true)}
+                startDate={startDate}
+                onStartDateChange={setStartDate}
+                endDate={endDate}
+                onEndDateChange={setEndDate}
+                hideZeroBalance={hideZeroBalance}
+                onHideZeroBalanceChange={setHideZeroBalance}
+                projectionYear={projectionYear}
+                onProjectionYearChange={setProjectionYear}
+              />
             )}
-            <DataStateView isLoading={isLoading} error={error} onRetry={refetch} errorTitle="Gagal Memuat Laporan">
-                {(() => {
-                  // Only open the printable card when the *selected* report has data.
-                  const summaryReady = !!(
-                    reportResponse &&
-                    reportResponse.members &&
-                    reportResponse.loans
-                  );
-                  const hasSelectedData =
-                    (selectedReport === 'cooperative_summary' ||
-                      selectedReport === 'savings_summary' ||
-                      selectedReport === 'loans_summary')
-                      ? summaryReady
-                      : selectedReport === 'revenue_projection'
-                        ? !!projectionRes
-                        : selectedReport === 'ar_summary'
-                          ? Array.isArray(arRes)
-                          : selectedReport === 'savings_member'
-                            ? Array.isArray(savingsMemberRes)
-                            : selectedReport === 'cashflow_statement'
-                              ? Array.isArray(cashflowRes)
-                              : selectedReport === 'income_statement'
-                                ? !!incomeRes
-                                : selectedReport === 'balance_sheet'
-                                  ? !!balanceRes
-                                  : false;
 
-                  if (!hasSelectedData) {
-                    return (
-                      <Text type="supporting" color="secondary">
-                        {isLoading ? 'Memuat data laporan…' : 'Belum ada data untuk laporan ini.'}
-                      </Text>
-                    );
-                  }
+            <div style={{ flex: '1 1 0', minWidth: 0, width: '100%' }}>
+              {isSidebarCollapsed && (
+                <div className="no-print" style={{ marginBottom: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsSidebarCollapsed(false)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      border: '1px solid var(--color-border-primary)',
+                      backgroundColor: 'var(--color-background-primary)',
+                      color: 'var(--color-text-primary)',
+                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span>📑 Buka Pilihan Laporan & Filter</span>
+                  </button>
+                </div>
+              )}
 
-                  return (
-                  <Card id="printable-report-area" style={{ padding: '28px 32px', backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
-                    <VStack gap={4}>
-                      {/* Document Header */}
-                      <div style={{ borderBottom: '3px double var(--color-border)', paddingBottom: '12px', textAlign: 'center', marginBottom: '12px' }}>
-                        <Heading level={2} style={{ margin: 0, textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--color-text-primary)' }}>{koperasiName}</Heading>
-                      </div>
-
-                      {/* Report Title */}
-                      <div style={{ textAlign: 'center' }}>
-                        <Heading level={3} style={{ textDecoration: 'underline', textTransform: 'uppercase', margin: 0 }}>
-                          {selectedReport === 'cooperative_summary' && 'LAPORAN RINGKASAN PERKEMBANGAN KOPERASI'}
-                          {selectedReport === 'savings_summary' && 'LAPORAN PORTFOLIO SIMPANAN ANGGOTA'}
-                          {selectedReport === 'loans_summary' && 'LAPORAN KINERJA DAN PORTOFOLIO PINJAMAN'}
-                          {selectedReport === 'revenue_projection' && `LAPORAN PROYEKSI PENDAPATAN & KAS MASUK TAHUN ${projectionYear}`}
-                          {selectedReport === 'ar_summary' && 'LAPORAN PIUTANG PINJAMAN'}
-                          {selectedReport === 'savings_member' && 'LAPORAN SIMPANAN ANGGOTA'}
-                          {selectedReport === 'cashflow_statement' && 'LAPORAN ARUS KAS PERIODE'}
-                          {selectedReport === 'income_statement' && 'LAPORAN LABA RUGI'}
-                          {selectedReport === 'balance_sheet' && 'NERACA (POSISI KEUANGAN)'}
-                        </Heading>
-                        <Text type="supporting" color="secondary" style={{ marginTop: '4px' }}>
-                          {selectedReport === 'revenue_projection'
-                            ? `Tahun Anggaran: ${projectionYear} (Dicetak: ${formattedDate})`
-                            : selectedReport === 'balance_sheet'
-                            ? `Posisi Keuangan Per: ${endDate || formattedDate}`
-                            : (selectedReport === 'income_statement' || selectedReport === 'cashflow_statement') && (startDate || endDate)
-                            ? `Periode: ${startDate || 'Awal'} s.d ${endDate || 'Sekarang'} (Dicetak: ${formattedDate})`
-                            : `Per Tanggal: ${formattedDate}`}
-                          {['income_statement', 'balance_sheet'].includes(selectedReport) && (
-                            <span> • {hideZeroBalance ? 'Hanya Akun Bersaldo' : 'Seluruh Bagan Akun'}</span>
-                          )}
-                        </Text>
-                      </div>
-
-                      {/* Report Content — each section requires its own payload */}
-                      {selectedReport === 'cooperative_summary' && summaryReady && reportResponse && (
-                        <VStack gap={4}>
-                          <Text type="body">
-                            Laporan ini menyajikan rangkuman perkembangan koperasi secara umum yang mencakup data keanggotaan, akumulasi simpanan, serta total portofolio penyaluran pinjaman.
-                          </Text>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Parameter Keuangan & Operasional</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Nilai/Jumlah</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '12px 8px' }}>Total Anggota Terdaftar</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{reportResponse.members?.totalMembers ?? 0} Orang</td>
-                              </tr>
-                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '12px 8px' }}>Anggota Berstatus Aktif</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{reportResponse.members?.activeMembers ?? 0} Orang</td>
-                              </tr>
-                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '12px 8px' }}>Total Dana Simpanan Anggota</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success-500)' }}>{formatRp(reportResponse.members?.totalSavings)}</td>
-                              </tr>
-                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '12px 8px' }}>Total Pinjaman Tersalurkan (Kredit Aktif)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary-500)' }}>{formatRp(reportResponse.loans?.totalLoansAmount)}</td>
-                              </tr>
-                              <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
-                                <td style={{ padding: '12px 8px' }}>Total Penerimaan Angsuran Pinjaman</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success-500)' }}>{formatRp(reportResponse.loans?.totalPaymentsReceived)}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </VStack>
-                      )}
-
-                      {selectedReport === 'savings_summary' && summaryReady && reportResponse && (
-                        <VStack gap={4}>
-                          <Text type="body">
-                            Rincian portfolio dana simpanan yang dihimpun dari seluruh anggota koperasi yang terbagi berdasarkan jenis simpanan pokok, wajib, dan sukarela.
-                          </Text>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Jenis Simpanan</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Total Akumulasi</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '12px 8px' }}>Simpanan Pokok (Modal Awal)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members?.totalPokok)}</td>
-                              </tr>
-                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '12px 8px' }}>Simpanan Wajib (Bulanan)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members?.totalWajib)}</td>
-                              </tr>
-                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '12px 8px' }}>Simpanan Sukarela (Tabungan Bebas)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(reportResponse.members?.totalSukarela)}</td>
-                              </tr>
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)' }}>
-                                <td style={{ padding: '12px 8px', fontWeight: 600 }}>Total Seluruh Simpanan</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success-500)' }}>{formatRp(reportResponse.members?.totalSavings)}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </VStack>
-                      )}
-
-                      {selectedReport === 'loans_summary' && summaryReady && reportResponse && (
-                        <VStack gap={4}>
-                          <Text type="body">
-                            Rincian portofolio kredit dan pinjaman yang telah disalurkan kepada anggota beserta status pengembalian dan kualitas aset kredit.
-                          </Text>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Status Portofolio Kredit</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Total Nominal</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '12px 8px' }}>Kredit Lancar Aktif (Disetujui)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-primary-500)' }}>{formatRp(reportResponse.loans?.activeLoansAmount)}</td>
-                              </tr>
-                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '12px 8px' }}>Kredit Lunas (Telah Diselesaikan)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-success-500)' }}>{formatRp(reportResponse.loans?.paidLoansAmount)}</td>
-                              </tr>
-                              <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                <td style={{ padding: '12px 8px' }}>Kredit Bermasalah (Macet / NPL)</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500, color: 'var(--color-critical-500)' }}>{formatRp(reportResponse.loans?.badLoansAmount)}</td>
-                              </tr>
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)' }}>
-                                <td style={{ padding: '12px 8px', fontWeight: 600 }}>Total Kumulatif Penyaluran Pinjaman</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600 }}>{formatRp(reportResponse.loans?.totalLoansAmount)}</td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </VStack>
-                      )}
-
-                      {selectedReport === 'revenue_projection' && projectionRes && (
-                        <VStack gap={4}>
-                          <Text type="body">
-                            Laporan ini menyajikan analisis komprehensif proyeksi keuangan akhir tahun {projectionRes.year}, memperhitungkan pendapatan yang telah masuk, proyeksi bunga pinjaman sisa tahun, dan seluruh beban operasional/pengeluaran yang telah dicatat di jurnal.
-                          </Text>
-
-                          {/* Banner Estimasi Laba/Rugi Akhir Tahun */}
-                          {(() => {
-                            const netIncome = projectionRes.summary.projectedNetIncome ?? 0;
-                            const isProfit = netIncome > 0;
-                            const isLoss = netIncome < 0;
-                            const totalRev = projectionRes.summary.totalProjectedRevenue ?? projectionRes.summary.totalEstimatedFullYearInterest;
-                            const totalExp = projectionRes.summary.totalRealizedExpense ?? 0;
-
-                            const statusBg = isProfit
-                              ? 'var(--color-background-success-subtle)'
-                              : isLoss
-                              ? 'var(--color-background-danger-subtle)'
-                              : 'var(--color-background-subtle)';
-                            const statusBorder = isProfit
-                              ? 'var(--color-success-500)'
-                              : isLoss
-                              ? 'var(--color-critical-500)'
-                              : 'var(--color-border-primary)';
-                            const statusTextColor = isProfit
-                              ? 'var(--color-success-500)'
-                              : isLoss
-                              ? 'var(--color-critical-500)'
-                              : 'var(--color-text-secondary)';
-                            const statusLabel = isProfit
-                              ? '🟢 ESTIMASI UNTUNG (SURPLUS SHU)'
-                              : isLoss
-                              ? '🔴 ESTIMASI RUGI (DEFISIT)'
-                              : '⚪ ESTIMASI IMPAS (BREAK-EVEN)';
-
-                            return (
-                              <div
-                                style={{
-                                  padding: '20px',
-                                  borderRadius: '10px',
-                                  border: `2px solid ${statusBorder}`,
-                                  backgroundColor: statusBg,
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '10px',
-                                }}
-                              >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                                  <div>
-                                    <Text type="supporting" color="secondary" style={{ fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                      Proyeksi Hasil Akhir Tahun Buku {projectionRes.year}
-                                    </Text>
-                                    <div style={{ fontSize: '26px', fontWeight: 800, color: statusTextColor, marginTop: '2px' }}>
-                                      {isProfit ? `+${formatRp(netIncome)}` : isLoss ? `-${formatRp(Math.abs(netIncome))}` : formatRp(0)}
-                                    </div>
-                                  </div>
-                                  <div
-                                    style={{
-                                      padding: '6px 14px',
-                                      borderRadius: '20px',
-                                      backgroundColor: isProfit ? 'var(--color-success-500)' : isLoss ? 'var(--color-critical-500)' : 'var(--color-text-secondary)',
-                                      color: '#ffffff',
-                                      fontWeight: 700,
-                                      fontSize: '13px',
-                                      letterSpacing: '0.3px',
-                                    }}
-                                  >
-                                    {statusLabel}
-                                  </div>
-                                </div>
-                                <Text type="supporting" color="secondary" style={{ fontSize: '13px', lineHeight: 1.5 }}>
-                                  Berdasarkan estimasi total pendapatan <strong>{formatRp(totalRev)}</strong> (Realisasi: {formatRp(projectionRes.summary.totalRealizedRevenue ?? projectionRes.summary.totalRealizedInterest)} + Proyeksi Bunga: {formatRp(projectionRes.summary.totalProjectedInterest)}) dikurangi seluruh pengeluaran/beban tercatat senilai <strong>{formatRp(totalExp)}</strong>.
-                                </Text>
-                              </div>
-                            );
-                          })()}
-
-                          {/* KPI Highlight Summary Cards */}
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                            gap: '14px',
-                            marginTop: '8px',
-                          }}>
-                            {/* Card 1: Realisasi Pendapatan Masuk */}
-                            <div style={{
-                              padding: '16px',
-                              borderRadius: '8px',
-                              border: '1px solid var(--color-border-primary)',
-                              backgroundColor: 'var(--color-background-subtle)',
-                            }}>
-                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Pendapatan Masuk (Realisasi)
-                              </Text>
-                              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-success-500)', marginTop: '4px' }}>
-                                {formatRp(projectionRes.summary.totalRealizedRevenue ?? projectionRes.summary.totalRealizedInterest)}
-                              </div>
-                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', marginTop: '4px' }}>
-                                Bunga: {formatRp(projectionRes.summary.totalRealizedInterest)}
-                                {(projectionRes.summary.totalRealizedOtherRevenue ?? 0) > 0 && ` + Lain: ${formatRp(projectionRes.summary.totalRealizedOtherRevenue!)}`}
-                              </Text>
-                            </div>
-
-                            {/* Card 2: Proyeksi Bunga Sisa Tahun */}
-                            <div style={{
-                              padding: '16px',
-                              borderRadius: '8px',
-                              border: '1px solid var(--color-border-primary)',
-                              backgroundColor: 'var(--color-background-subtle)',
-                            }}>
-                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Proyeksi Bunga Sisa Tahun
-                              </Text>
-                              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-primary-500)', marginTop: '4px' }}>
-                                {formatRp(projectionRes.summary.totalProjectedInterest)}
-                              </div>
-                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', marginTop: '4px' }}>
-                                Dari {projectionRes.summary.totalProjectedInstallments} angsuran terjadwal
-                              </Text>
-                            </div>
-
-                            {/* Card 3: Total Estimasi Pendapatan 1 Tahun */}
-                            <div style={{
-                              padding: '16px',
-                              borderRadius: '8px',
-                              border: '1px solid var(--color-border-primary)',
-                              backgroundColor: 'var(--color-background-subtle)',
-                            }}>
-                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Total Estimasi Pendapatan
-                              </Text>
-                              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-text-primary)', marginTop: '4px' }}>
-                                {formatRp(projectionRes.summary.totalProjectedRevenue ?? projectionRes.summary.totalEstimatedFullYearInterest)}
-                              </div>
-                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', marginTop: '4px' }}>
-                                Realisasi Masuk + Proyeksi Bunga
-                              </Text>
-                            </div>
-
-                            {/* Card 4: Pengeluaran / Beban Tercatat */}
-                            <div style={{
-                              padding: '16px',
-                              borderRadius: '8px',
-                              border: '1px solid var(--color-border-primary)',
-                              backgroundColor: 'var(--color-background-subtle)',
-                            }}>
-                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Pengeluaran Tercatat (Beban)
-                              </Text>
-                              <div style={{
-                                fontSize: '20px',
-                                fontWeight: 700,
-                                color: (projectionRes.summary.totalRealizedExpense ?? 0) > 0 ? 'var(--color-error-500)' : 'var(--color-text-primary)',
-                                marginTop: '4px'
-                              }}>
-                                {formatRp(projectionRes.summary.totalRealizedExpense ?? 0)}
-                              </div>
-                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', marginTop: '4px' }}>
-                                Beban operasional di jurnal {projectionRes.year}
-                              </Text>
-                            </div>
-
-                            {/* Card 5: Total Kas Masuk Sisa Tahun */}
-                            <div style={{
-                              padding: '16px',
-                              borderRadius: '8px',
-                              border: '1px solid var(--color-border-primary)',
-                              backgroundColor: 'var(--color-background-subtle)',
-                            }}>
-                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                Proyeksi Kas Masuk Sisa Tahun
-                              </Text>
-                              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-success-500)', marginTop: '4px' }}>
-                                {formatRp(projectionRes.summary.totalProjectedCashInflow)}
-                              </div>
-                              <Text type="supporting" color="secondary" style={{ fontSize: '11px', marginTop: '4px' }}>
-                                Pokok: {formatRp(projectionRes.summary.totalProjectedPrincipal)} + Bunga
-                              </Text>
-                            </div>
-                          </div>
-
-                          {/* Tabel 1: Simulasi Perhitungan Laba / Rugi Akhir Tahun */}
-                          <div style={{ marginTop: '12px' }}>
-                            <Heading level={4} style={{ marginBottom: '8px' }}>
-                              Simulasi Perhitungan Laba / Rugi Akhir Tahun ({projectionRes.year})
-                            </Heading>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '6px' }}>
-                              <thead>
-                                <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left', backgroundColor: 'var(--color-background-secondary)' }}>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600 }}>Komponen Keuangan</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'right', width: '220px' }}>Nominal</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, width: '42%' }}>Keterangan / Sumber</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '10px 8px', fontWeight: 500 }}>1. Pendapatan yang Sudah Masuk (Realisasi)</td>
-                                  <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--color-success-500)' }}>
-                                    {formatRp(projectionRes.summary.totalRealizedRevenue ?? projectionRes.summary.totalRealizedInterest)}
-                                  </td>
-                                  <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
-                                    Pendapatan bunga pinjaman ({formatRp(projectionRes.summary.totalRealizedInterest)}) dan pos pendapatan lain yang telah tercatat
-                                  </td>
-                                </tr>
-                                <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '10px 8px', fontWeight: 500 }}>2. Proyeksi Pendapatan Bunga Sisa Tahun</td>
-                                  <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--color-primary-500)' }}>
-                                    +{formatRp(projectionRes.summary.totalProjectedInterest)}
-                                  </td>
-                                  <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
-                                    Dari {projectionRes.summary.totalProjectedInstallments} tagihan angsuran pending s.d 31 Desember
-                                  </td>
-                                </tr>
-                                <tr style={{ borderBottom: '1px solid var(--color-border-primary)', backgroundColor: 'var(--color-background-subtle)', fontWeight: 600 }}>
-                                  <td style={{ padding: '10px 8px' }}>Subtotal Total Estimasi Pendapatan (1 + 2)</td>
-                                  <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                                    {formatRp(projectionRes.summary.totalProjectedRevenue ?? projectionRes.summary.totalEstimatedFullYearInterest)}
-                                  </td>
-                                  <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
-                                    Asumsi tidak ada pendapatan baru selain sisa bunga pinjaman berjalan
-                                  </td>
-                                </tr>
-                                <tr style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '10px 8px', fontWeight: 500 }}>3. Pengeluaran yang Sudah Tercatat (Beban)</td>
-                                  <td style={{
-                                    padding: '10px 8px',
-                                    textAlign: 'right',
-                                    fontWeight: 600,
-                                    color: (projectionRes.summary.totalRealizedExpense ?? 0) > 0 ? 'var(--color-error-500)' : 'inherit'
-                                  }}>
-                                    -{formatRp(projectionRes.summary.totalRealizedExpense ?? 0)}
-                                  </td>
-                                  <td style={{ padding: '10px 8px', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
-                                    Beban operasional, gaji, dan biaya lain yang telah dibukukan di jurnal tahun berjalan
-                                  </td>
-                                </tr>
-                                <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 700, fontSize: '14px' }}>
-                                  <td style={{ padding: '12px 8px' }}>Estimasi Laba / Rugi Akhir Tahun (Proyeksi Bersih)</td>
-                                  <td style={{
-                                    padding: '12px 8px',
-                                    textAlign: 'right',
-                                    fontWeight: 700,
-                                    color: (projectionRes.summary.projectedNetIncome ?? 0) >= 0 ? 'var(--color-success-500)' : 'var(--color-error-500)'
-                                  }}>
-                                    {(projectionRes.summary.projectedNetIncome ?? 0) >= 0 ? '+' : ''}
-                                    {formatRp(projectionRes.summary.projectedNetIncome ?? 0)}
-                                  </td>
-                                  <td style={{ padding: '12px 8px' }}>
-                                    <span style={{
-                                      display: 'inline-block',
-                                      padding: '3px 10px',
-                                      borderRadius: '12px',
-                                      backgroundColor: (projectionRes.summary.projectedNetIncome ?? 0) > 0 ? 'rgba(16, 185, 129, 0.15)' : (projectionRes.summary.projectedNetIncome ?? 0) < 0 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(107, 114, 128, 0.15)',
-                                      color: (projectionRes.summary.projectedNetIncome ?? 0) > 0 ? 'var(--color-success-500)' : (projectionRes.summary.projectedNetIncome ?? 0) < 0 ? 'var(--color-error-500)' : 'inherit',
-                                      fontWeight: 600,
-                                      fontSize: '12px'
-                                    }}>
-                                      {(projectionRes.summary.projectedNetIncome ?? 0) > 0 ? '🟢 UNTUNG (Laba Bersih)' : (projectionRes.summary.projectedNetIncome ?? 0) < 0 ? '🔴 RUGI (Defisit Bersih)' : '⚪ IMPAS'}
-                                    </span>
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                            <div style={{
-                              marginTop: '8px',
-                              padding: '10px 14px',
-                              borderRadius: '6px',
-                              backgroundColor: 'var(--color-background-subtle)',
-                              border: '1px solid var(--color-border-primary)',
-                              fontSize: '12px',
-                              color: 'var(--color-text-secondary)',
-                              lineHeight: 1.5,
-                            }}>
-                              ℹ️ <strong>Catatan Asumsi:</strong> Perhitungan mengasumsikan seluruh jadwal cicilan pinjaman sisa tahun terbayar tepat waktu, tidak ada pendapatan lain selain bunga pinjaman terjadwal, dan tidak ada pengeluaran/beban baru selain yang telah tercatat.
-                            </div>
-                          </div>
-
-                          {/* Tabel 2: Rekapitulasi Bulanan */}
-                          <div style={{ marginTop: '12px' }}>
-                            <Heading level={4} style={{ marginBottom: '8px' }}>
-                              Rekapitulasi Bulanan Pendapatan & Kas Masuk ({projectionRes.year})
-                            </Heading>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '6px' }}>
-                              <thead>
-                                <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left', backgroundColor: 'var(--color-background-secondary)' }}>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600 }}>Bulan</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'right' }}>Realisasi Bunga</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'center' }}>Jml Cicilan</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'right' }}>Proyeksi Bunga</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'right' }}>Proyeksi Pokok</th>
-                                  <th style={{ padding: '10px 8px', fontWeight: 600, textAlign: 'right' }}>Total Kas Masuk</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {projectionRes.monthlyBreakdown.map((row) => (
-                                  <tr key={row.monthKey} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                    <td style={{ padding: '10px 8px', fontWeight: 500 }}>{row.monthName}</td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'right', color: row.realizedInterest > 0 ? 'var(--color-success-500)' : 'inherit' }}>
-                                      {formatRp(row.realizedInterest)}
-                                    </td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'center' }}>
-                                      {row.installmentsCount > 0 ? `${row.installmentsCount} tagihan` : '-'}
-                                    </td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'right', color: row.projectedInterest > 0 ? 'var(--color-primary-500)' : 'inherit' }}>
-                                      {formatRp(row.projectedInterest)}
-                                    </td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'right' }}>
-                                      {formatRp(row.projectedPrincipal)}
-                                    </td>
-                                    <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 500, color: row.projectedTotal > 0 ? 'var(--color-success-500)' : 'inherit' }}>
-                                      {formatRp(row.projectedTotal)}
-                                    </td>
-                                  </tr>
-                                ))}
-                                <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 600 }}>
-                                  <td style={{ padding: '12px 8px' }}>Total ({projectionRes.year})</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>
-                                    {formatRp(projectionRes.summary.totalRealizedInterest)}
-                                  </td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                                    {projectionRes.summary.totalProjectedInstallments} tagihan
-                                  </td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-primary-500)' }}>
-                                    {formatRp(projectionRes.summary.totalProjectedInterest)}
-                                  </td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                    {formatRp(projectionRes.summary.totalProjectedPrincipal)}
-                                  </td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>
-                                    {formatRp(projectionRes.summary.totalProjectedCashInflow)}
-                                  </td>
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </VStack>
-                      )}
-
-                      {selectedReport === 'ar_summary' && arRes && (
-                        <VStack gap={4}>
-                          <Text type="body">
-                            Rincian tagihan pinjaman per anggota yang masih memiliki sisa piutang aktif atau macet.
-                          </Text>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Nama Anggota</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Pokok Pinjaman</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Total Tagihan</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Telah Dibayar</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Sisa Piutang</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'center' }}>Status</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {arRes.map((item, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '12px 8px' }}>{isDemoMode ? maskName(item.memberName, item.memberName) : item.memberName}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.principal)}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.totalAmount)}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>{formatRp(item.paidAmount)}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(item.remainingAmount)}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'center' }}>
-                                    <StatusBadge status={item.status as any} />
-                                  </td>
-                                </tr>
-                              ))}
-                              {arRes.length === 0 && (
-                                <tr>
-                                  <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Tidak ada piutang.</td>
-                                </tr>
-                              )}
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 600 }}>
-                                <td colSpan={4} style={{ padding: '12px 8px' }}>Total Sisa Piutang Koperasi</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                  {formatRp(arRes.reduce((sum, item) => sum + Number(item.remainingAmount || 0), 0))}
-                                </td>
-                                <td></td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </VStack>
-                      )}
-
-                      {selectedReport === 'savings_member' && savingsMemberRes && (
-                        <VStack gap={4}>
-                          <Text type="body">
-                            Rincian simpanan (Pokok, Wajib, Sukarela) per anggota koperasi.
-                          </Text>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Nama Anggota</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Pokok</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Wajib</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Sukarela</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Total Simpanan</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {savingsMemberRes.map((item, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '12px 8px' }}>{isDemoMode ? maskName(item.memberName, item.memberName) : item.memberName}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.simpananPokok)}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.simpananWajib)}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right' }}>{formatRp(item.simpananSukarela)}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>{formatRp(item.totalSavings)}</td>
-                                </tr>
-                              ))}
-                              {savingsMemberRes.length === 0 && (
-                                <tr>
-                                  <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>Tidak ada data anggota.</td>
-                                </tr>
-                              )}
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 600 }}>
-                                <td colSpan={4} style={{ padding: '12px 8px' }}>Total Simpanan Koperasi</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                  {formatRp(savingsMemberRes.reduce((sum, item) => sum + Number(item.totalSavings || 0), 0))}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </VStack>
-                      )}
-
-                      {selectedReport === 'cashflow_statement' && cashflowRes && (
-                        <VStack gap={4}>
-                          <Text type="body">
-                            Laporan arus kas masuk (Inflow) dan keluar (Outflow) riil berdasarkan pos aktivitas transaksi.
-                          </Text>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Pos Transaksi Arus Kas</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Total Nominal</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {['inflow', 'outflow'].map(cat => (
-                                <React.Fragment key={cat}>
-                                  <tr>
-                                    <td colSpan={2} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
-                                      {cat === 'inflow' ? '🟢 ARUS KAS MASUK (INFLOW)' : '🔴 ARUS KAS KELUAR (OUTFLOW)'}
-                                    </td>
-                                  </tr>
-                                  {cashflowRes.filter(c => c.category === cat).map((item, idx) => (
-                                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                      <td style={{ padding: '12px 8px', fontWeight: 500 }}>
-                                        {item.label || item.subcategory}
-                                      </td>
-                                      <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 600, color: cat === 'inflow' ? 'var(--color-success-500)' : 'var(--color-critical-500)' }}>
-                                        {cat === 'inflow' ? '+' : '-'}{formatRp(item.total)}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                  {cashflowRes.filter(c => c.category === cat).length === 0 && (
-                                    <tr>
-                                      <td colSpan={2} style={{ padding: '12px 8px', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                                        Tidak ada transaksi kas pada periode ini.
-                                      </td>
-                                    </tr>
-                                  )}
-                                  <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600, backgroundColor: 'var(--color-background-subtle)' }}>
-                                    <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                                      Total {cat === 'inflow' ? 'Kas Masuk' : 'Kas Keluar'}
-                                    </td>
-                                    <td style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 700, color: cat === 'inflow' ? 'var(--color-success-500)' : 'var(--color-critical-500)' }}>
-                                      {formatRp(cashflowRes.filter(c => c.category === cat).reduce((sum, item) => sum + Number(item.total || 0), 0))}
-                                    </td>
-                                  </tr>
-                                </React.Fragment>
-                              ))}
-                              
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-secondary)', fontWeight: 700, fontSize: '15px' }}>
-                                <td style={{ padding: '16px 8px' }}>ARUS KAS BERSIH (NET CASH FLOW)</td>
-                                <td style={{ padding: '16px 8px', textAlign: 'right' }}>
-                                  {formatRp(
-                                    cashflowRes.filter(c => c.category === 'inflow').reduce((sum, item) => sum + Number(item.total || 0), 0) -
-                                    cashflowRes.filter(c => c.category === 'outflow').reduce((sum, item) => sum + Number(item.total || 0), 0)
-                                  )}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </VStack>
-                      )}
-
-                      {selectedReport === 'income_statement' && incomeRes && (
-                        <VStack gap={4}>
-                          <Text type="body">
-                            Laporan Pendapatan dan Beban untuk mengetahui sisa hasil usaha periode berjalan.
-                          </Text>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Kode Akun</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600 }}>Nama Akun</th>
-                                <th style={{ padding: '12px 8px', fontWeight: 600, textAlign: 'right' }}>Saldo</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <tr>
-                                <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
-                                  PENDAPATAN (REVENUE)
-                                </td>
-                              </tr>
-                              {(hideZeroBalance
-                                ? incomeRes.revenues.filter((item: any) => Number(item.balance) !== 0)
-                                : incomeRes.revenues
-                              ).map((item: any, idx: number) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
-                                  <td style={{ padding: '12px 8px' }}>{item.name}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>
-                                    {formatRp(item.balance)}
-                                  </td>
-                                </tr>
-                              ))}
-                              {hideZeroBalance && incomeRes.revenues.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
-                                <tr>
-                                  <td colSpan={3} style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                                    Tidak ada pos pendapatan bersaldo pada periode ini.
-                                  </td>
-                                </tr>
-                              )}
-                              <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
-                                <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Pendapatan</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-success-500)' }}>{formatRp(incomeRes.totalRevenue)}</td>
-                              </tr>
-
-                              <tr>
-                                <td colSpan={3} style={{ padding: '12px 8px', fontWeight: 600, textTransform: 'uppercase', backgroundColor: 'var(--color-background-secondary)' }}>
-                                  BEBAN (EXPENSE)
-                                </td>
-                              </tr>
-                              {(hideZeroBalance
-                                ? incomeRes.expenses.filter((item: any) => Number(item.balance) !== 0)
-                                : incomeRes.expenses
-                              ).map((item: any, idx: number) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
-                                  <td style={{ padding: '12px 8px', fontFamily: 'monospace' }}>{item.code}</td>
-                                  <td style={{ padding: '12px 8px' }}>{item.name}</td>
-                                  <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-critical-500)' }}>
-                                    {formatRp(item.balance)}
-                                  </td>
-                                </tr>
-                              ))}
-                              {hideZeroBalance && incomeRes.expenses.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
-                                <tr>
-                                  <td colSpan={3} style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic' }}>
-                                    Tidak ada pos beban bersaldo pada periode ini.
-                                  </td>
-                                </tr>
-                              )}
-                              <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600 }}>
-                                <td colSpan={2} style={{ padding: '12px 8px', textAlign: 'right' }}>Total Beban</td>
-                                <td style={{ padding: '12px 8px', textAlign: 'right', color: 'var(--color-critical-500)' }}>{formatRp(incomeRes.totalExpense)}</td>
-                              </tr>
-                              
-                              <tr style={{ borderBottom: '2px solid var(--color-border)', backgroundColor: 'var(--color-background-subtle)', fontWeight: 600 }}>
-                                <td colSpan={2} style={{ padding: '16px 8px' }}>LABA BERSIH (NET INCOME)</td>
-                                <td style={{ padding: '16px 8px', textAlign: 'right' }}>
-                                  {formatRp(incomeRes.netIncome)}
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
-                        </VStack>
-                      )}
-
-                      {selectedReport === 'balance_sheet' && balanceRes && (
-                        <VStack gap={3}>
-                          <Text type="body" style={{ fontSize: '13px' }}>
-                            Laporan Posisi Keuangan (Neraca) menyajikan perbandingan antara Aset (Aktiva) di sisi kiri dengan Kewajiban & Ekuitas (Pasiva) di sisi kanan.
-                          </Text>
-
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-                            gap: '16px',
-                            alignItems: 'stretch',
-                            marginTop: '4px'
-                          }}>
-                            {/* SISI KIRI: ASET (AKTIVA) */}
-                            <div style={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              border: '1px solid var(--color-border)',
-                              borderRadius: '6px',
-                              overflow: 'hidden',
-                              backgroundColor: 'var(--color-background-primary)'
-                            }}>
-                              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                <thead>
-                                  <tr style={{ backgroundColor: 'var(--color-background-secondary)', borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                    <th colSpan={3} style={{ padding: '8px 10px', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
-                                      ASET (AKTIVA)
-                                    </th>
-                                  </tr>
-                                  <tr style={{ borderBottom: '1px solid var(--color-border)', fontSize: '12px', color: 'var(--color-text-secondary)', textAlign: 'left' }}>
-                                    <th style={{ padding: '6px 10px', width: '65px', fontWeight: 600 }}>Kode</th>
-                                    <th style={{ padding: '6px 10px', fontWeight: 600 }}>Nama Akun</th>
-                                    <th style={{ padding: '6px 10px', width: '110px', fontWeight: 600, textAlign: 'right' }}>Saldo</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {(hideZeroBalance
-                                    ? balanceRes.assets.filter((item: any) => Number(item.balance) !== 0)
-                                    : balanceRes.assets
-                                  ).map((item: any, idx: number) => (
-                                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)', fontSize: '13px' }}>
-                                      <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontSize: '12px' }}>{item.code}</td>
-                                      <td style={{ padding: '6px 10px' }}>{item.name}</td>
-                                      <td style={{ padding: '6px 10px', textAlign: 'right' }}>
-                                        {formatRp(item.balance)}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                  {hideZeroBalance && balanceRes.assets.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
-                                    <tr>
-                                      <td colSpan={3} style={{ padding: '12px 10px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic', fontSize: '12px' }}>
-                                        Tidak ada pos aset bersaldo pada periode ini.
-                                      </td>
-                                    </tr>
-                                  )}
-                                </tbody>
-                              </table>
-
-                              {/* TOTAL ASET */}
-                              <div style={{
-                                marginTop: 'auto',
-                                borderTop: '2px solid var(--color-border)',
-                                backgroundColor: 'var(--color-background-subtle)',
-                                padding: '10px 10px',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                fontWeight: 700,
-                                fontSize: '13px'
-                              }}>
-                                <span>TOTAL ASET</span>
-                                <span style={{ color: 'var(--color-primary-600, inherit)' }}>
-                                  {formatRp(balanceRes.totalAssets)}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* SISI KANAN: KEWAJIBAN & EKUITAS (PASIVA) */}
-                            <div style={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              border: '1px solid var(--color-border)',
-                              borderRadius: '6px',
-                              overflow: 'hidden',
-                              backgroundColor: 'var(--color-background-primary)'
-                            }}>
-                              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                <thead>
-                                  <tr style={{ backgroundColor: 'var(--color-background-secondary)', borderBottom: '2px solid var(--color-border)', textAlign: 'left' }}>
-                                    <th colSpan={3} style={{ padding: '8px 10px', fontWeight: 700, fontSize: '13px', textTransform: 'uppercase' }}>
-                                      KEWAJIBAN & EKUITAS (PASIVA)
-                                    </th>
-                                  </tr>
-                                  <tr style={{ borderBottom: '1px solid var(--color-border)', fontSize: '12px', color: 'var(--color-text-secondary)', textAlign: 'left' }}>
-                                    <th style={{ padding: '6px 10px', width: '65px', fontWeight: 600 }}>Kode</th>
-                                    <th style={{ padding: '6px 10px', fontWeight: 600 }}>Nama Akun</th>
-                                    <th style={{ padding: '6px 10px', width: '110px', fontWeight: 600, textAlign: 'right' }}>Saldo</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {/* Sub-header: Kewajiban */}
-                                  <tr style={{ backgroundColor: 'var(--color-background-subtle)' }}>
-                                    <td colSpan={3} style={{ padding: '5px 10px', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
-                                      1. KEWAJIBAN (LIABILITIES)
-                                    </td>
-                                  </tr>
-                                  {(hideZeroBalance
-                                    ? balanceRes.liabilities.filter((item: any) => Number(item.balance) !== 0)
-                                    : balanceRes.liabilities
-                                  ).map((item: any, idx: number) => (
-                                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)', fontSize: '13px' }}>
-                                      <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontSize: '12px' }}>{item.code}</td>
-                                      <td style={{ padding: '6px 10px' }}>{item.name}</td>
-                                      <td style={{ padding: '6px 10px', textAlign: 'right' }}>
-                                        {formatRp(item.balance)}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                  {hideZeroBalance && balanceRes.liabilities.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
-                                    <tr>
-                                      <td colSpan={3} style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic', fontSize: '12px' }}>
-                                        Tidak ada pos kewajiban bersaldo.
-                                      </td>
-                                    </tr>
-                                  )}
-                                  <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: '12px', backgroundColor: 'var(--color-background-primary)' }}>
-                                    <td colSpan={2} style={{ padding: '6px 10px', textAlign: 'right' }}>Total Kewajiban:</td>
-                                    <td style={{ padding: '6px 10px', textAlign: 'right' }}>{formatRp(balanceRes.totalLiabilities)}</td>
-                                  </tr>
-
-                                  {/* Sub-header: Ekuitas */}
-                                  <tr style={{ backgroundColor: 'var(--color-background-subtle)' }}>
-                                    <td colSpan={3} style={{ padding: '5px 10px', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>
-                                      2. EKUITAS (EQUITY)
-                                    </td>
-                                  </tr>
-                                  {(hideZeroBalance
-                                    ? balanceRes.equity.filter((item: any) => Number(item.balance) !== 0)
-                                    : balanceRes.equity
-                                  ).map((item: any, idx: number) => (
-                                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-primary)', fontSize: '13px' }}>
-                                      <td style={{ padding: '6px 10px', fontFamily: 'monospace', fontSize: '12px' }}>{item.code}</td>
-                                      <td style={{ padding: '6px 10px' }}>
-                                        {item.name}
-                                        {item.code === '33102' && (
-                                          <Text type="supporting" color="secondary" style={{ display: 'block', fontSize: '10px' }}>
-                                            * Termasuk Laba Bersih Tahun Berjalan
-                                          </Text>
-                                        )}
-                                      </td>
-                                      <td style={{ padding: '6px 10px', textAlign: 'right' }}>
-                                        {formatRp(item.balance)}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                  {hideZeroBalance && balanceRes.equity.filter((item: any) => Number(item.balance) !== 0).length === 0 && (
-                                    <tr>
-                                      <td colSpan={3} style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--color-text-secondary)', fontStyle: 'italic', fontSize: '12px' }}>
-                                        Tidak ada pos ekuitas bersaldo.
-                                      </td>
-                                    </tr>
-                                  )}
-                                  <tr style={{ borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: '12px', backgroundColor: 'var(--color-background-primary)' }}>
-                                    <td colSpan={2} style={{ padding: '6px 10px', textAlign: 'right' }}>Total Ekuitas:</td>
-                                    <td style={{ padding: '6px 10px', textAlign: 'right' }}>{formatRp(balanceRes.totalEquity)}</td>
-                                  </tr>
-                                </tbody>
-                              </table>
-
-                              {/* TOTAL KEWAJIBAN & EKUITAS */}
-                              <div style={{
-                                marginTop: 'auto',
-                                borderTop: '2px solid var(--color-border)',
-                                backgroundColor: 'var(--color-background-subtle)',
-                                padding: '10px 10px',
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                fontWeight: 700,
-                                fontSize: '13px',
-                                color: balanceRes.totalAssets === (balanceRes.totalLiabilities + balanceRes.totalEquity) ? 'inherit' : 'var(--color-critical-500)'
-                              }}>
-                                <span>TOTAL KEWAJIBAN & EKUITAS</span>
-                                <span>
-                                  {formatRp(balanceRes.totalLiabilities + balanceRes.totalEquity)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </VStack>
-                      )}
-
-                      {/* Signature block */}
-                      <div className="signature-block" style={{ marginTop: '32px', display: 'flex', justifyContent: 'space-between', gap: '20px', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-                        <div style={{ textAlign: 'center', flex: 1 }}>
-                          <Text type="body" style={{ fontSize: '13px' }}>Disiapkan oleh,</Text>
-                          <div style={{ height: '48px' }} />
-                          <Text type="body" style={{ fontWeight: 600, fontSize: '13px', textDecoration: 'underline' }}>Bendahara Koperasi</Text>
-                        </div>
-                        <div style={{ textAlign: 'center', flex: 1 }}>
-                          <Text type="body" style={{ fontSize: '13px' }}>Disetujui oleh,</Text>
-                          <div style={{ height: '48px' }} />
-                          <Text type="body" style={{ fontWeight: 600, fontSize: '13px', textDecoration: 'underline' }}>Ketua Koperasi</Text>
-                        </div>
-                        <div style={{ textAlign: 'center', flex: 1 }}>
-                          <Text type="body" style={{ fontSize: '13px' }}>Diketahui oleh,</Text>
-                          <div style={{ height: '48px' }} />
-                          <Text type="body" style={{ fontWeight: 600, fontSize: '13px', textDecoration: 'underline' }}>Pengawas Koperasi</Text>
-                        </div>
-                      </div>
-                    </VStack>
-                  </Card>
-                  );
-                })()}
+              <DataStateView
+                isLoading={isLoading}
+                error={error}
+                onRetry={refetch}
+                errorTitle="Gagal Memuat Laporan"
+              >
+                {!hasSelectedData ? (
+                  <Text type="supporting" color="secondary">
+                    {isLoading ? 'Memuat data laporan…' : 'Belum ada data untuk laporan ini.'}
+                  </Text>
+                ) : (
+                  <ReportPrintableArea
+                    koperasiName={koperasiName}
+                    selectedReport={selectedReport}
+                    projectionYear={projectionYear}
+                    formattedDate={formattedDate}
+                    startDate={startDate}
+                    endDate={endDate}
+                    hideZeroBalance={hideZeroBalance}
+                    reportResponse={reportResponse}
+                    projectionRes={projectionRes}
+                    arRes={arRes}
+                    savingsMemberRes={savingsMemberRes}
+                    cashflowRes={cashflowRes}
+                    incomeRes={incomeRes}
+                    balanceRes={balanceRes}
+                    isDemoMode={isDemoMode}
+                  />
+                )}
               </DataStateView>
             </div>
           </div>

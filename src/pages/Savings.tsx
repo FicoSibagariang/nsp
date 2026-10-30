@@ -1,6 +1,6 @@
 'use client';
 
-import {useState, useMemo, useEffect} from 'react';
+import { useState } from 'react';
 import {
   VStack,
   HStack,
@@ -9,949 +9,132 @@ import {
   LayoutContent,
   LayoutHeader,
 } from '@astryxdesign/core/Layout';
-import {Text, Heading} from '@astryxdesign/core/Text';
-import {Badge} from '@astryxdesign/core/Badge';
-import {PowerSearch, usePowerSearchConfig} from '@astryxdesign/core/PowerSearch';
-import type {PowerSearchFilter} from '@astryxdesign/core/PowerSearch';
-import {useToast} from '@astryxdesign/core/Toast';
-import {Table, proportional, pixel} from '@astryxdesign/core/Table';
-import type {TableColumn} from '@astryxdesign/core/Table';
-import {Button} from '@astryxdesign/core/Button';
-import {Icon} from '@astryxdesign/core/Icon';
-import {ArrowDownTrayIcon} from '@heroicons/react/24/outline';
-import {useApiQuery} from '../hooks/useApiQuery';
-import {apiFetch} from '../config';
-import {formatRp} from '../utils/format';
-import {CopyableAccountNumber} from '../components/CopyableAccountNumber';
-import {Pagination} from '../components/Pagination';
-import {DataStateView} from '../components/DataStateView';
-import {useA11yDialog} from '../hooks/useA11yDialog';
-import {ImportSavingsDialogContent} from '../components/ImportSavingsDialog';
-import {ApproveSavingsWithdrawalDialogContent} from '../components/ApproveSavingsWithdrawalDialog';
-import {RejectSavingsWithdrawalDialogContent} from '../components/RejectSavingsWithdrawalDialog';
-import {ApproveSavingsDepositDialogContent} from '../components/ApproveSavingsDepositDialog';
-import {RejectSavingsDepositDialogContent} from '../components/RejectSavingsDepositDialog';
-import {useAuth} from '../hooks/useAuth';
-import {useDemoMode} from '../contexts/DemoModeContext';
-import {maskName, maskNik} from '../utils/privacyMask';
-
-import type {SavingsTransactionRow, SavingsWithdrawalRow, SavingsDepositRow, PaginatedResponse} from '@shared/types';
-
-const transactionTypeValues = [
-  {value: 'setor_pokok', label: 'Setor Pokok'},
-  {value: 'setor_wajib', label: 'Setor Wajib'},
-  {value: 'setor_sukarela', label: 'Setor Sukarela'},
-  {value: 'tarik_pokok', label: 'Tarik Pokok'},
-  {value: 'tarik_wajib', label: 'Tarik Wajib'},
-  {value: 'tarik_sukarela', label: 'Tarik Sukarela'},
-];
-
-const fieldDefs = [
-  {key: 'memberName', type: 'string', label: 'Nama Anggota'},
-  {key: 'type', type: 'enum', label: 'Tipe Transaksi', enumValues: transactionTypeValues},
-] as const;
+import { Text, Heading } from '@astryxdesign/core/Text';
+import { Badge } from '@astryxdesign/core/Badge';
+import { useApiQuery } from '../hooks/useApiQuery';
+import {
+  SavingsMutationsTab,
+  SavingsDepositsTab,
+  SavingsWithdrawalsTab,
+} from '../features/savings';
+import type { SavingsWithdrawalRow, SavingsDepositRow, PaginatedResponse } from '@shared/types';
 
 export default function SavingsTemplate() {
-  const toast = useToast();
-  const dialog = useA11yDialog({purpose: 'form', width: 600});
-  const {hasPermission} = useAuth();
-  const {isDemoMode} = useDemoMode();
-  
-  // Tab state
   const [activeTab, setActiveTab] = useState<'transactions' | 'deposits' | 'withdrawals'>('transactions');
 
-  // Transactions state
-  const [filters, setFilters] = useState<PowerSearchFilter[]>([]);
-  const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Simpanan');
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
-
-  const { data: transactionsResponse, isLoading, error, refetch: fetchTransactions } = useApiQuery<PaginatedResponse<SavingsTransactionRow>>(`/api/savings/transactions?page=${page}&limit=${limit}`);
-  const [localTransactions, setLocalTransactions] = useState<SavingsTransactionRow[]>([]);
-
-  useEffect(() => {
-    if (transactionsResponse?.data) {
-      setLocalTransactions(transactionsResponse.data);
-    }
-  }, [transactionsResponse]);
-
-  const filtered = useMemo(() => {
-    return (applyFilters as any)(filters, localTransactions) as SavingsTransactionRow[];
-  }, [filters, applyFilters, localTransactions]);
-
-  // Deposits state (Transfer Confirmation)
-  const [depositStatusFilter, setDepositStatusFilter] = useState<string>('Semua');
-  const [depositTypeFilter, setDepositTypeFilter] = useState<string>('Semua');
-  const [depositPage, setDepositPage] = useState<number>(1);
-  const [depositLimit] = useState<number>(20);
-
-  const depositQueryUrl = useMemo(() => {
-    let url = `/api/savings/deposits?page=${depositPage}&limit=${depositLimit}`;
-    if (depositStatusFilter !== 'Semua') {
-      url += `&status=${encodeURIComponent(depositStatusFilter)}`;
-    }
-    if (depositTypeFilter !== 'Semua') {
-      url += `&savingsType=${encodeURIComponent(depositTypeFilter)}`;
-    }
-    return url;
-  }, [depositPage, depositLimit, depositStatusFilter, depositTypeFilter]);
-
-  const {
-    data: depositsResponse,
-    isLoading: depositsLoading,
-    error: depositsError,
-    refetch: fetchDeposits,
-  } = useApiQuery<PaginatedResponse<SavingsDepositRow>>(depositQueryUrl);
-
+  // Pending counts for badges
   const {
     data: pendingDepositsCountResponse,
     refetch: fetchPendingDepositsCount,
   } = useApiQuery<PaginatedResponse<SavingsDepositRow>>('/api/savings/deposits?status=Menunggu&limit=1');
-
   const pendingDepositsCount = pendingDepositsCountResponse?.total ?? 0;
-
-  // Withdrawals state
-  const [withdrawalStatusFilter, setWithdrawalStatusFilter] = useState<string>('Semua');
-  const [withdrawalPage, setWithdrawalPage] = useState<number>(1);
-  const [withdrawalLimit] = useState<number>(20);
-
-  const withdrawalQueryUrl = useMemo(() => {
-    const base = `/api/savings/withdrawals?page=${withdrawalPage}&limit=${withdrawalLimit}`;
-    if (withdrawalStatusFilter !== 'Semua') {
-      return `${base}&status=${encodeURIComponent(withdrawalStatusFilter)}`;
-    }
-    return base;
-  }, [withdrawalPage, withdrawalLimit, withdrawalStatusFilter]);
-
-  const {
-    data: withdrawalsResponse,
-    isLoading: withdrawalsLoading,
-    error: withdrawalsError,
-    refetch: fetchWithdrawals,
-  } = useApiQuery<PaginatedResponse<SavingsWithdrawalRow>>(withdrawalQueryUrl);
 
   const {
     data: pendingCountResponse,
     refetch: fetchPendingCount,
   } = useApiQuery<PaginatedResponse<SavingsWithdrawalRow>>('/api/savings/withdrawals?status=Menunggu&limit=1');
-
   const pendingCount = pendingCountResponse?.total ?? 0;
 
-  const transactionColumns: TableColumn<SavingsTransactionRow>[] = useMemo(() => [
-    {
-      key: 'memberName',
-      header: 'Nama Anggota',
-      width: proportional(2),
-      renderCell: (item: SavingsTransactionRow) => {
-        const displayName = isDemoMode
-          ? maskName(item.memberId || item.memberName, item.memberName)
-          : (item.memberName || 'Anggota Koperasi');
-        return <Text type="body">{displayName}</Text>;
-      },
-    },
-    {
-      key: 'type',
-      header: 'Tipe Transaksi',
-      width: proportional(2),
-      renderCell: (item: SavingsTransactionRow) => {
-        let label = item.type;
-        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
-        
-        const match = transactionTypeValues.find(t => t.value === item.type);
-        if (match) {
-          label = match.label;
-        }
-
-        if (item.type.startsWith('setor_')) {
-          variant = 'success';
-        } else if (item.type.startsWith('tarik_')) {
-          variant = 'error';
-        }
-
-        return <Badge variant={variant} label={label} />;
-      },
-    },
-    {
-      key: 'amount',
-      header: 'Nominal',
-      width: proportional(1.5),
-      renderCell: (item: SavingsTransactionRow) => (
-        <Text type="body" style={{ fontWeight: 500, color: item.type.startsWith('setor_') ? 'var(--color-success-500)' : 'var(--color-critical-500)' }}>
-          {item.type.startsWith('setor_') ? '+' : '-'} {formatRp(item.amount)}
-        </Text>
-      ),
-    },
-    {
-      key: 'balanceBefore',
-      header: 'Saldo Sebelum',
-      width: proportional(1.5),
-      renderCell: (item: SavingsTransactionRow) => (
-        <Text type="body" color="secondary">{formatRp(item.balanceBefore)}</Text>
-      ),
-    },
-    {
-      key: 'balanceAfter',
-      header: 'Saldo Sesudah',
-      width: proportional(1.5),
-      renderCell: (item: SavingsTransactionRow) => (
-        <Text type="body" style={{ fontWeight: 500 }}>{formatRp(item.balanceAfter)}</Text>
-      ),
-    },
-    {
-      key: 'createdAt',
-      header: 'Waktu',
-      width: proportional(2),
-      renderCell: (item: SavingsTransactionRow) => (
-        <Text type="supporting" color="secondary">
-          {new Date(item.createdAt).toLocaleString('id-ID', {
-            dateStyle: 'medium',
-            timeStyle: 'short',
-          })}
-        </Text>
-      ),
-    },
-    {
-      key: 'createdBy',
-      header: 'Petugas',
-      width: proportional(1.5),
-      renderCell: (item: SavingsTransactionRow) => (
-        <Text type="supporting" color="secondary">{item.createdBy}</Text>
-      ),
-    },
-  ], [isDemoMode]);
-
-  const withdrawalColumns: TableColumn<SavingsWithdrawalRow>[] = useMemo(() => [
-    {
-      key: 'createdAt',
-      header: 'Tanggal Pengajuan',
-      width: proportional(1.8),
-      renderCell: (item: SavingsWithdrawalRow) => (
-        <VStack gap={0}>
-          <Text type="body" weight="medium">
-            {new Date(item.createdAt).toLocaleDateString('id-ID', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            })}
-          </Text>
-          <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-            {new Date(item.createdAt).toLocaleTimeString('id-ID', {
-              hour: '2-digit',
-              minute: '2-digit',
-            })} WIB
-          </Text>
-        </VStack>
-      ),
-    },
-    {
-      key: 'memberName',
-      header: 'Nama Anggota',
-      width: proportional(2),
-      renderCell: (item: SavingsWithdrawalRow) => {
-        const displayName = isDemoMode
-          ? maskName(item.memberId || item.memberName, item.memberName)
-          : (item.memberName || 'Anggota');
-        const displayNik = isDemoMode
-          ? maskNik(item.memberId || item.memberName, item.memberNik)
-          : item.memberNik;
-        return (
-          <VStack gap={0}>
-            <Text type="body" weight="semibold">{displayName}</Text>
-            {item.memberNik && (
-              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-                NIK: {displayNik}
-              </Text>
-            )}
-          </VStack>
-        );
-      },
-    },
-    {
-      key: 'amount',
-      header: 'Nominal Penarikan',
-      width: proportional(1.6),
-      renderCell: (item: SavingsWithdrawalRow) => (
-        <Text type="body" weight="bold" style={{ color: 'var(--color-critical-500, #ef4444)' }}>
-          {formatRp(item.amount)}
-        </Text>
-      ),
-    },
-    {
-      key: 'destinationBank',
-      header: 'Rekening Tujuan',
-      width: proportional(2.5),
-      renderCell: (item: SavingsWithdrawalRow) => (
-        <CopyableAccountNumber
-          bankName={item.destinationBank}
-          accountNumber={item.destinationAccount}
-          accountHolder={item.destinationName}
-        />
-      ),
-    },
-    {
-      key: 'notes',
-      header: 'Catatan',
-      width: proportional(2),
-      renderCell: (item: SavingsWithdrawalRow) => (
-        <Text type="supporting" color="secondary">
-          {item.notes || '-'}
-        </Text>
-      ),
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      width: proportional(1.4),
-      renderCell: (item: SavingsWithdrawalRow) => {
-        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
-        if (item.status === 'Menunggu') variant = 'warning';
-        else if (item.status === 'Disetujui') variant = 'success';
-        else if (item.status === 'Ditolak') variant = 'error';
-        return <Badge variant={variant} label={item.status} />;
-      },
-    },
-    {
-      key: 'actions',
-      header: 'Tindakan',
-      width: proportional(2.5),
-      renderCell: (item: SavingsWithdrawalRow) => {
-        if (item.status === 'Menunggu') {
-          if (hasPermission('update:savings')) {
-            return (
-              <HStack gap={2}>
-                <Button
-                  label="Setujui"
-                  variant="primary"
-                  onClick={() => {
-                    dialog.show(
-                      <ApproveSavingsWithdrawalDialogContent
-                        withdrawal={item}
-                        onClose={() => dialog.hide()}
-                        onConfirm={async (payload) => {
-                          try {
-                            const res = await apiFetch(`/api/v1/savings/withdrawals/${item.id}/approve`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify(payload),
-                            }).then((r) => r.json());
-                            if (res.success) {
-                              dialog.hide();
-                              fetchWithdrawals();
-                              fetchPendingCount();
-                              fetchTransactions();
-                            } else {
-                              toast({ type: 'error', body: res.message || 'Gagal menyetujui penarikan' });
-                            }
-                          } catch {
-                            toast({ type: 'error', body: 'Terjadi kesalahan jaringan' });
-                          }
-                        }}
-                      />
-                    );
-                  }}
-                />
-                <Button
-                  label="Tolak"
-                  variant="ghost"
-                  onClick={() => {
-                    dialog.show(
-                      <RejectSavingsWithdrawalDialogContent
-                        withdrawal={item}
-                        onClose={() => dialog.hide()}
-                        onConfirm={async (rejectionReason) => {
-                          try {
-                            const res = await apiFetch(`/api/v1/savings/withdrawals/${item.id}/reject`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ rejectionReason }),
-                            }).then((r) => r.json());
-                            if (res.success) {
-                              dialog.hide();
-                              fetchWithdrawals();
-                              fetchPendingCount();
-                              fetchTransactions();
-                            } else {
-                              toast({ type: 'error', body: res.message || 'Gagal menolak penarikan' });
-                            }
-                          } catch {
-                            toast({ type: 'error', body: 'Terjadi kesalahan jaringan' });
-                          }
-                        }}
-                      />
-                    );
-                  }}
-                />
-              </HStack>
-            );
-          }
-          return <Text type="supporting" color="secondary">Menunggu persetujuan</Text>;
-        }
-
-        if (item.status === 'Disetujui') {
-          return (
-            <VStack gap={0}>
-              <Text type="supporting" weight="medium" style={{ color: 'var(--color-success-600, #16a34a)' }}>
-                ✓ Telah Dicairkan
-              </Text>
-              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-                {item.paymentSourceName ? `via ${item.paymentSourceName}` : ''}
-              </Text>
-            </VStack>
-          );
-        }
-
-        return (
-          <VStack gap={0}>
-            <Text type="supporting" style={{ color: 'var(--color-text-error)' }} weight="medium">
-              ✗ Ditolak
-            </Text>
-            {item.rejectionReason && (
-              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-                Alasan: {item.rejectionReason}
-              </Text>
-            )}
-          </VStack>
-        );
-      },
-    },
-  ], [isDemoMode, hasPermission, dialog, fetchWithdrawals, fetchPendingCount, fetchTransactions]);
-
-  const depositColumns: TableColumn<SavingsDepositRow>[] = useMemo(() => [
-    {
-      key: 'transferDate',
-      header: 'Tgl Transfer',
-      width: pixel(120),
-      renderCell: (item: SavingsDepositRow) => (
-        <Text type="body">{item.transferDate || '-'}</Text>
-      ),
-    },
-    {
-      key: 'memberName',
-      header: 'Nama Anggota',
-      width: proportional(2),
-      renderCell: (item: SavingsDepositRow) => {
-        const displayName = isDemoMode
-          ? maskName(item.memberId || item.memberName, item.memberName)
-          : (item.memberName || 'Anggota Koperasi');
-        const displayNik = isDemoMode
-          ? maskNik(item.memberId || item.memberName, item.memberNik)
-          : item.memberNik;
-        return (
-          <VStack gap={0}>
-            <Text type="body" weight="medium">{displayName}</Text>
-            {item.memberNik && (
-              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-                NIK: {displayNik}
-              </Text>
-            )}
-          </VStack>
-        );
-      },
-    },
-    {
-      key: 'savingsType',
-      header: 'Jenis Simpanan',
-      width: pixel(150),
-      renderCell: (item: SavingsDepositRow) => {
-        let label = 'Simpanan Sukarela';
-        let variant: 'info' | 'neutral' | 'success' = 'neutral';
-        if (item.savingsType === 'pokok') {
-          label = 'Simpanan Pokok';
-          variant = 'info';
-        } else if (item.savingsType === 'wajib') {
-          label = 'Simpanan Wajib';
-          variant = 'success';
-        }
-        return <Badge variant={variant} label={label} />;
-      },
-    },
-    {
-      key: 'amount',
-      header: 'Nominal Setoran',
-      width: pixel(160),
-      renderCell: (item: SavingsDepositRow) => (
-        <Text type="body" weight="bold" color="primary">
-          {formatRp(item.amount)}
-        </Text>
-      ),
-    },
-    {
-      key: 'senderInfo',
-      header: 'Rekening Pengirim',
-      width: proportional(2),
-      renderCell: (item: SavingsDepositRow) => (
-        <VStack gap={0}>
-          <Text type="body">
-            {item.senderBank || '-'} {item.senderAccount ? `(${item.senderAccount})` : ''}
-          </Text>
-          {item.senderName && (
-            <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-              a.n. {item.senderName}
-            </Text>
-          )}
-        </VStack>
-      ),
-    },
-    {
-      key: 'proofUrl',
-      header: 'Bukti Transfer',
-      width: pixel(130),
-      renderCell: (item: SavingsDepositRow) => {
-        if (!item.proofUrl) {
-          return <Text type="supporting" color="secondary">Tanpa bukti</Text>;
-        }
-        return (
-          <a
-            href={item.proofUrl}
-            target="_blank"
-            rel="noreferrer"
-            style={{
-              color: 'var(--color-primary-600, #2563eb)',
-              textDecoration: 'underline',
-              fontSize: 13,
-              fontWeight: 500,
-            }}
-          >
-            Lihat Bukti ↗
-          </a>
-        );
-      },
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      width: pixel(120),
-      renderCell: (item: SavingsDepositRow) => {
-        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
-        if (item.status === 'Menunggu') variant = 'warning';
-        else if (item.status === 'Diverifikasi') variant = 'success';
-        else if (item.status === 'Ditolak') variant = 'error';
-        return <Badge variant={variant} label={item.status} />;
-      },
-    },
-    {
-      key: 'actions',
-      header: 'Aksi / Keterangan',
-      width: proportional(2.5),
-      renderCell: (item: SavingsDepositRow) => {
-        if (item.status === 'Menunggu') {
-          if (hasPermission('update:savings')) {
-            return (
-              <HStack gap={2}>
-                <Button
-                  label="Verifikasi"
-                  variant="primary"
-                  onClick={() => {
-                    dialog.show(
-                      <ApproveSavingsDepositDialogContent
-                        deposit={item}
-                        onClose={() => dialog.hide()}
-                        onConfirm={async (payload) => {
-                          try {
-                            const res = await apiFetch(`/api/v1/savings/deposits/${item.id}/approve`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify(payload),
-                            }).then((r) => r.json());
-                            if (res.success) {
-                              dialog.hide();
-                              fetchDeposits();
-                              fetchPendingDepositsCount();
-                              fetchTransactions();
-                            } else {
-                              toast({ body: res.message || 'Gagal memverifikasi setoran', type: 'error' });
-                            }
-                          } catch {
-                            toast({ body: 'Terjadi kesalahan jaringan', type: 'error' });
-                          }
-                        }}
-                      />
-                    );
-                  }}
-                />
-                <Button
-                  label="Tolak"
-                  variant="ghost"
-                  onClick={() => {
-                    dialog.show(
-                      <RejectSavingsDepositDialogContent
-                        deposit={item}
-                        onClose={() => dialog.hide()}
-                        onConfirm={async (reason) => {
-                          try {
-                            const res = await apiFetch(`/api/v1/savings/deposits/${item.id}/reject`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ rejectionReason: reason }),
-                            }).then((r) => r.json());
-                            if (res.success) {
-                              dialog.hide();
-                              fetchDeposits();
-                              fetchPendingDepositsCount();
-                              fetchTransactions();
-                            } else {
-                              toast({ body: res.message || 'Gagal menolak setoran', type: 'error' });
-                            }
-                          } catch {
-                            toast({ body: 'Terjadi kesalahan jaringan', type: 'error' });
-                          }
-                        }}
-                      />
-                    );
-                  }}
-                />
-              </HStack>
-            );
-          }
-          return <Text type="supporting" color="secondary">Menunggu verifikasi</Text>;
-        }
-
-        if (item.status === 'Diverifikasi') {
-          return (
-            <VStack gap={0}>
-              <Text type="supporting" weight="medium" style={{ color: 'var(--color-success-600, #16a34a)' }}>
-                ✓ Diverifikasi
-              </Text>
-              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-                {item.paymentTargetName ? `Rek: ${item.paymentTargetName}` : ''}
-              </Text>
-            </VStack>
-          );
-        }
-
-        return (
-          <VStack gap={0}>
-            <Text type="supporting" style={{ color: 'var(--color-text-error)' }} weight="medium">
-              ✗ Ditolak
-            </Text>
-            {item.rejectionReason && (
-              <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-                Alasan: {item.rejectionReason}
-              </Text>
-            )}
-          </VStack>
-        );
-      },
-    },
-  ], [isDemoMode, hasPermission, dialog, fetchDeposits, fetchPendingDepositsCount, fetchTransactions]);
+  const handleRefreshBadges = () => {
+    fetchPendingDepositsCount();
+    fetchPendingCount();
+  };
 
   return (
-    <>
-      <Layout
-        height="auto"
-        header={
-          <LayoutHeader hasDivider padding={3}>
-            <VStack gap={3}>
-              <HStack gap={2} vAlign="center">
-                <StackItem size="fill">
-                  <Heading level={1}>Pengelolaan Simpanan Anggota</Heading>
-                </StackItem>
-                {activeTab === 'transactions' && hasPermission('update:savings') && (
-                  <Button
-                    label="Import CSV Simpanan"
-                    variant="secondary"
-                    icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
-                    onClick={() => {
-                      dialog.show(
-                        <ImportSavingsDialogContent
-                          onClose={() => dialog.hide()}
-                          onSuccess={() => fetchTransactions()}
-                        />
-                      );
-                    }}
-                  />
-                )}
-              </HStack>
-
-              {/* Navigation Tabs */}
-              <div
+    <Layout
+      height="auto"
+      header={
+        <LayoutHeader hasDivider padding={4}>
+          <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
+            <StackItem>
+              <VStack gap={0}>
+                <Heading level={1}>Pengelolaan Simpanan Anggota</Heading>
+                <Text type="supporting" color="secondary">
+                  Kelola mutasi simpanan pokok, wajib, sukarela, serta verifikasi setoran dan pengajuan penarikan
+                </Text>
+              </VStack>
+            </StackItem>
+          </HStack>
+        </LayoutHeader>
+      }
+      content={
+        <LayoutContent padding={4}>
+          <VStack gap={4}>
+            {/* Tab Navigation */}
+            <HStack gap={2} style={{ borderBottom: '1px solid var(--color-border-primary)', paddingBottom: 8 }}>
+              <button
+                type="button"
+                onClick={() => setActiveTab('transactions')}
                 style={{
-                  display: 'inline-flex',
-                  gap: 8,
-                  padding: 4,
-                  backgroundColor: 'var(--color-background-secondary)',
-                  borderRadius: 'var(--radius-md, 8px)',
-                  width: 'fit-content',
+                  padding: '6px 16px',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: activeTab === 'transactions' ? 600 : 500,
+                  cursor: 'pointer',
+                  border: 'none',
+                  backgroundColor: activeTab === 'transactions' ? 'var(--color-primary-600, #2563eb)' : 'transparent',
+                  color: activeTab === 'transactions' ? '#ffffff' : 'var(--color-text-secondary, #6b7280)',
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('transactions')}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: 'var(--radius-md, 6px)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: activeTab === 'transactions' ? 600 : 500,
-                    fontSize: 14,
-                    backgroundColor: activeTab === 'transactions' ? 'var(--color-background-primary)' : 'transparent',
-                    color: activeTab === 'transactions' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                    boxShadow: activeTab === 'transactions' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Riwayat Mutasi Simpanan
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('deposits');
-                    fetchDeposits();
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 16px',
-                    borderRadius: 'var(--radius-md, 6px)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: activeTab === 'deposits' ? 600 : 500,
-                    fontSize: 14,
-                    backgroundColor: activeTab === 'deposits' ? 'var(--color-background-primary)' : 'transparent',
-                    color: activeTab === 'deposits' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                    boxShadow: activeTab === 'deposits' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Konfirmasi Setoran Masuk
-                  {pendingDepositsCount > 0 && (
-                    <Badge variant="info" label={String(pendingDepositsCount)} />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab('withdrawals');
-                    fetchWithdrawals();
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 16px',
-                    borderRadius: 'var(--radius-md, 6px)',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: activeTab === 'withdrawals' ? 600 : 500,
-                    fontSize: 14,
-                    backgroundColor: activeTab === 'withdrawals' ? 'var(--color-background-primary)' : 'transparent',
-                    color: activeTab === 'withdrawals' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                    boxShadow: activeTab === 'withdrawals' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  Permohonan Penarikan Sukarela
-                  {pendingCount > 0 && (
-                    <Badge variant="warning" label={String(pendingCount)} />
-                  )}
-                </button>
-              </div>
-            </VStack>
-          </LayoutHeader>
-        }
-        content={
-          <LayoutContent padding={3}>
-            <div style={{ paddingBottom: '80px' }}>
-              {activeTab === 'transactions' ? (
-              <DataStateView isLoading={isLoading} error={error} onRetry={fetchTransactions} errorTitle="Gagal Memuat Riwayat Transaksi">
-                <VStack gap={4}>
-                  <PowerSearch
-                    config={config}
-                    filters={filters}
-                    onChange={newFilters => {
-                      setFilters([...newFilters]);
-                    }}
-                    placeholder="Cari transaksi..."
-                    resultCount={filtered.length}
-                  />
-                  <Table<SavingsTransactionRow>
-                    data={filtered}
-                    columns={transactionColumns}
-                    idKey="id"
-                    density="balanced"
-                    dividers="rows"
-                    hasHover
-                  />
-                  <Pagination
-                    page={transactionsResponse?.page || 1}
-                    limit={transactionsResponse?.limit || limit}
-                    total={transactionsResponse?.total || 0}
-                    onPageChange={setPage}
-                  />
-                </VStack>
-              </DataStateView>
-            ) : activeTab === 'deposits' ? (
-              <DataStateView
-                isLoading={depositsLoading}
-                error={depositsError}
-                onRetry={fetchDeposits}
-                errorTitle="Gagal Memuat Data Konfirmasi Setoran"
+                Buku Mutasi Simpanan
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('deposits')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 16px',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: activeTab === 'deposits' ? 600 : 500,
+                  cursor: 'pointer',
+                  border: 'none',
+                  backgroundColor: activeTab === 'deposits' ? 'var(--color-primary-600, #2563eb)' : 'transparent',
+                  color: activeTab === 'deposits' ? '#ffffff' : 'var(--color-text-secondary, #6b7280)',
+                }}
               >
-                <VStack gap={4}>
-                  {/* Status & Type Filter Pills */}
-                  <HStack gap={4} wrap="wrap" vAlign="center" justify="between">
-                    <HStack gap={2} vAlign="center" wrap="wrap">
-                      <Text type="supporting" weight="semibold" color="secondary">
-                        Status:
-                      </Text>
-                      {['Semua', 'Menunggu', 'Diverifikasi', 'Ditolak'].map((st) => (
-                        <button
-                          key={st}
-                          type="button"
-                          onClick={() => {
-                            setDepositStatusFilter(st);
-                            setDepositPage(1);
-                          }}
-                          style={{
-                            padding: '4px 12px',
-                            borderRadius: 20,
-                            fontSize: 13,
-                            fontWeight: depositStatusFilter === st ? 600 : 500,
-                            cursor: 'pointer',
-                            border: `1px solid ${depositStatusFilter === st ? 'var(--color-primary-500, #3b82f6)' : 'var(--color-border-primary, #e5e7eb)'}`,
-                            backgroundColor: depositStatusFilter === st ? 'rgba(59, 130, 246, 0.1)' : 'var(--color-background-primary, #ffffff)',
-                            color: depositStatusFilter === st ? 'var(--color-primary-600, #2563eb)' : 'var(--color-text-secondary, #6b7280)',
-                          }}
-                        >
-                          {st}
-                          {st === 'Menunggu' && pendingDepositsCount > 0 && ` (${pendingDepositsCount})`}
-                        </button>
-                      ))}
-                    </HStack>
-
-                    <HStack gap={2} vAlign="center" wrap="wrap">
-                      <Text type="supporting" weight="semibold" color="secondary">
-                        Jenis:
-                      </Text>
-                      {[
-                        { val: 'Semua', label: 'Semua Jenis' },
-                        { val: 'pokok', label: 'Pokok' },
-                        { val: 'wajib', label: 'Wajib' },
-                        { val: 'sukarela', label: 'Sukarela' },
-                      ].map((t) => (
-                        <button
-                          key={t.val}
-                          type="button"
-                          onClick={() => {
-                            setDepositTypeFilter(t.val);
-                            setDepositPage(1);
-                          }}
-                          style={{
-                            padding: '4px 12px',
-                            borderRadius: 20,
-                            fontSize: 13,
-                            fontWeight: depositTypeFilter === t.val ? 600 : 500,
-                            cursor: 'pointer',
-                            border: `1px solid ${depositTypeFilter === t.val ? 'var(--color-primary-500, #3b82f6)' : 'var(--color-border-primary, #e5e7eb)'}`,
-                            backgroundColor: depositTypeFilter === t.val ? 'rgba(59, 130, 246, 0.1)' : 'var(--color-background-primary, #ffffff)',
-                            color: depositTypeFilter === t.val ? 'var(--color-primary-600, #2563eb)' : 'var(--color-text-secondary, #6b7280)',
-                          }}
-                        >
-                          {t.label}
-                        </button>
-                      ))}
-                    </HStack>
-                  </HStack>
-
-                  <Table<SavingsDepositRow>
-                    data={depositsResponse?.data || []}
-                    columns={depositColumns}
-                    idKey="id"
-                    density="balanced"
-                    dividers="rows"
-                    hasHover
-                  />
-
-                  {(!depositsResponse?.data || depositsResponse.data.length === 0) && (
-                    <VStack hAlign="center" padding={6}>
-                      <Text type="body" color="secondary">
-                        {depositStatusFilter === 'Semua' && depositTypeFilter === 'Semua'
-                          ? 'Belum ada data konfirmasi setoran simpanan masuk.'
-                          : `Tidak ada data konfirmasi setoran dengan filter yang dipilih.`}
-                      </Text>
-                    </VStack>
-                  )}
-
-                  <Pagination
-                    page={depositsResponse?.page || 1}
-                    limit={depositsResponse?.limit || depositLimit}
-                    total={depositsResponse?.total || 0}
-                    onPageChange={setDepositPage}
-                  />
-                </VStack>
-              </DataStateView>
-            ) : (
-              <DataStateView
-                isLoading={withdrawalsLoading}
-                error={withdrawalsError}
-                onRetry={fetchWithdrawals}
-                errorTitle="Gagal Memuat Data Permohonan Penarikan"
+                <span>Konfirmasi Setoran Masuk</span>
+                {pendingDepositsCount > 0 && (
+                  <Badge variant="warning" label={String(pendingDepositsCount)} />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('withdrawals')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '6px 16px',
+                  borderRadius: 6,
+                  fontSize: 13,
+                  fontWeight: activeTab === 'withdrawals' ? 600 : 500,
+                  cursor: 'pointer',
+                  border: 'none',
+                  backgroundColor: activeTab === 'withdrawals' ? 'var(--color-primary-600, #2563eb)' : 'transparent',
+                  color: activeTab === 'withdrawals' ? '#ffffff' : 'var(--color-text-secondary, #6b7280)',
+                }}
               >
-                <VStack gap={4}>
-                  {/* Status Filter Pills */}
-                  <HStack gap={2} vAlign="center" wrap="wrap">
-                    <Text type="supporting" weight="semibold" color="secondary">
-                      Filter Status:
-                    </Text>
-                    {['Semua', 'Menunggu', 'Disetujui', 'Ditolak'].map((st) => (
-                      <button
-                        key={st}
-                        type="button"
-                        onClick={() => {
-                          setWithdrawalStatusFilter(st);
-                          setWithdrawalPage(1);
-                        }}
-                        style={{
-                          padding: '4px 12px',
-                          borderRadius: 20,
-                          fontSize: 13,
-                          fontWeight: withdrawalStatusFilter === st ? 600 : 500,
-                          cursor: 'pointer',
-                          border: `1px solid ${withdrawalStatusFilter === st ? 'var(--color-primary-500, #3b82f6)' : 'var(--color-border-primary, #e5e7eb)'}`,
-                          backgroundColor: withdrawalStatusFilter === st ? 'rgba(59, 130, 246, 0.1)' : 'var(--color-background-primary, #ffffff)',
-                          color: withdrawalStatusFilter === st ? 'var(--color-primary-600, #2563eb)' : 'var(--color-text-secondary, #6b7280)',
-                        }}
-                      >
-                        {st}
-                        {st === 'Menunggu' && pendingCount > 0 && ` (${pendingCount})`}
-                      </button>
-                    ))}
-                  </HStack>
+                <span>Permohonan Penarikan Sukarela</span>
+                {pendingCount > 0 && (
+                  <Badge variant="warning" label={String(pendingCount)} />
+                )}
+              </button>
+            </HStack>
 
-                  <Table<SavingsWithdrawalRow>
-                    data={withdrawalsResponse?.data || []}
-                    columns={withdrawalColumns}
-                    idKey="id"
-                    density="balanced"
-                    dividers="rows"
-                    hasHover
-                  />
-
-                  {(!withdrawalsResponse?.data || withdrawalsResponse.data.length === 0) && (
-                    <VStack hAlign="center" padding={6}>
-                      <Text type="body" color="secondary">
-                        {withdrawalStatusFilter === 'Semua'
-                          ? 'Belum ada permohonan penarikan simpanan sukarela.'
-                          : `Tidak ada permohonan penarikan dengan status ${withdrawalStatusFilter}.`}
-                      </Text>
-                    </VStack>
-                  )}
-
-                  <Pagination
-                    page={withdrawalsResponse?.page || 1}
-                    limit={withdrawalsResponse?.limit || withdrawalLimit}
-                    total={withdrawalsResponse?.total || 0}
-                    onPageChange={setWithdrawalPage}
-                  />
-                </VStack>
-              </DataStateView>
+            {/* Tab Contents */}
+            {activeTab === 'transactions' && <SavingsMutationsTab />}
+            {activeTab === 'deposits' && (
+              <SavingsDepositsTab onMutationSuccess={handleRefreshBadges} />
             )}
-            </div>
-          </LayoutContent>
-        }
-      />
-      {dialog.element}
-    </>
+            {activeTab === 'withdrawals' && (
+              <SavingsWithdrawalsTab onMutationSuccess={handleRefreshBadges} />
+            )}
+          </VStack>
+        </LayoutContent>
+      }
+    />
   );
 }
