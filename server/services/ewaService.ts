@@ -488,135 +488,139 @@ export async function disburseEwa(
   adminId?: string,
   paymentSourceAccountId?: string
 ): Promise<EWARequest> {
-  const req = await db
-    .query(
-      `SELECT r.*, e.name as employee_name, e.nip as employee_nip 
-       FROM withdrawal_requests r 
-       JOIN employees e ON r.employee_id = e.id 
-       WHERE r.id = ?`
-    )
-    .get<any>(requestId);
+  return await db.transaction(async () => {
+    const req = await db
+      .query(
+        `SELECT r.*, e.name as employee_name, e.nip as employee_nip 
+         FROM withdrawal_requests r 
+         JOIN employees e ON r.employee_id = e.id 
+         WHERE r.id = ? FOR UPDATE`
+      )
+      .get<any>(requestId);
 
-  if (!req) {
-    throw new ServiceError("Permohonan EWA tidak ditemukan", 404);
-  }
-
-  const s = String(req.status || "").toLowerCase();
-  if (s !== "pending_transfer" && s !== "pending" && s !== "approved") {
-    throw new ServiceError(`Tidak dapat mencairkan EWA dengan status ${req.status}`, 400);
-  }
-
-  // 1. Determine Accounts for Auto-Journal
-  // Dr. 11301 Piutang Potong Gaji (Payroll) = total_payroll_deduction
-  // Cr. 11101 Kas Kecil = disbursed_amount
-  // Cr. 41103 Pendapatan Administrasi EWA = fee_amount
-  let sourceAccountId = paymentSourceAccountId;
-  if (!sourceAccountId) {
-    const kasAcc = await db.query("SELECT id FROM accounts WHERE code = '11101' LIMIT 1").get<{ id: string }>();
-    sourceAccountId = kasAcc?.id;
-  }
-
-  const payrollReceivableAcc = await db
-    .query("SELECT id FROM accounts WHERE code = '11301' LIMIT 1")
-    .get<{ id: string }>();
-  const ewaRevenueAcc = await db
-    .query("SELECT id FROM accounts WHERE code = '41103' LIMIT 1")
-    .get<{ id: string }>();
-
-  let journalEntryId: string | null = null;
-
-  // Verify valid admin ID for withdrawal_requests.disbursed_by (matching UUID or email)
-  let validAdminId: string | null = null;
-  if (adminId) {
-    const adminRow = await db
-      .query("SELECT id FROM admins WHERE id = ? OR LOWER(email) = LOWER(?)")
-      .get<{ id: string }>(adminId, adminId);
-    if (adminRow?.id) {
-      validAdminId = adminRow.id;
+    if (!req) {
+      throw new ServiceError("Permohonan EWA tidak ditemukan", 404);
     }
-  }
 
-  const disbursed = Number(req.amount || req.disbursed_amount || 0);
-  const fee = Number(req.fee || req.fee_amount || 0);
-  const totalDeduction = Number(req.total_payroll_deduction || (disbursed + fee));
+    const s = String(req.status || "").toLowerCase();
+    if (s !== "pending_transfer" && s !== "pending" && s !== "approved") {
+      throw new ServiceError(`Tidak dapat mencairkan EWA dengan status ${req.status}`, 400);
+    }
 
-  if (sourceAccountId && payrollReceivableAcc?.id) {
-    journalEntryId = crypto.randomUUID();
-    const today = getLocalTodayYmd();
+    // 1. Determine Accounts for Auto-Journal
+    // Dr. 11301 Piutang Potong Gaji (Payroll) = total_payroll_deduction
+    // Cr. 11101 Kas Kecil = disbursed_amount
+    // Cr. 41103 Pendapatan Administrasi EWA = fee_amount
+    let sourceAccountId = paymentSourceAccountId;
+    if (!sourceAccountId) {
+      const kasAcc = await db.query("SELECT id FROM accounts WHERE code = '11101' LIMIT 1").get<{ id: string }>();
+      sourceAccountId = kasAcc?.id;
+    }
 
-    // Auto-journal is recorded by System (created_by: NULL) consistent with other auto-journals
-    await db.query(
-      `INSERT INTO journal_entries (id, transaction_date, description, reference_type, reference_id, created_by, created_at)
-       VALUES (?, ?, ?, 'ewa_disbursement', ?, NULL, NOW())`
-    ).run(
-      journalEntryId,
-      today,
-      `Pencairan EWA Kasbon Karyawan: ${req.employee_name} (${req.employee_nip})`,
-      requestId
-    );
+    const payrollReceivableAcc = await db
+      .query("SELECT id FROM accounts WHERE code = '11301' LIMIT 1")
+      .get<{ id: string }>();
+    const ewaRevenueAcc = await db
+      .query("SELECT id FROM accounts WHERE code = '41103' LIMIT 1")
+      .get<{ id: string }>();
 
-    // Dr. Piutang Potong Gaji
-    await db.query(
-      `INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, description)
-       VALUES (?, ?, ?, ?, 0, ?)`
-    ).run(
-      crypto.randomUUID(),
-      journalEntryId,
-      payrollReceivableAcc.id,
-      totalDeduction,
-      `Piutang Payroll EWA ${req.employee_name}`
-    );
+    let journalEntryId: string | null = null;
 
-    // Cr. Kas/Bank
-    await db.query(
-      `INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, description)
-       VALUES (?, ?, ?, 0, ?, ?)`
-    ).run(
-      crypto.randomUUID(),
-      journalEntryId,
-      sourceAccountId,
-      disbursed,
-      `Transfer Pencairan EWA ke ${req.destination_bank_name || req.destination_bank} ${req.destination_account_number || req.destination_account}`
-    );
+    // Verify valid admin ID for withdrawal_requests.disbursed_by (matching UUID or email)
+    let validAdminId: string | null = null;
+    if (adminId) {
+      const adminRow = await db
+        .query("SELECT id FROM admins WHERE id = ? OR LOWER(email) = LOWER(?)")
+        .get<{ id: string }>(adminId, adminId);
+      if (adminRow?.id) {
+        validAdminId = adminRow.id;
+      }
+    }
 
-    // Cr. Pendapatan Administrasi EWA (if fee > 0 and account exists)
-    if (fee > 0 && ewaRevenueAcc?.id) {
+    const disbursed = Number(req.amount || req.disbursed_amount || 0);
+    const fee = Number(req.fee || req.fee_amount || 0);
+    const totalDeduction = Number(req.total_payroll_deduction || (disbursed + fee));
+
+    if (sourceAccountId && payrollReceivableAcc?.id) {
+      journalEntryId = crypto.randomUUID();
+      const today = getLocalTodayYmd();
+
+      // Auto-journal is recorded by System (created_by: NULL) consistent with other auto-journals
+      await db.query(
+        `INSERT INTO journal_entries (id, transaction_date, description, reference_type, reference_id, created_by, created_at)
+         VALUES (?, ?, ?, 'ewa_disbursement', ?, NULL, NOW())`
+      ).run(
+        journalEntryId,
+        today,
+        `Pencairan EWA Kasbon Karyawan: ${req.employee_name} (${req.employee_nip})`,
+        requestId
+      );
+
+      // Dr. Piutang Potong Gaji
+      await db.query(
+        `INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, description)
+         VALUES (?, ?, ?, ?, 0, ?)`
+      ).run(
+        crypto.randomUUID(),
+        journalEntryId,
+        payrollReceivableAcc.id,
+        totalDeduction,
+        `Piutang Payroll EWA ${req.employee_name}`
+      );
+
+      // Cr. Kas/Bank
       await db.query(
         `INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, description)
          VALUES (?, ?, ?, 0, ?, ?)`
       ).run(
         crypto.randomUUID(),
         journalEntryId,
-        ewaRevenueAcc.id,
-        fee,
-        `Fee Layanan EWA ${req.employee_name}`
+        sourceAccountId,
+        disbursed,
+        `Transfer Pencairan EWA ke ${req.destination_bank_name || req.destination_bank} ${req.destination_account_number || req.destination_account}`
       );
+
+      // Cr. Pendapatan Administrasi EWA (if fee > 0 and account exists)
+      if (fee > 0 && ewaRevenueAcc?.id) {
+        await db.query(
+          `INSERT INTO journal_lines (id, journal_entry_id, account_id, debit, credit, description)
+           VALUES (?, ?, ?, 0, ?, ?)`
+        ).run(
+          crypto.randomUUID(),
+          journalEntryId,
+          ewaRevenueAcc.id,
+          fee,
+          `Fee Layanan EWA ${req.employee_name}`
+        );
+      }
     }
-  }
 
-  // 2. Update withdrawal request status
-  await db.query(
-    `UPDATE withdrawal_requests 
-     SET status = 'transferred', transferred_at = NOW(), disbursed_by = ?, journal_entry_id = ?, updated_at = NOW() 
-     WHERE id = ?`
-  ).run(validAdminId, journalEntryId, requestId);
+    // 2. Update withdrawal request status
+    await db.query(
+      `UPDATE withdrawal_requests 
+       SET status = 'transferred', transferred_at = NOW(), disbursed_by = ?, journal_entry_id = ?, updated_at = NOW() 
+       WHERE id = ?`
+    ).run(validAdminId, journalEntryId, requestId);
 
-  return (await getEwaRequestById(db, requestId))!;
+    return (await getEwaRequestById(db, requestId))!;
+  })();
 }
 
 export async function rejectEwa(db: Db, requestId: string, adminId?: string, reason?: string): Promise<EWARequest> {
-  const req = await db.query("SELECT id, status FROM withdrawal_requests WHERE id = ?").get<{ id: string; status: string }>(requestId);
-  if (!req) throw new ServiceError("Permohonan EWA tidak ditemukan", 404);
-  const s = String(req.status || "").toLowerCase();
-  if (s !== "pending_transfer" && s !== "pending" && s !== "approved") {
-    throw new ServiceError(`Tidak dapat menolak EWA dengan status ${req.status}`, 400);
-  }
+  return await db.transaction(async () => {
+    const req = await db.query("SELECT id, status FROM withdrawal_requests WHERE id = ? FOR UPDATE").get<{ id: string; status: string }>(requestId);
+    if (!req) throw new ServiceError("Permohonan EWA tidak ditemukan", 404);
+    const s = String(req.status || "").toLowerCase();
+    if (s !== "pending_transfer" && s !== "pending" && s !== "approved") {
+      throw new ServiceError(`Tidak dapat menolak EWA dengan status ${req.status}`, 400);
+    }
 
-  await db.query(
-    `UPDATE withdrawal_requests SET status = 'rejected', rejected_at = NOW(), rejection_reason = ?, updated_at = NOW() WHERE id = ?`
-  ).run(reason || 'Ditolak oleh admin', requestId);
+    await db.query(
+      `UPDATE withdrawal_requests SET status = 'rejected', rejected_at = NOW(), rejection_reason = ?, updated_at = NOW() WHERE id = ?`
+    ).run(reason || 'Ditolak oleh admin', requestId);
 
-  return (await getEwaRequestById(db, requestId))!;
+    return (await getEwaRequestById(db, requestId))!;
+  })();
 }
 
 export async function getEwaRequestById(db: Db, id: string): Promise<EWARequest | null> {

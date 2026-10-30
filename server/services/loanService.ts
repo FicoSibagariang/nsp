@@ -443,30 +443,27 @@ export async function updateLoanStatus(
       }
 
       if (loan) {
-        try {
-          let kasCode = '11102'; // default Bank Mandiri
-          if (options?.paymentSourceAccountId) {
-            const acc = (await database
-              .query("SELECT code FROM accounts WHERE id = ?")
-              .get(options.paymentSourceAccountId)) as { code?: string } | null;
-            if (acc?.code) {
-              kasCode = acc.code;
-            }
+        let kasCode = '11102'; // default Bank Mandiri
+        if (options?.paymentSourceAccountId) {
+          const acc = (await database
+            .query("SELECT code FROM accounts WHERE id = ?")
+            .get(options.paymentSourceAccountId)) as { code?: string } | null;
+          if (acc?.code) {
+            kasCode = acc.code;
           }
-
-          await recordAutoJournal({
-            transaction_date: approvedAt,
-            description: `Pencairan Pinjaman Anggota — ${loan.borrower_name}`,
-            reference_type: 'loan_disbursement',
-            reference_id: loanId,
-            lines: [
-              { account_code: '11201', debit: loan.amount }, // Piutang
-              { account_code: kasCode, credit: loan.amount } // Kas/Bank Keluar
-            ]
-          });
-        } catch (err) {
-          console.error("Gagal auto-journal pencairan pinjaman:", err);
         }
+
+        // Fail-fast auto journal for loan disbursement (must rollback if fails)
+        await recordAutoJournal({
+          transaction_date: approvedAt,
+          description: `Pencairan Pinjaman Anggota — ${loan.borrower_name}`,
+          reference_type: 'loan_disbursement',
+          reference_id: loanId,
+          lines: [
+            { account_code: '11201', debit: loan.amount }, // Piutang
+            { account_code: kasCode, credit: loan.amount } // Kas/Bank Keluar
+          ]
+        });
       }
     })();
   } else if (status === "Ditolak") {
@@ -743,57 +740,54 @@ export async function recordLoanPayment(
       .all<{ id: string; principalAmount: number; interestAmount: number; paidAmount: number }>(loanId);
     
     // Otomatisasi Jurnal
-    try {
-      const kasCode = input.method === 'Cash' ? '11101' : '11102';
-      let principalPaid = 0;
-      let interestPaid = 0;
+    const kasCode = input.method === 'Cash' ? '11101' : '11102';
+    let principalPaid = 0;
+    let interestPaid = 0;
 
-      if (schedulesBefore.length > 0) {
-        const scheduleAfterMap = new Map(schedulesAfter.map(s => [s.id, s]));
-        for (const sBefore of schedulesBefore) {
-          const sAfter = scheduleAfterMap.get(sBefore.id);
-          if (!sAfter) continue;
+    if (schedulesBefore.length > 0) {
+      const scheduleAfterMap = new Map(schedulesAfter.map(s => [s.id, s]));
+      for (const sBefore of schedulesBefore) {
+        const sAfter = scheduleAfterMap.get(sBefore.id);
+        if (!sAfter) continue;
 
-          const P = Number(sBefore.principalAmount || 0);
-          const I = Number(sBefore.interestAmount || 0);
+        const P = Number(sBefore.principalAmount || 0);
+        const I = Number(sBefore.interestAmount || 0);
 
-          const paidBefore = Number(sBefore.paidAmount || 0);
-          const paidAfter = Number(sAfter.paidAmount || 0);
+        const paidBefore = Number(sBefore.paidAmount || 0);
+        const paidAfter = Number(sAfter.paidAmount || 0);
 
-          const interestBefore = Math.min(I, paidBefore);
-          const principalBefore = Math.max(0, Math.min(P, paidBefore - I));
+        const interestBefore = Math.min(I, paidBefore);
+        const principalBefore = Math.max(0, Math.min(P, paidBefore - I));
 
-          const interestAfter = Math.min(I, paidAfter);
-          const principalAfter = Math.max(0, Math.min(P, paidAfter - I));
+        const interestAfter = Math.min(I, paidAfter);
+        const principalAfter = Math.max(0, Math.min(P, paidAfter - I));
 
-          interestPaid += (interestAfter - interestBefore);
-          principalPaid += (principalAfter - principalBefore);
-        }
-
-        const allocated = principalPaid + interestPaid;
-        if (allocated < input.amount) {
-          principalPaid += (input.amount - allocated);
-        }
-      } else {
-        const principalRatio = Number(loan.amount) / totalAmount;
-        principalPaid = Math.round(input.amount * principalRatio);
-        interestPaid = input.amount - principalPaid;
+        interestPaid += (interestAfter - interestBefore);
+        principalPaid += (principalAfter - principalBefore);
       }
 
-      await recordAutoJournal({
-        transaction_date: paymentDate,
-        description: `Pembayaran Cicilan Pinjaman — ${loan.borrower_name}`,
-        reference_type: 'loan_payment',
-        reference_id: id,
-        lines: [
-          { account_code: kasCode, debit: input.amount }, // Kas Masuk
-          { account_code: '11201', credit: principalPaid }, // Piutang Berkurang
-          { account_code: '41101', credit: interestPaid } // Pendapatan Bunga
-        ]
-      });
-    } catch (err) {
-      console.error("Gagal auto-journal pembayaran pinjaman:", err);
+      const allocated = principalPaid + interestPaid;
+      if (allocated < input.amount) {
+        principalPaid += (input.amount - allocated);
+      }
+    } else {
+      const principalRatio = Number(loan.amount) / totalAmount;
+      principalPaid = Math.round(input.amount * principalRatio);
+      interestPaid = input.amount - principalPaid;
     }
+
+    // Fail-fast auto journal for loan payment
+    await recordAutoJournal({
+      transaction_date: paymentDate,
+      description: `Pembayaran Cicilan Pinjaman — ${loan.borrower_name}`,
+      reference_type: 'loan_payment',
+      reference_id: id,
+      lines: [
+        { account_code: kasCode, debit: input.amount }, // Kas Masuk
+        { account_code: '11201', credit: principalPaid }, // Piutang Berkurang
+        { account_code: '41101', credit: interestPaid } // Pendapatan Bunga
+      ]
+    });
   })();
 
   return { id };
