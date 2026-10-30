@@ -75,25 +75,26 @@ export async function updateMemberSavings(
   input: UpdateSavingsInput,
   createdBy: string
 ): Promise<UpdateSavingsResult> {
-  const member = await database
-    .query("SELECT simpananPokok, simpananWajib, simpananSukarela, totalSavings, name FROM members WHERE id = ?")
-    .get<MemberSavingsCols & { name: string }>(memberId);
+  return await database.transaction(async () => {
+    // Row lock member to prevent race conditions & double-spending
+    const member = await database
+      .query("SELECT simpananPokok, simpananWajib, simpananSukarela, totalSavings, name FROM members WHERE id = ? FOR UPDATE")
+      .get<MemberSavingsCols & { name: string }>(memberId);
 
-  if (!member) {
-    throw new ServiceError("Not found", 404);
-  }
+    if (!member) {
+      throw new ServiceError("Not found", 404);
+    }
 
-  const additionalSavingsNum = Number(input.additionalSavings);
-  const { newPokok, newWajib, newSukarela, newTotal } = validateSavingsMutation(
-    member,
-    additionalSavingsNum,
-    input.savingsType
-  );
-  const createdAt = resolveTransactionCreatedAt(input.transactionDate);
+    const additionalSavingsNum = Number(input.additionalSavings);
+    const { newPokok, newWajib, newSukarela, newTotal } = validateSavingsMutation(
+      member,
+      additionalSavingsNum,
+      input.savingsType
+    );
+    const createdAt = resolveTransactionCreatedAt(input.transactionDate);
 
-  const transactionId = crypto.randomUUID();
+    const transactionId = crypto.randomUUID();
 
-  await database.transaction(async () => {
     await database
       .query("UPDATE members SET simpananPokok = ?, simpananWajib = ?, simpananSukarela = ?, totalSavings = ? WHERE id = ?")
       .run(newPokok, newWajib, newSukarela, newTotal, memberId);
@@ -102,15 +103,15 @@ export async function updateMemberSavings(
       INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-        transactionId,
-        memberId,
-        additionalSavingsNum >= 0 ? `setor_${input.savingsType}` : `tarik_${input.savingsType}`,
-        Math.abs(additionalSavingsNum),
-        Number(member.totalSavings ?? 0),
-        newTotal,
-        createdAt,
-        createdBy
-      );
+      transactionId,
+      memberId,
+      additionalSavingsNum >= 0 ? `setor_${input.savingsType}` : `tarik_${input.savingsType}`,
+      Math.abs(additionalSavingsNum),
+      Number(member.totalSavings ?? 0),
+      newTotal,
+      createdAt,
+      createdBy
+    );
 
     // Otomatisasi Jurnal
     let simpananAccountCode = '21101';
@@ -130,34 +131,31 @@ export async function updateMemberSavings(
     const absAmount = Math.abs(additionalSavingsNum);
     const isSetor = additionalSavingsNum >= 0;
 
-    try {
-      await recordAutoJournal({
-        transaction_date: createdAt,
-        description: `${isSetor ? 'Setoran' : 'Penarikan'} Simpanan ${input.savingsType} — ${member.name}`,
-        reference_type: `savings_${isSetor ? 'setor' : 'tarik'}`,
-        reference_id: transactionId,
-        lines: [
-          { account_code: kasCode, debit: isSetor ? absAmount : 0, credit: isSetor ? 0 : absAmount },
-          { account_code: simpananAccountCode, debit: isSetor ? 0 : absAmount, credit: isSetor ? absAmount : 0 },
-        ]
-      });
-    } catch (err) {
-      console.error("Gagal auto-journal simpanan:", err);
-    }
-  })();
+    // Fail-fast: auto-journal is part of the atomic transaction; must throw on failure
+    await recordAutoJournal({
+      transaction_date: createdAt,
+      description: `${isSetor ? 'Setoran' : 'Penarikan'} Simpanan ${input.savingsType} — ${member.name}`,
+      reference_type: `savings_${isSetor ? 'setor' : 'tarik'}`,
+      reference_id: transactionId,
+      lines: [
+        { account_code: kasCode, debit: isSetor ? absAmount : 0, credit: isSetor ? 0 : absAmount },
+        { account_code: simpananAccountCode, debit: isSetor ? 0 : absAmount, credit: isSetor ? absAmount : 0 },
+      ]
+    });
 
-  return {
-    transactionId,
-    newTotal,
-    before: member,
-    after: {
-      simpananPokok: newPokok,
-      simpananWajib: newWajib,
-      simpananSukarela: newSukarela,
-      additionalSavings: additionalSavingsNum,
-      savingsType: input.savingsType,
-    },
-  };
+    return {
+      transactionId,
+      newTotal,
+      before: member,
+      after: {
+        simpananPokok: newPokok,
+        simpananWajib: newWajib,
+        simpananSukarela: newSukarela,
+        additionalSavings: additionalSavingsNum,
+        savingsType: input.savingsType,
+      },
+    };
+  })();
 }
 
 export type BatchSavingsImportItem = {

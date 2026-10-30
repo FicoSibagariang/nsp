@@ -266,89 +266,92 @@ export async function approveSavingsDeposit(
   actor: string,
   paymentTargetAccountId?: string | null
 ) {
-  const deposit = await database
-    .query(
-      `SELECT id, member_id, savings_type, amount, transfer_date::text as transfer_date, status 
-       FROM savings_deposits WHERE id = ?`
-    )
-    .get<{
-      id: string;
-      member_id: string;
-      savings_type: string;
-      amount: number | string;
-      transfer_date: string;
-      status: string;
-    }>(id);
+  return await database.transaction(async () => {
+    // Row lock the deposit record to prevent race conditions & double-verification
+    const deposit = await database
+      .query(
+        `SELECT id, member_id, savings_type, amount, transfer_date::text as transfer_date, status 
+         FROM savings_deposits WHERE id = ? FOR UPDATE`
+      )
+      .get<{
+        id: string;
+        member_id: string;
+        savings_type: string;
+        amount: number | string;
+        transfer_date: string;
+        status: string;
+      }>(id);
 
-  if (!deposit) {
-    throw new ServiceError("Data konfirmasi setoran tidak ditemukan", 404);
-  }
+    if (!deposit) {
+      throw new ServiceError("Data konfirmasi setoran tidak ditemukan", 404);
+    }
 
-  if (deposit.status !== "Menunggu") {
-    throw new ServiceError(
-      `Konfirmasi setoran tidak dapat disetujui karena sudah berstatus '${deposit.status}'`,
-      400
+    if (deposit.status !== "Menunggu") {
+      throw new ServiceError(
+        `Konfirmasi setoran tidak dapat disetujui karena sudah berstatus '${deposit.status}'`,
+        400
+      );
+    }
+
+    const depositAmount = Number(deposit.amount);
+
+    // Update member savings balance (credit member savings, record ledger mutation and auto-journal)
+    const savingsResult = await updateMemberSavings(
+      database,
+      deposit.member_id,
+      {
+        additionalSavings: depositAmount,
+        savingsType: deposit.savings_type as any,
+        transactionDate: toDateOnlyString(deposit.transfer_date),
+        paymentSourceAccountId: paymentTargetAccountId || null,
+      },
+      actor
     );
-  }
 
-  const depositAmount = Number(deposit.amount);
+    // Mark deposit as Diverifikasi
+    await database
+      .query(
+        `UPDATE savings_deposits
+         SET status = 'Diverifikasi',
+             verified_by = ?,
+             verified_at = NOW(),
+             payment_target_account_id = ?,
+             transaction_id = ?,
+             updated_at = NOW()
+         WHERE id = ?`
+      )
+      .run(actor, paymentTargetAccountId || null, savingsResult.transactionId, id);
 
-  // Update member savings balance (credit member savings, record ledger mutation and auto-journal)
-  const savingsResult = await updateMemberSavings(
-    database,
-    deposit.member_id,
-    {
-      additionalSavings: depositAmount,
-      savingsType: deposit.savings_type as any,
-      transactionDate: toDateOnlyString(deposit.transfer_date),
-      paymentSourceAccountId: paymentTargetAccountId || null,
-    },
-    actor
-  );
+    const row = await database
+      .query(
+        `SELECT 
+          sd.id,
+          sd.member_id as "memberId",
+          m.name as "memberName",
+          sd.savings_type as "savingsType",
+          sd.amount::double precision as amount,
+          sd.transfer_date::text as "transferDate",
+          sd.sender_bank as "senderBank",
+          sd.sender_account as "senderAccount",
+          sd.sender_name as "senderName",
+          sd.proof_url as "proofUrl",
+          sd.proof_name as "proofName",
+          sd.notes,
+          sd.status,
+          sd.payment_target_account_id as "paymentTargetAccountId",
+          sd.transaction_id as "transactionId",
+          sd.verified_by as "verifiedBy",
+          sd.verified_at as "verifiedAt",
+          sd.created_at as "createdAt",
+          sd.updated_at as "updatedAt"
+        FROM savings_deposits sd
+        LEFT JOIN members m ON sd.member_id = m.id
+        WHERE sd.id = ?`
+      )
+      .get<any>(id);
 
-  // Mark deposit as Diverifikasi
-  await database
-    .query(
-      `UPDATE savings_deposits
-       SET status = 'Diverifikasi',
-           verified_by = ?,
-           verified_at = NOW(),
-           payment_target_account_id = ?,
-           transaction_id = ?,
-           updated_at = NOW()
-       WHERE id = ?`
-    )
-    .run(actor, paymentTargetAccountId || null, savingsResult.transactionId, id);
-
-  const row = await database
-    .query(
-      `SELECT 
-        sd.id,
-        sd.member_id as "memberId",
-        m.name as "memberName",
-        sd.savings_type as "savingsType",
-        sd.amount::double precision as amount,
-        sd.transfer_date::text as "transferDate",
-        sd.sender_bank as "senderBank",
-        sd.sender_account as "senderAccount",
-        sd.sender_name as "senderName",
-        sd.proof_url as "proofUrl",
-        sd.proof_name as "proofName",
-        sd.notes,
-        sd.status,
-        sd.payment_target_account_id as "paymentTargetAccountId",
-        sd.transaction_id as "transactionId",
-        sd.verified_by as "verifiedBy",
-        sd.verified_at as "verifiedAt",
-        sd.created_at as "createdAt",
-        sd.updated_at as "updatedAt"
-      FROM savings_deposits sd
-      LEFT JOIN members m ON sd.member_id = m.id
-      WHERE sd.id = ?`
-    )
-    .get<any>(id);
-
-  return row ? { ...row, amount: Number(row.amount) } : null;
+    return row ? { ...row, amount: Number(row.amount) } : null;
+  })();
 }
 
 export async function rejectSavingsDeposit(

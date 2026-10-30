@@ -22,86 +22,88 @@ export async function createSavingsWithdrawalRequest(
   memberId: string,
   input: CreateSavingsWithdrawalInput
 ) {
-  const member = await database
-    .query(
-      "SELECT id, name, status, simpananSukarela FROM members WHERE id = ? AND deletedAt IS NULL"
-    )
-    .get<{ id: string; name: string; status: string; simpananSukarela: number }>(memberId);
+  return await database.transaction(async () => {
+    const member = await database
+      .query(
+        "SELECT id, name, status, simpananSukarela FROM members WHERE id = ? AND deletedAt IS NULL FOR UPDATE"
+      )
+      .get<{ id: string; name: string; status: string; simpananSukarela: number }>(memberId);
 
-  if (!member) {
-    throw new ServiceError("Anggota tidak ditemukan", 404);
-  }
+    if (!member) {
+      throw new ServiceError("Anggota tidak ditemukan", 404);
+    }
 
-  if (member.status !== "Aktif") {
-    throw new ServiceError(
-      "Hanya anggota dengan status Aktif yang dapat mengajukan penarikan simpanan sukarela",
-      400
-    );
-  }
+    if (member.status !== "Aktif") {
+      throw new ServiceError(
+        "Hanya anggota dengan status Aktif yang dapat mengajukan penarikan simpanan sukarela",
+        400
+      );
+    }
 
-  const requestedAmount = Number(input.amount);
-  if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
-    throw new ServiceError("Nominal penarikan harus lebih besar dari 0", 400);
-  }
+    const requestedAmount = Number(input.amount);
+    if (!Number.isFinite(requestedAmount) || requestedAmount <= 0) {
+      throw new ServiceError("Nominal penarikan harus lebih besar dari 0", 400);
+    }
 
-  const currentSukarela = Number(member.simpananSukarela || 0);
-  if (requestedAmount > currentSukarela) {
-    throw new ServiceError(
-      `Nominal penarikan (Rp ${requestedAmount.toLocaleString("id-ID")}) melebihi saldo simpanan sukarela tersedia (Rp ${currentSukarela.toLocaleString("id-ID")})`,
-      400
-    );
-  }
+    const currentSukarela = Number(member.simpananSukarela || 0);
+    if (requestedAmount > currentSukarela) {
+      throw new ServiceError(
+        `Nominal penarikan (Rp ${requestedAmount.toLocaleString("id-ID")}) melebihi saldo simpanan sukarela tersedia (Rp ${currentSukarela.toLocaleString("id-ID")})`,
+        400
+      );
+    }
 
-  // Prevent multiple pending requests for the same member
-  const pending = await database
-    .query("SELECT id FROM savings_withdrawals WHERE member_id = ? AND status = 'Menunggu'")
-    .all<{ id: string }>(memberId);
+    // Prevent multiple pending requests for the same member
+    const pending = await database
+      .query("SELECT id FROM savings_withdrawals WHERE member_id = ? AND status = 'Menunggu' FOR UPDATE")
+      .all<{ id: string }>(memberId);
 
-  if (pending.length > 0) {
-    throw new ServiceError(
-      "Anda masih memiliki pengajuan penarikan simpanan sukarela yang berstatus Menunggu. Mohon tunggu hingga pengajuan tersebut diproses.",
-      400
-    );
-  }
+    if (pending.length > 0) {
+      throw new ServiceError(
+        "Anda masih memiliki pengajuan penarikan simpanan sukarela yang berstatus Menunggu. Mohon tunggu hingga pengajuan tersebut diproses.",
+        400
+      );
+    }
 
-  const id = `sw_${crypto.randomUUID()}`;
-  await database
-    .query(
-      `INSERT INTO savings_withdrawals (
-        id, member_id, amount, destination_bank, destination_account, destination_name, notes, status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, 'Menunggu', NOW(), NOW())`
-    )
-    .run(
-      id,
-      memberId,
-      requestedAmount,
-      input.destinationBank.trim(),
-      input.destinationAccount.trim(),
-      input.destinationName.trim(),
-      input.notes?.trim() || null
-    );
+    const id = `sw_${crypto.randomUUID()}`;
+    await database
+      .query(
+        `INSERT INTO savings_withdrawals (
+          id, member_id, amount, destination_bank, destination_account, destination_name, notes, status, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'Menunggu', NOW(), NOW())`
+      )
+      .run(
+        id,
+        memberId,
+        requestedAmount,
+        input.destinationBank.trim(),
+        input.destinationAccount.trim(),
+        input.destinationName.trim(),
+        input.notes?.trim() || null
+      );
 
-  const row = await database
-    .query(
-      `SELECT 
-        sw.id,
-        sw.member_id as "memberId",
-        sw.amount::double precision as amount,
-        sw.destination_bank as "destinationBank",
-        sw.destination_account as "destinationAccount",
-        sw.destination_name as "destinationName",
-        sw.notes,
-        sw.status,
-        sw.payment_source_account_id as "paymentSourceAccountId",
-        sw.transaction_id as "transactionId",
-        sw.created_at as "createdAt",
-        sw.updated_at as "updatedAt"
-      FROM savings_withdrawals sw
-      WHERE sw.id = ?`
-    )
-    .get<any>(id);
+    const row = await database
+      .query(
+        `SELECT 
+          sw.id,
+          sw.member_id as "memberId",
+          sw.amount::double precision as amount,
+          sw.destination_bank as "destinationBank",
+          sw.destination_account as "destinationAccount",
+          sw.destination_name as "destinationName",
+          sw.notes,
+          sw.status,
+          sw.payment_source_account_id as "paymentSourceAccountId",
+          sw.transaction_id as "transactionId",
+          sw.created_at as "createdAt",
+          sw.updated_at as "updatedAt"
+        FROM savings_withdrawals sw
+        WHERE sw.id = ?`
+      )
+      .get<any>(id);
 
-  return row ? { ...row, amount: Number(row.amount) } : null;
+    return row ? { ...row, amount: Number(row.amount) } : null;
+  })();
 }
 
 export async function getMemberWithdrawals(database: Db, memberId: string) {
@@ -218,99 +220,102 @@ export async function approveSavingsWithdrawal(
   actor: string,
   paymentSourceAccountId?: string | null
 ) {
-  const withdrawal = await database
-    .query("SELECT * FROM savings_withdrawals WHERE id = ?")
-    .get<{
-      id: string;
-      member_id: string;
-      amount: number | string;
-      status: string;
-    }>(id);
+  return await database.transaction(async () => {
+    // Row lock the withdrawal row to prevent race conditions & double-approvals
+    const withdrawal = await database
+      .query("SELECT * FROM savings_withdrawals WHERE id = ? FOR UPDATE")
+      .get<{
+        id: string;
+        member_id: string;
+        amount: number | string;
+        status: string;
+      }>(id);
 
-  if (!withdrawal) {
-    throw new ServiceError("Permohonan penarikan tidak ditemukan", 404);
-  }
+    if (!withdrawal) {
+      throw new ServiceError("Permohonan penarikan tidak ditemukan", 404);
+    }
 
-  if (withdrawal.status !== "Menunggu") {
-    throw new ServiceError(
-      `Permohonan penarikan tidak dapat disetujui karena sudah berstatus '${withdrawal.status}'`,
-      400
+    if (withdrawal.status !== "Menunggu") {
+      throw new ServiceError(
+        `Permohonan penarikan tidak dapat disetujui karena sudah berstatus '${withdrawal.status}'`,
+        400
+      );
+    }
+
+    const withdrawalAmount = Number(withdrawal.amount);
+
+    // Validate member balance before mutation (row lock member)
+    const member = await database
+      .query("SELECT id, name, simpananSukarela FROM members WHERE id = ? FOR UPDATE")
+      .get<{ id: string; name: string; simpananSukarela: number }>(withdrawal.member_id);
+
+    if (!member) {
+      throw new ServiceError("Data anggota pemohon tidak ditemukan", 404);
+    }
+
+    if (Number(member.simpananSukarela || 0) < withdrawalAmount) {
+      throw new ServiceError(
+        `Saldo simpanan sukarela anggota (Rp ${Number(member.simpananSukarela || 0).toLocaleString("id-ID")}) tidak mencukupi untuk penarikan sebesar Rp ${withdrawalAmount.toLocaleString("id-ID")}`,
+        400
+      );
+    }
+
+    // Update member savings balance (deduct sukarela & total savings, insert transaction, and record auto-journal)
+    const savingsResult = await updateMemberSavings(
+      database,
+      withdrawal.member_id,
+      {
+        additionalSavings: -withdrawalAmount,
+        savingsType: "sukarela",
+        paymentSourceAccountId: paymentSourceAccountId || null,
+      },
+      actor
     );
-  }
 
-  const withdrawalAmount = Number(withdrawal.amount);
+    // Mark withdrawal as Disetujui
+    await database
+      .query(
+        `UPDATE savings_withdrawals
+         SET status = 'Disetujui',
+             approved_by = ?,
+             approved_at = NOW(),
+             payment_source_account_id = ?,
+             transaction_id = ?,
+             updated_at = NOW()
+         WHERE id = ?`
+      )
+      .run(actor, paymentSourceAccountId || null, savingsResult.transactionId, id);
 
-  // Validate member balance before mutation
-  const member = await database
-    .query("SELECT id, name, simpananSukarela FROM members WHERE id = ?")
-    .get<{ id: string; name: string; simpananSukarela: number }>(withdrawal.member_id);
+    const row = await database
+      .query(
+        `SELECT 
+          sw.id,
+          sw.member_id as "memberId",
+          m.name as "memberName",
+          m.phone as "memberPhone",
+          m.nik as "memberCode",
+          a.name as "paymentSourceName",
+          sw.amount::double precision as amount,
+          sw.destination_bank as "destinationBank",
+          sw.destination_account as "destinationAccount",
+          sw.destination_name as "destinationName",
+          sw.notes,
+          sw.status,
+          sw.payment_source_account_id as "paymentSourceAccountId",
+          sw.transaction_id as "transactionId",
+          sw.approved_by as "approvedBy",
+          sw.approved_at as "approvedAt",
+          sw.created_at as "createdAt",
+          sw.updated_at as "updatedAt"
+        FROM savings_withdrawals sw
+        LEFT JOIN members m ON sw.member_id = m.id
+        LEFT JOIN accounts a ON sw.payment_source_account_id = a.id
+        WHERE sw.id = ?`
+      )
+      .get<any>(id);
 
-  if (!member) {
-    throw new ServiceError("Data anggota pemohon tidak ditemukan", 404);
-  }
-
-  if (Number(member.simpananSukarela || 0) < withdrawalAmount) {
-    throw new ServiceError(
-      `Saldo simpanan sukarela anggota (Rp ${Number(member.simpananSukarela || 0).toLocaleString("id-ID")}) tidak mencukupi untuk penarikan sebesar Rp ${withdrawalAmount.toLocaleString("id-ID")}`,
-      400
-    );
-  }
-
-  // Update member savings balance (deduct sukarela & total savings, insert transaction, and record auto-journal)
-  const savingsResult = await updateMemberSavings(
-    database,
-    withdrawal.member_id,
-    {
-      additionalSavings: -withdrawalAmount,
-      savingsType: "sukarela",
-      paymentSourceAccountId: paymentSourceAccountId || null,
-    },
-    actor
-  );
-
-  // Mark withdrawal as Disetujui
-  await database
-    .query(
-      `UPDATE savings_withdrawals
-       SET status = 'Disetujui',
-           approved_by = ?,
-           approved_at = NOW(),
-           payment_source_account_id = ?,
-           transaction_id = ?,
-           updated_at = NOW()
-       WHERE id = ?`
-    )
-    .run(actor, paymentSourceAccountId || null, savingsResult.transactionId, id);
-
-  const row = await database
-    .query(
-      `SELECT 
-        sw.id,
-        sw.member_id as "memberId",
-        m.name as "memberName",
-        m.phone as "memberPhone",
-        m.nik as "memberCode",
-        a.name as "paymentSourceName",
-        sw.amount::double precision as amount,
-        sw.destination_bank as "destinationBank",
-        sw.destination_account as "destinationAccount",
-        sw.destination_name as "destinationName",
-        sw.notes,
-        sw.status,
-        sw.payment_source_account_id as "paymentSourceAccountId",
-        sw.transaction_id as "transactionId",
-        sw.approved_by as "approvedBy",
-        sw.approved_at as "approvedAt",
-        sw.created_at as "createdAt",
-        sw.updated_at as "updatedAt"
-      FROM savings_withdrawals sw
-      LEFT JOIN members m ON sw.member_id = m.id
-      LEFT JOIN accounts a ON sw.payment_source_account_id = a.id
-      WHERE sw.id = ?`
-    )
-    .get<any>(id);
-
-  return row ? { ...row, amount: Number(row.amount) } : null;
+    return row ? { ...row, amount: Number(row.amount) } : null;
+  })();
 }
 
 export async function rejectSavingsWithdrawal(

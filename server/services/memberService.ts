@@ -64,20 +64,17 @@ async function recordInitialSavingsTransactions(
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(txIdPokok, memberId, "setor_pokok", simpananPokok, 0, simpananPokok, createdAt, createdBy);
 
-    try {
-      await recordAutoJournal({
-        transaction_date: createdAt,
-        description: `Setoran Simpanan pokok — ${input.name}`,
-        reference_type: 'savings_setor',
-        reference_id: txIdPokok,
-        lines: [
-          { account_code: '11102', debit: simpananPokok, credit: 0 },
-          { account_code: '31101', debit: 0, credit: simpananPokok },
-        ]
-      });
-    } catch (err) {
-      console.error("Gagal auto-journal simpanan pokok awal:", err);
-    }
+    // Fail-fast auto journal for initial pokok savings
+    await recordAutoJournal({
+      transaction_date: createdAt,
+      description: `Setoran Simpanan pokok — ${input.name}`,
+      reference_type: 'savings_setor',
+      reference_id: txIdPokok,
+      lines: [
+        { account_code: '11102', debit: simpananPokok, credit: 0 },
+        { account_code: '31101', debit: 0, credit: simpananPokok },
+      ]
+    });
   }
 
   if (simpananWajib > 0) {
@@ -96,20 +93,17 @@ async function recordInitialSavingsTransactions(
       createdBy
     );
 
-    try {
-      await recordAutoJournal({
-        transaction_date: createdAt,
-        description: `Setoran Simpanan wajib — ${input.name}`,
-        reference_type: 'savings_setor',
-        reference_id: txIdWajib,
-        lines: [
-          { account_code: '11102', debit: simpananWajib, credit: 0 },
-          { account_code: '31102', debit: 0, credit: simpananWajib },
-        ]
-      });
-    } catch (err) {
-      console.error("Gagal auto-journal simpanan wajib awal:", err);
-    }
+    // Fail-fast auto journal for initial wajib savings
+    await recordAutoJournal({
+      transaction_date: createdAt,
+      description: `Setoran Simpanan wajib — ${input.name}`,
+      reference_type: 'savings_setor',
+      reference_id: txIdWajib,
+      lines: [
+        { account_code: '11102', debit: simpananWajib, credit: 0 },
+        { account_code: '31102', debit: 0, credit: simpananWajib },
+      ]
+    });
   }
 
   if (simpananSukarela > 0) {
@@ -129,20 +123,17 @@ async function recordInitialSavingsTransactions(
       createdBy
     );
 
-    try {
-      await recordAutoJournal({
-        transaction_date: createdAt,
-        description: `Setoran Simpanan sukarela — ${input.name}`,
-        reference_type: 'savings_setor',
-        reference_id: txIdSukarela,
-        lines: [
-          { account_code: '11102', debit: simpananSukarela, credit: 0 },
-          { account_code: '21101', debit: 0, credit: simpananSukarela },
-        ]
-      });
-    } catch (err) {
-      console.error("Gagal auto-journal simpanan sukarela awal:", err);
-    }
+    // Fail-fast auto journal for initial sukarela savings
+    await recordAutoJournal({
+      transaction_date: createdAt,
+      description: `Setoran Simpanan sukarela — ${input.name}`,
+      reference_type: 'savings_setor',
+      reference_id: txIdSukarela,
+      lines: [
+        { account_code: '11102', debit: simpananSukarela, credit: 0 },
+        { account_code: '21101', debit: 0, credit: simpananSukarela },
+      ]
+    });
   }
 }
 
