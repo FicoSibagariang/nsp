@@ -14,7 +14,9 @@ export const semanticColors = {
   textPrimary: 'var(--color-text-primary)',
   textSecondary: 'var(--color-text-secondary)',
   textCritical: 'var(--color-text-critical)',
+  textError: 'var(--color-text-error)',
   textSuccess: 'var(--color-text-success)',
+  textWarning: 'var(--color-text-warning)',
 
   // Background colors
   bgPrimary: 'var(--color-background-primary)',
@@ -26,11 +28,11 @@ export const semanticColors = {
   border: 'var(--color-border)',
 
   // Data visualization (for charts)
-  dataBlue: 'var(--color-data-categorical-blue, #0171E3)',
-  dataOrange: 'var(--color-data-categorical-orange, #EB6E00)',
-  dataGreen: 'var(--color-data-categorical-green, #0B991F)',
-  dataPurple: 'var(--color-data-categorical-purple, #6B1EFD)',
-  dataPink: 'var(--color-data-categorical-pink, #E30171)',
+  dataBlue: 'var(--color-data-categorical-blue)',
+  dataOrange: 'var(--color-data-categorical-orange)',
+  dataGreen: 'var(--color-data-categorical-green)',
+  dataPurple: 'var(--color-data-categorical-purple)',
+  dataPink: 'var(--color-data-categorical-pink)',
 } as const;
 
 export const spacing = {

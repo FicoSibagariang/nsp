@@ -3,6 +3,7 @@ import { Card } from '@astryxdesign/core/Card';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
+import { Selector } from '@astryxdesign/core/Selector';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { formatRp } from '../../../utils/format';
 import { Grid } from './Grid';
@@ -171,7 +172,7 @@ export const DepositConfirmModal: React.FC<DepositConfirmModalProps> = ({
         )}
 
         {/* Info Rekening Bank Resmi Koperasi */}
-        <Card style={{ padding: 14, backgroundColor: 'rgba(37, 99, 235, 0.05)', border: '1px solid var(--color-primary-200, #bfdbfe)' }}>
+        <Card style={{ padding: 14, backgroundColor: 'rgba(37, 99, 235, 0.05)', border: '1px solid var(--color-primary-200)' }}>
           <VStack gap={2}>
             <Text type="supporting" weight="bold" color="primary">
               🏦 Rekening Tujuan Transfer Koperasi:
@@ -193,23 +194,21 @@ export const DepositConfirmModal: React.FC<DepositConfirmModalProps> = ({
         </Card>
 
         <Grid gap={4}>
-          <VStack gap={2}>
-            <Text type="supporting" weight="semibold">Jenis Simpanan:</Text>
-            <select
-              value={depositSavingsType}
-              onChange={(e) => setDepositSavingsType(e.target.value as any)}
-              style={{ ...inputStyle, cursor: 'pointer' }}
-            >
-              <option
-                value="pokok"
-                disabled={(profile?.simpananPokok || 0) >= 500000}
-              >
-                Simpanan Pokok {(profile?.simpananPokok || 0) >= 500000 ? '(Sudah Lunas Rp 500.000)' : `(Sisa: ${formatRp(500000 - (profile?.simpananPokok || 0))})`}
-              </option>
-              <option value="wajib">Simpanan Wajib</option>
-              <option value="sukarela">Simpanan Sukarela</option>
-            </select>
-          </VStack>
+          <Selector
+            label="Jenis Simpanan"
+            value={depositSavingsType}
+            onChange={(val) => setDepositSavingsType(val as any)}
+            options={[
+              {
+                value: 'pokok',
+                label: `Simpanan Pokok ${(profile?.simpananPokok || 0) >= 500000 ? '(Sudah Lunas Rp 500.000)' : `(Sisa: ${formatRp(500000 - (profile?.simpananPokok || 0))})`}`,
+                disabled: (profile?.simpananPokok || 0) >= 500000,
+              },
+              { value: 'wajib', label: 'Simpanan Wajib' },
+              { value: 'sukarela', label: 'Simpanan Sukarela' },
+            ]}
+            width="100%"
+          />
 
           <VStack gap={2}>
             <Text type="supporting" weight="semibold">Nominal Setoran (Rp):</Text>
@@ -298,23 +297,15 @@ export const DepositConfirmModal: React.FC<DepositConfirmModalProps> = ({
                 <Text type="supporting" weight="medium" style={{ color: 'var(--color-text-success)' }}>
                   ✓ Bukti terunggah: {depositProofName}
                 </Text>
-                <button
-                  type="button"
+                <Button
+                  size="sm"
+                  variant="ghost"
                   onClick={() => {
                     setDepositProofUrl('');
                     setDepositProofName('');
                   }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--color-critical-500, #ef4444)',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    textDecoration: 'underline',
-                  }}
-                >
-                  Hapus
-                </button>
+                  label="Hapus"
+                />
               </HStack>
             )}
           </HStack>

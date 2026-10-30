@@ -3,6 +3,7 @@ import { VStack, HStack } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
 import { Button } from '@astryxdesign/core/Button';
+import { Selector } from '@astryxdesign/core/Selector';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
 import { Grid } from '@astryxdesign/core/Grid';
@@ -207,7 +208,7 @@ export function CreateLetterDialog({
             )}
 
             {/* Preview Nomor Surat Otomatis */}
-            <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-primary-500, #0171E3)' }}>
+            <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-primary-500)' }}>
               <VStack gap={1}>
                 <Text type="supporting" color="secondary">
                   {isManualNumber ? 'Nomor Surat (Input Manual):' : 'Pratinjau Nomor Surat Ter-Generate Otomatis:'}
@@ -219,20 +220,13 @@ export function CreateLetterDialog({
                   <Text type="supporting" size="sm" color="secondary">
                     Bebas duplikasi nomor, tersinkronisasi atomik dengan sequence database.
                   </Text>
-                  <button
+                  <Button
                     type="button"
+                    size="sm"
+                    variant="ghost"
                     onClick={() => setIsManualNumber(!isManualNumber)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--color-primary-500, #0171E3)',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                    }}
-                  >
-                    {isManualNumber ? 'Gunakan Auto-Number' : 'Gunakan Nomor Manual / Lama'}
-                  </button>
+                    label={isManualNumber ? 'Gunakan Auto-Number' : 'Gunakan Nomor Manual / Lama'}
+                  />
                 </HStack>
               </VStack>
             </Card>
@@ -252,19 +246,13 @@ export function CreateLetterDialog({
             )}
 
             <Grid gap={4}>
-              <VStack gap={2}>
-                <Text type="supporting">Kategori Surat</Text>
-                <select
-                  value={formCategory}
-                  onChange={(e) => setFormCategory(e.target.value)}
-                  style={inputStyle}
-                  required
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>{c.label} ({c.code})</option>
-                  ))}
-                </select>
-              </VStack>
+              <Selector
+                label="Kategori Surat"
+                value={formCategory}
+                onChange={setFormCategory}
+                options={categories.map((c) => ({ value: c.id, label: `${c.label} (${c.code})` }))}
+                width="100%"
+              />
 
               <VStack gap={2}>
                 <Text type="supporting">Tanggal Terbit Surat</Text>

@@ -254,7 +254,7 @@ export function ImportLoansDialogContent({ onClose, onSuccess }: Props) {
             {errorMsg && <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 600  }}>⚠️ {errorMsg}</Text>}
             {resultMsg && <Text type="supporting" style={{ fontWeight: 600, color: 'var(--color-text-success)' }}>✅ {resultMsg}</Text>}
             {importErrors.length > 0 && (
-              <VStack gap={1} style={{ padding: '8px', backgroundColor: 'var(--color-critical-50, #fef2f2)', borderRadius: '6px' }}>
+              <VStack gap={1} style={{ padding: '8px', backgroundColor: 'var(--color-critical-50)', borderRadius: '6px' }}>
                 <Text type="supporting" style={{ fontWeight: 600 }}>Baris yang gagal:</Text>
                 {importErrors.map((e, i) => (
                   <Text key={i} type="supporting" style={{ color: 'var(--color-text-error)' }}>• {e.identifier}: {e.message}</Text>
@@ -284,7 +284,7 @@ export function ImportLoansDialogContent({ onClose, onSuccess }: Props) {
                     </thead>
                     <tbody>
                       {rows.map((r, i) => (
-                        <tr key={i} style={{ borderTop: '1px solid var(--color-border-primary)', backgroundColor: r.isValid ? 'transparent' : 'var(--color-critical-50, #fef2f2)' }}>
+                        <tr key={i} style={{ borderTop: '1px solid var(--color-border-primary)', backgroundColor: r.isValid ? 'transparent' : 'var(--color-critical-50)' }}>
                           <td style={{ padding: '8px', fontFamily: 'monospace', fontSize: '12px' }}>{r.nik}</td>
                           <td style={{ padding: '8px' }}>{r.nama_pinjaman}</td>
                           <td style={{ padding: '8px' }}>{formatRp(r.jumlah)}</td>

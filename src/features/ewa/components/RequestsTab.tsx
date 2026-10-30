@@ -6,6 +6,8 @@ import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Button } from '@astryxdesign/core/Button';
 import { Badge } from '@astryxdesign/core/Badge';
+import { Selector } from '@astryxdesign/core/Selector';
+import { StatusBadge } from '../../../components/common/StatusBadge';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { Pagination } from '../../../components/Pagination';
 import { CopyableAccountNumber } from '../../../components/CopyableAccountNumber';
@@ -149,26 +151,11 @@ export function RequestsTab({
         header: 'Status',
         width: pixel(180),
         renderCell: (r: EWARequest) => {
-          let variant: any = 'neutral';
-          let label: string = r.status;
-          if (r.status === 'PENDING') {
-            variant = 'warning';
-            label = 'Menunggu Cair';
-          } else if (r.status === 'DISBURSED') {
-            variant = 'info';
-            label = 'Sudah Cair';
-          } else if (r.status === 'PAID_SETTLED') {
-            variant = 'success';
-            label = 'Lunas Payroll';
-          } else if (r.status === 'REJECTED') {
-            variant = 'error';
-            label = 'Ditolak';
-          }
           const reason = r.rejectionReason || (r as any).rejection_reason;
           const isDisbursedOrSettled = r.status === 'DISBURSED' || r.status === 'PAID_SETTLED';
           return (
             <VStack gap={1} hAlign="start">
-              <Badge variant={variant} label={label} />
+              <StatusBadge status={r.status} />
               {isDisbursedOrSettled && (
                 <>
                   {r.disbursedByName && (
@@ -270,28 +257,23 @@ export function RequestsTab({
               )}
             </div>
             <HStack gap={2} vAlign="center">
-              <Text type="supporting">Status:</Text>
-              <select
+              <Selector
+                label="Status"
+                size="sm"
                 value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
+                onChange={(val) => {
+                  setStatusFilter(val);
                   setReqPage(1);
                 }}
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: 6,
-                  border: '1px solid var(--color-border-primary)',
-                  backgroundColor: 'var(--color-background-primary)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: 13,
-                }}
-              >
-                <option value="">Semua Status</option>
-                <option value="PENDING">Menunggu Cair</option>
-                <option value="DISBURSED">Sudah Cair</option>
-                <option value="PAID_SETTLED">Lunas Payroll</option>
-                <option value="REJECTED">Ditolak</option>
-              </select>
+                options={[
+                  { value: '', label: 'Semua Status' },
+                  { value: 'PENDING', label: 'Menunggu Cair' },
+                  { value: 'DISBURSED', label: 'Sudah Cair' },
+                  { value: 'PAID_SETTLED', label: 'Lunas Payroll' },
+                  { value: 'REJECTED', label: 'Ditolak' },
+                ]}
+                width={170}
+              />
             </HStack>
           </HStack>
         </HStack>

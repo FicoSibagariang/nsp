@@ -4,6 +4,7 @@ import { Heading, Text } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
 import { Button } from '@astryxdesign/core/Button';
 import { Badge } from '@astryxdesign/core/Badge';
+import { StatusBadge } from '../../../components/common/StatusBadge';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { formatRp } from '../../../utils/format';
 import { Grid } from './Grid';
@@ -57,7 +58,7 @@ export const EwaTab: React.FC<EwaTabProps> = ({
     <VStack gap={6}>
       {/* Non-Member Conversion Banner */}
       {!profile?.isCoopMember && (
-        <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-warning-500, #f59e0b)' }}>
+        <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-warning-500)' }}>
           <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
             <VStack gap={1}>
               <Text type="body" weight="bold">
@@ -130,7 +131,7 @@ export const EwaTab: React.FC<EwaTabProps> = ({
           </VStack>
         </Card>
 
-        <Card style={{ padding: 16, backgroundColor: 'var(--color-background-primary-subtle, #eff6ff)', border: '1px solid var(--color-primary-500, #0171E3)' }}>
+        <Card style={{ padding: 16, backgroundColor: 'var(--color-background-primary-subtle)', border: '1px solid var(--color-primary-500)' }}>
           <VStack gap={1}>
             <HStack justify="between" vAlign="center">
               <Text type="supporting" weight="semibold">Sisa Kuota Siap Ditarik</Text>
@@ -178,7 +179,7 @@ export const EwaTab: React.FC<EwaTabProps> = ({
                 style={{
                   height: 12,
                   borderRadius: 9999,
-                  backgroundColor: 'var(--color-background-secondary, #e4e4e7)',
+                  backgroundColor: 'var(--color-background-secondary)',
                   overflow: 'hidden',
                   display: 'flex',
                   width: '100%',
@@ -190,7 +191,7 @@ export const EwaTab: React.FC<EwaTabProps> = ({
                     title={`Sudah ditarik: ${formatRp(used)} (${usedPct}%)`}
                     style={{
                       width: `${usedPct}%`,
-                      backgroundColor: 'var(--color-warning-500, #f59e0b)',
+                      backgroundColor: 'var(--color-warning-500)',
                       transition: 'width 0.3s ease',
                     }}
                   />
@@ -200,7 +201,7 @@ export const EwaTab: React.FC<EwaTabProps> = ({
                     title={`Siap ditarik hari ini: ${formatRp(remaining)} (${remainingPct}%)`}
                     style={{
                       width: `${remainingPct}%`,
-                      backgroundColor: 'var(--color-primary-500, #0171E3)',
+                      backgroundColor: 'var(--color-primary-500)',
                       transition: 'width 0.3s ease',
                     }}
                   />
@@ -210,7 +211,7 @@ export const EwaTab: React.FC<EwaTabProps> = ({
                     title={`Akan terbuka bertahap: ${formatRp(future)} (${futurePct}%)`}
                     style={{
                       width: `${futurePct}%`,
-                      backgroundColor: 'var(--color-border-primary, #cbd5e1)',
+                      backgroundColor: 'var(--color-border-primary)',
                       opacity: 0.6,
                       transition: 'width 0.3s ease',
                     }}
@@ -221,15 +222,15 @@ export const EwaTab: React.FC<EwaTabProps> = ({
               {/* Keterangan Warna / Legend */}
               <HStack gap={4} wrap="wrap" style={{ fontSize: 12, marginTop: 4 }}>
                 <HStack gap={1} vAlign="center">
-                  <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'var(--color-warning-500, #f59e0b)', display: 'inline-block' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'var(--color-warning-500)', display: 'inline-block' }} />
                   <Text type="supporting" size="sm">Sudah Ditarik: <b>{formatRp(used)}</b> ({usedPct}%)</Text>
                 </HStack>
                 <HStack gap={1} vAlign="center">
-                  <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'var(--color-primary-500, #0171E3)', display: 'inline-block' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'var(--color-primary-500)', display: 'inline-block' }} />
                   <Text type="supporting" size="sm">Siap Ditarik Hari Ini: <b>{formatRp(remaining)}</b> ({remainingPct}%)</Text>
                 </HStack>
                 <HStack gap={1} vAlign="center">
-                  <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'var(--color-border-primary, #94a3b8)', display: 'inline-block' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: 'var(--color-border-primary)', display: 'inline-block' }} />
                   <Text type="supporting" size="sm" color="secondary">Terbuka Bertahap: <b>{formatRp(future)}</b> ({futurePct}%)</Text>
                 </HStack>
               </HStack>
@@ -393,25 +394,14 @@ export const EwaTab: React.FC<EwaTabProps> = ({
                       {formatRp(h.totalPayrollDeduction)}
                     </td>
                     <td style={{ padding: '10px 12px', textAlign: 'center' }}>
-                      {(() => {
-                        const statusMap: Record<string, { label: string; variant: 'info' | 'success' | 'error' | 'warning' }> = {
-                          PENDING: { label: 'Menunggu Cair', variant: 'warning' },
-                          DISBURSED: { label: 'Sudah Cair', variant: 'info' },
-                          PAID_SETTLED: { label: 'Lunas Payroll', variant: 'success' },
-                          REJECTED: { label: 'Ditolak', variant: 'error' },
-                        };
-                        const st = statusMap[h.status] || { label: h.status, variant: 'neutral' as const };
-                        return (
-                          <VStack gap={1} hAlign="center">
-                            <Badge variant={st.variant} label={st.label} />
-                            {h.status === 'REJECTED' && h.rejectionReason && (
-                              <Text type="supporting" style={{ color: 'var(--color-text-error)', fontSize: 11 }}>
-                                Alasan: {h.rejectionReason}
-                              </Text>
-                            )}
-                          </VStack>
-                        );
-                      })()}
+                      <VStack gap={1} hAlign="center">
+                        <StatusBadge status={h.status} />
+                        {h.status === 'REJECTED' && h.rejectionReason && (
+                          <Text type="supporting" style={{ color: 'var(--color-text-error)', fontSize: 11 }}>
+                            Alasan: {h.rejectionReason}
+                          </Text>
+                        )}
+                      </VStack>
                     </td>
                   </tr>
                 ))}

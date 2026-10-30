@@ -154,7 +154,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({
             <a
               href="/login"
               style={{
-                color: 'var(--color-primary-500, #0171E3)',
+                color: 'var(--color-primary-500)',
                 textDecoration: 'underline',
                 cursor: 'pointer',
               }}

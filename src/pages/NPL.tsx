@@ -10,7 +10,8 @@ import {
   LayoutHeader,
 } from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
-import {Badge} from '@astryxdesign/core/Badge';
+import {Button} from '@astryxdesign/core/Button';
+import {StatusBadge} from '../components/common/StatusBadge';
 import {Card} from '@astryxdesign/core/Card';
 import {Grid} from '@astryxdesign/core/Grid';
 import {PowerSearch, usePowerSearchConfig} from '@astryxdesign/core/PowerSearch';
@@ -125,7 +126,7 @@ export default function NPLTemplate() {
             type="body"
             style={{
               fontWeight: 600,
-              color: isCritical ? 'var(--color-critical-500)' : isWarning ? 'var(--color-warning-600, #d97706)' : 'var(--color-text-primary)'
+              color: isCritical ? 'var(--color-critical-500)' : isWarning ? 'var(--color-warning-600)' : 'var(--color-text-primary)'
             }}
           >
             ⚠️ {dpd} Hari
@@ -139,19 +140,7 @@ export default function NPLTemplate() {
       width: proportional(1.8),
       renderCell: (item: NplRow) => {
         const col = item.collectibility || (item.status === 'Macet' ? 'Macet' : item.dpd && item.dpd > 90 ? 'Macet' : 'Lancar');
-        if (col === 'Macet') {
-          return <Badge variant="error" label="Macet (Kol 5)" />;
-        }
-        if (col === 'Diragukan') {
-          return <Badge variant="error" label="Diragukan (Kol 4)" />;
-        }
-        if (col === 'Kurang Lancar') {
-          return <Badge variant="warning" label="Kurang Lancar (Kol 3)" />;
-        }
-        if (col === 'Dalam Perhatian Khusus') {
-          return <Badge variant="warning" label="DPK (Kol 2)" />;
-        }
-        return <Badge variant="success" label="Lancar (Kol 1)" />;
+        return <StatusBadge status={col} />;
       },
     },
   ], []);
@@ -215,24 +204,13 @@ export default function NPLTemplate() {
                   { id: 'DIRAGUKAN', label: 'Diragukan (Kol 4 - 61-90 hr)' },
                   { id: 'MACET', label: 'Kredit Macet (Kol 5 - >90 hr)' },
                 ].map((tab) => (
-                  <button
+                  <Button
                     key={tab.id}
+                    size="sm"
+                    variant={selectedTab === tab.id ? 'primary' : 'secondary'}
                     onClick={() => setSelectedTab(tab.id as any)}
-                    style={{
-                      padding: '6px 14px',
-                      borderRadius: 'var(--radius-md, 6px)',
-                      border: '1px solid',
-                      borderColor: selectedTab === tab.id ? 'var(--color-primary-500)' : 'var(--color-border-primary)',
-                      backgroundColor: selectedTab === tab.id ? 'var(--color-primary-50)' : 'var(--color-background-primary)',
-                      color: selectedTab === tab.id ? 'var(--color-primary-700)' : 'var(--color-text-primary)',
-                      fontSize: '13px',
-                      fontWeight: selectedTab === tab.id ? 600 : 400,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
+                    label={tab.label}
+                  />
                 ))}
               </div>
 

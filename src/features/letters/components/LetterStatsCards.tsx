@@ -29,7 +29,7 @@ export function LetterStatsCards({ stats }: LetterStatsCardsProps) {
       <Card style={{ padding: 16 }}>
         <VStack gap={1}>
           <Text type="supporting" color="secondary">Perjanjian Pinjaman Modal (SPH-MODAL)</Text>
-          <Heading level={2} style={{ color: 'var(--color-warning-600, #d97706)' }}>
+          <Heading level={2} style={{ color: 'var(--color-warning-600)' }}>
             {stats?.byCategory?.['PINJAMAN_MODAL'] || 0}
           </Heading>
         </VStack>

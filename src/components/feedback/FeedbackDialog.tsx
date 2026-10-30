@@ -14,6 +14,7 @@ import {
   ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
 import { api } from '../../services/api';
+import { Button } from '@astryxdesign/core/Button';
 
 export type FeedbackType = 'bug' | 'feature' | 'general';
 
@@ -221,11 +222,11 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: 'var(--color-background-primary, #ffffff)',
-          color: 'var(--color-text-primary, #18181b)',
+          backgroundColor: 'var(--color-background-primary)',
+          color: 'var(--color-text-primary)',
           borderRadius: '16px',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-          border: '1px solid var(--color-border-primary, #e4e4e7)',
+          border: '1px solid var(--color-border-primary)',
           overflow: 'hidden',
           animation: 'fadeIn 0.15s ease-out',
         }}
@@ -237,7 +238,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '16px 20px',
-            borderBottom: '1px solid var(--color-border-primary, #e4e4e7)',
+            borderBottom: '1px solid var(--color-border-primary)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -246,11 +247,11 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                 width: '36px',
                 height: '36px',
                 borderRadius: '10px',
-                backgroundColor: 'var(--color-background-primary-subtle, #eff6ff)',
+                backgroundColor: 'var(--color-background-primary-subtle)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--color-primary-500, #0171E3)',
+                color: 'var(--color-primary-500)',
               }}
             >
               <CameraIcon style={{ width: '20px', height: '20px' }} />
@@ -266,7 +267,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                 style={{
                   margin: 0,
                   fontSize: '0.8rem',
-                  color: 'var(--color-text-secondary, #71717a)',
+                  color: 'var(--color-text-secondary)',
                 }}
               >
                 Bantu kami menyempurnakan aplikasi koperasi ini
@@ -282,7 +283,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
               border: 'none',
               padding: '6px',
               cursor: 'pointer',
-              color: 'var(--color-text-secondary, #71717a)',
+              color: 'var(--color-text-secondary)',
               borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
@@ -316,12 +317,12 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
               }}
             >
               <CheckCircleIcon
-                style={{ width: '56px', height: '56px', color: 'var(--color-success-500, #10b981)' }}
+                style={{ width: '56px', height: '56px', color: 'var(--color-success-500)' }}
               />
               <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>
                 Terima Kasih atas Masukan Anda!
               </h3>
-              <p style={{ margin: 0, color: 'var(--color-text-secondary, #71717a)', maxWidth: '360px' }}>
+              <p style={{ margin: 0, color: 'var(--color-text-secondary)', maxWidth: '360px' }}>
                 Laporan Anda telah kami terima dan akan segera ditindaklanjuti oleh tim pengembang koperasi.
               </p>
             </div>
@@ -332,8 +333,8 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                   style={{
                     padding: '10px 14px',
                     borderRadius: '8px',
-                    backgroundColor: 'var(--color-background-danger-subtle, #fce8e6)',
-                    color: 'var(--color-critical-500, #ef4444)',
+                    backgroundColor: 'var(--color-background-danger-subtle)',
+                    color: 'var(--color-critical-500)',
                     fontSize: '0.85rem',
                   }}
                 >
@@ -371,20 +372,20 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                       padding: '10px 8px',
                       borderRadius: '10px',
                       border: type === 'bug'
-                        ? '2px solid var(--color-critical-500, #ef4444)'
-                        : '1px solid var(--color-border-primary, #e4e4e7)',
+                        ? '2px solid var(--color-critical-500)'
+                        : '1px solid var(--color-border-primary)',
                       backgroundColor: type === 'bug'
-                        ? 'var(--color-background-danger-subtle, #fce8e6)'
+                        ? 'var(--color-background-danger-subtle)'
                         : 'transparent',
                       cursor: 'pointer',
-                      color: 'var(--color-text-primary, #18181b)',
+                      color: 'var(--color-text-primary)',
                     }}
                   >
                     <BugAntIcon
                       style={{
                         width: '20px',
                         height: '20px',
-                        color: type === 'bug' ? 'var(--color-critical-500, #ef4444)' : 'inherit',
+                        color: type === 'bug' ? 'var(--color-critical-500)' : 'inherit',
                       }}
                     />
                     <span style={{ fontSize: '0.8rem', fontWeight: type === 'bug' ? 600 : 500 }}>
@@ -403,20 +404,20 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                       padding: '10px 8px',
                       borderRadius: '10px',
                       border: type === 'feature'
-                        ? '2px solid var(--color-primary-500, #0171E3)'
-                        : '1px solid var(--color-border-primary, #e4e4e7)',
+                        ? '2px solid var(--color-primary-500)'
+                        : '1px solid var(--color-border-primary)',
                       backgroundColor: type === 'feature'
-                        ? 'var(--color-background-primary-subtle, #eff6ff)'
+                        ? 'var(--color-background-primary-subtle)'
                         : 'transparent',
                       cursor: 'pointer',
-                      color: 'var(--color-text-primary, #18181b)',
+                      color: 'var(--color-text-primary)',
                     }}
                   >
                     <LightBulbIcon
                       style={{
                         width: '20px',
                         height: '20px',
-                        color: type === 'feature' ? 'var(--color-primary-500, #0171E3)' : 'inherit',
+                        color: type === 'feature' ? 'var(--color-primary-500)' : 'inherit',
                       }}
                     />
                     <span style={{ fontSize: '0.8rem', fontWeight: type === 'feature' ? 600 : 500 }}>
@@ -435,20 +436,20 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                       padding: '10px 8px',
                       borderRadius: '10px',
                       border: type === 'general'
-                        ? '2px solid var(--color-success-500, #10b981)'
-                        : '1px solid var(--color-border-primary, #e4e4e7)',
+                        ? '2px solid var(--color-success-500)'
+                        : '1px solid var(--color-border-primary)',
                       backgroundColor: type === 'general'
-                        ? 'var(--color-background-success-subtle, #e6f4ea)'
+                        ? 'var(--color-background-success-subtle)'
                         : 'transparent',
                       cursor: 'pointer',
-                      color: 'var(--color-text-primary, #18181b)',
+                      color: 'var(--color-text-primary)',
                     }}
                   >
                     <ChatBubbleBottomCenterTextIcon
                       style={{
                         width: '20px',
                         height: '20px',
-                        color: type === 'general' ? 'var(--color-success-500, #10b981)' : 'inherit',
+                        color: type === 'general' ? 'var(--color-success-500)' : 'inherit',
                       }}
                     />
                     <span style={{ fontSize: '0.8rem', fontWeight: type === 'general' ? 600 : 500 }}>
@@ -469,7 +470,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                     marginBottom: '6px',
                   }}
                 >
-                  Judul Ringkas <span style={{ color: 'var(--color-text-secondary, #71717a)', fontWeight: 400 }}>(opsional)</span>
+                  Judul Ringkas <span style={{ color: 'var(--color-text-secondary)', fontWeight: 400 }}>(opsional)</span>
                 </label>
                 <input
                   id="feedback-title"
@@ -487,9 +488,9 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                     width: '100%',
                     padding: '8px 12px',
                     borderRadius: '8px',
-                    border: '1px solid var(--color-border-primary, #e4e4e7)',
-                    backgroundColor: 'var(--color-background-secondary, #f4f4f5)',
-                    color: 'var(--color-text-primary, #18181b)',
+                    border: '1px solid var(--color-border-primary)',
+                    backgroundColor: 'var(--color-background-secondary)',
+                    color: 'var(--color-text-primary)',
                     fontSize: '0.9rem',
                     boxSizing: 'border-box',
                   }}
@@ -507,7 +508,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                     marginBottom: '6px',
                   }}
                 >
-                  Deskripsi <span style={{ color: 'var(--color-critical-500, #ef4444)' }}>*</span>
+                  Deskripsi <span style={{ color: 'var(--color-critical-500)' }}>*</span>
                 </label>
                 <textarea
                   id="feedback-desc"
@@ -526,9 +527,9 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                     width: '100%',
                     padding: '10px 12px',
                     borderRadius: '8px',
-                    border: '1px solid var(--color-border-primary, #e4e4e7)',
-                    backgroundColor: 'var(--color-background-secondary, #f4f4f5)',
-                    color: 'var(--color-text-primary, #18181b)',
+                    border: '1px solid var(--color-border-primary)',
+                    backgroundColor: 'var(--color-background-secondary)',
+                    color: 'var(--color-text-primary)',
                     fontSize: '0.9rem',
                     fontFamily: 'inherit',
                     resize: 'vertical',
@@ -540,10 +541,10 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
               {/* Screenshot Section */}
               <div
                 style={{
-                  border: '1px solid var(--color-border-primary, #e4e4e7)',
+                  border: '1px solid var(--color-border-primary)',
                   borderRadius: '10px',
                   padding: '12px',
-                  backgroundColor: 'var(--color-background-subtle, #f8fafc)',
+                  backgroundColor: 'var(--color-background-subtle)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',
@@ -581,7 +582,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                         gap: '4px',
                         background: 'none',
                         border: 'none',
-                        color: 'var(--color-primary-500, #0171E3)',
+                        color: 'var(--color-primary-500)',
                         fontSize: '0.8rem',
                         cursor: 'pointer',
                         padding: '4px 6px',
@@ -607,9 +608,9 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                       alignItems: 'center',
                       gap: '12px',
                       padding: '8px',
-                      backgroundColor: 'var(--color-background-primary, #ffffff)',
+                      backgroundColor: 'var(--color-background-primary)',
                       borderRadius: '8px',
-                      border: '1px solid var(--color-border-primary, #e4e4e7)',
+                      border: '1px solid var(--color-border-primary)',
                     }}
                   >
                     <div
@@ -619,7 +620,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                         height: '60px',
                         borderRadius: '6px',
                         overflow: 'hidden',
-                        border: '1px solid var(--color-border-primary, #e4e4e7)',
+                        border: '1px solid var(--color-border-primary)',
                         flexShrink: 0,
                       }}
                     >
@@ -642,7 +643,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                         style={{
                           margin: '2px 0 0 0',
                           fontSize: '0.75rem',
-                          color: 'var(--color-text-secondary, #71717a)',
+                          color: 'var(--color-text-secondary)',
                         }}
                       >
                         Membantu tim melihat tampilan persis saat laporan dibuat
@@ -656,11 +657,11 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                         title="Lihat ukuran penuh"
                         style={{
                           background: 'none',
-                          border: '1px solid var(--color-border-primary, #e4e4e7)',
+                          border: '1px solid var(--color-border-primary)',
                           borderRadius: '6px',
                           padding: '6px',
                           cursor: 'pointer',
-                          color: 'var(--color-text-secondary, #71717a)',
+                          color: 'var(--color-text-secondary)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -675,11 +676,11 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                         title="Ganti dengan unggah gambar"
                         style={{
                           background: 'none',
-                          border: '1px solid var(--color-border-primary, #e4e4e7)',
+                          border: '1px solid var(--color-border-primary)',
                           borderRadius: '6px',
                           padding: '6px',
                           cursor: 'pointer',
-                          color: 'var(--color-text-secondary, #71717a)',
+                          color: 'var(--color-text-secondary)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -697,11 +698,11 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                         title="Hapus tangkapan layar"
                         style={{
                           background: 'none',
-                          border: '1px solid var(--color-border-primary, #e4e4e7)',
+                          border: '1px solid var(--color-border-primary)',
                           borderRadius: '6px',
                           padding: '6px',
                           cursor: 'pointer',
-                          color: 'var(--color-critical-500, #ef4444)',
+                          color: 'var(--color-critical-500)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -717,7 +718,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                       style={{
                         margin: 0,
                         fontSize: '0.75rem',
-                        color: 'var(--color-text-secondary, #71717a)',
+                        color: 'var(--color-text-secondary)',
                         fontStyle: 'italic',
                       }}
                     >
@@ -745,9 +746,9 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                               gap: '6px',
                               padding: '5px 10px',
                               borderRadius: '6px',
-                              border: '1px solid var(--color-border-primary, #e4e4e7)',
-                              backgroundColor: 'var(--color-background-primary, #ffffff)',
-                              color: 'var(--color-primary-500, #0171E3)',
+                              border: '1px solid var(--color-border-primary)',
+                              backgroundColor: 'var(--color-background-primary)',
+                              color: 'var(--color-primary-500)',
                               fontSize: '0.8rem',
                               fontWeight: 500,
                               cursor: isRetaking ? 'wait' : 'pointer',
@@ -766,9 +767,9 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                             gap: '6px',
                             padding: '5px 10px',
                             borderRadius: '6px',
-                            border: '1px solid var(--color-border-primary, #e4e4e7)',
-                            backgroundColor: 'var(--color-background-primary, #ffffff)',
-                            color: 'var(--color-text-primary, #18181b)',
+                            border: '1px solid var(--color-border-primary)',
+                            backgroundColor: 'var(--color-background-primary)',
+                            color: 'var(--color-text-primary)',
                             fontSize: '0.8rem',
                             fontWeight: 500,
                             cursor: 'pointer',
@@ -780,10 +781,10 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                         <span
                           style={{
                             fontSize: '0.75rem',
-                            color: 'var(--color-text-secondary, #71717a)',
+                            color: 'var(--color-text-secondary)',
                           }}
                         >
-                          atau tempel gambar dengan <kbd style={{ padding: '1px 5px', borderRadius: '4px', background: 'var(--color-background-secondary, #f4f4f5)', border: '1px solid var(--color-border-primary, #e4e4e7)', fontSize: '0.75rem' }}>Ctrl+V</kbd>
+                          atau tempel gambar dengan <kbd style={{ padding: '1px 5px', borderRadius: '4px', background: 'var(--color-background-secondary)', border: '1px solid var(--color-border-primary)', fontSize: '0.75rem' }}>Ctrl+V</kbd>
                         </span>
                       </div>
                     )}
@@ -803,7 +804,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
               {/* Metadata Details Accordion */}
               <div
                 style={{
-                  borderTop: '1px solid var(--color-border-primary, #e4e4e7)',
+                  borderTop: '1px solid var(--color-border-primary)',
                   paddingTop: '10px',
                 }}
               >
@@ -819,7 +820,7 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                     border: 'none',
                     padding: '4px 0',
                     cursor: 'pointer',
-                    color: 'var(--color-text-secondary, #71717a)',
+                    color: 'var(--color-text-secondary)',
                     fontSize: '0.75rem',
                   }}
                 >
@@ -837,9 +838,9 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                       marginTop: '6px',
                       padding: '8px 10px',
                       borderRadius: '6px',
-                      backgroundColor: 'var(--color-background-secondary, #f4f4f5)',
+                      backgroundColor: 'var(--color-background-secondary)',
                       fontSize: '0.75rem',
-                      color: 'var(--color-text-secondary, #71717a)',
+                      color: 'var(--color-text-secondary)',
                       lineHeight: 1.6,
                     }}
                   >
@@ -882,9 +883,9 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                         width: '100%',
                         padding: '6px 10px',
                         borderRadius: '6px',
-                        border: '1px solid var(--color-border-primary, #e4e4e7)',
-                        backgroundColor: 'var(--color-background-secondary, #f4f4f5)',
-                        color: 'var(--color-text-primary, #18181b)',
+                        border: '1px solid var(--color-border-primary)',
+                        backgroundColor: 'var(--color-background-secondary)',
+                        color: 'var(--color-text-primary)',
                         fontSize: '0.85rem',
                         boxSizing: 'border-box',
                       }}
@@ -912,9 +913,9 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                         width: '100%',
                         padding: '6px 10px',
                         borderRadius: '6px',
-                        border: '1px solid var(--color-border-primary, #e4e4e7)',
-                        backgroundColor: 'var(--color-background-secondary, #f4f4f5)',
-                        color: 'var(--color-text-primary, #18181b)',
+                        border: '1px solid var(--color-border-primary)',
+                        backgroundColor: 'var(--color-background-secondary)',
+                        color: 'var(--color-text-primary)',
                         fontSize: '0.85rem',
                         boxSizing: 'border-box',
                       }}
@@ -932,60 +933,20 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({
                   marginTop: '10px',
                 }}
               >
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
                   onClick={onClose}
-                  disabled={isSubmitting}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--color-border-primary, #e4e4e7)',
-                    backgroundColor: 'transparent',
-                    color: 'var(--color-text-primary, #18181b)',
-                    fontSize: '0.85rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Batal
-                </button>
+                  isDisabled={isSubmitting}
+                  label="Batal"
+                />
 
-                <button
+                <Button
                   type="submit"
-                  disabled={isSubmitting || description.trim().length < 5}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 18px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    backgroundColor: 'var(--color-primary-500, #0171E3)',
-                    color: '#ffffff',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    cursor: isSubmitting || description.trim().length < 5 ? 'not-allowed' : 'pointer',
-                    opacity: isSubmitting || description.trim().length < 5 ? 0.6 : 1,
-                  }}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div
-                        style={{
-                          width: '14px',
-                          height: '14px',
-                          border: '2px solid rgba(255,255,255,0.3)',
-                          borderTopColor: '#ffffff',
-                          borderRadius: '50%',
-                          animation: 'spin 0.8s linear infinite',
-                        }}
-                      />
-                      <span>Mengirim...</span>
-                    </>
-                  ) : (
-                    <span>Kirim Masukan</span>
-                  )}
-                </button>
+                  variant="primary"
+                  isLoading={isSubmitting}
+                  isDisabled={isSubmitting || description.trim().length < 5}
+                  label="Kirim Masukan"
+                />
               </div>
             </form>
           )}

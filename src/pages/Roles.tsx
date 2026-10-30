@@ -16,7 +16,7 @@ import { Button } from '@astryxdesign/core/Button';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
 import { Avatar } from '@astryxdesign/core/Avatar';
-import { Badge } from '@astryxdesign/core/Badge';
+import { StatusBadge } from '../components/common/StatusBadge';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import {
@@ -290,18 +290,9 @@ export default function RolesTemplate() {
       key: 'role',
       header: 'Peran / Hak Akses',
       width: proportional(1.2),
-      renderCell: (item: AdminRow) => {
-        let label = 'Viewer';
-        let variant: 'neutral' | 'success' | 'warning' = 'neutral';
-        if (item.role === 'superadmin') {
-          label = 'Superadmin';
-          variant = 'success';
-        } else if (item.role === 'admin') {
-          label = 'Admin';
-          variant = 'warning';
-        }
-        return <Badge variant={variant} label={label} />;
-      },
+      renderCell: (item: AdminRow) => (
+        <StatusBadge status={item.role} />
+      ),
     },
     {
       key: 'auth_provider',

@@ -291,7 +291,7 @@ function PendingActionsWidget({
 
   if (totalCount === 0) {
     return (
-      <Card style={{ borderLeft: '4px solid var(--color-success, #16a34a)', padding: '16px 20px' }}>
+      <Card style={{ borderLeft: '4px solid var(--color-success)', padding: '16px 20px' }}>
         <HStack gap={3} vAlign="center">
           <Icon icon={CheckCircleIcon} size="md" color="success" />
           <VStack gap={1}>
@@ -311,7 +311,7 @@ function PendingActionsWidget({
   return (
     <Card
       style={{
-        borderLeft: '4px solid var(--color-warning-500, #f59e0b)',
+        borderLeft: '4px solid var(--color-warning-500)',
         backgroundColor: 'var(--color-background-secondary, rgba(0, 0, 0, 0.02))',
         padding: '20px',
       }}
@@ -345,7 +345,7 @@ function PendingActionsWidget({
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 padding: '16px',
-                backgroundColor: 'var(--color-background-primary, #ffffff)',
+                backgroundColor: 'var(--color-background-primary)',
                 border: '1px solid var(--color-border-primary, rgba(0, 0, 0, 0.08))',
               }}
             >

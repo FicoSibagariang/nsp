@@ -299,9 +299,9 @@ export default function Shell() {
         <div
           role="status"
           style={{
-            backgroundColor: 'var(--color-warning-100, #fef3c7)',
-            color: 'var(--color-warning-800, #92400e)',
-            borderBottom: '1px solid var(--color-warning-300, #fcd34d)',
+            backgroundColor: 'var(--color-warning-100)',
+            color: 'var(--color-warning-800)',
+            borderBottom: '1px solid var(--color-warning-300)',
             padding: '6px 16px',
             fontSize: '12px',
             fontWeight: 600,

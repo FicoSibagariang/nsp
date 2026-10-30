@@ -3,6 +3,7 @@ import { Card } from '@astryxdesign/core/Card';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Button } from '@astryxdesign/core/Button';
+import { Selector } from '@astryxdesign/core/Selector';
 import { formatRp } from '../../../utils/format';
 import { Grid } from './Grid';
 import type { MemberProfile } from '../types';
@@ -174,21 +175,16 @@ export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
             />
           </VStack>
 
-          <VStack gap={2}>
-            <Text type="supporting">Tenor (Bulan)</Text>
-            <select
-              value={applyTenor}
-              onChange={(e) => setApplyTenor(e.target.value)}
-              style={inputStyle}
-              required
-            >
-              {Array.from({ length: 24 }, (_, i) => i + 1).map((m) => (
-                <option key={m} value={String(m)}>
-                  {m} Bulan{m === 12 ? ' (1 Tahun)' : m === 24 ? ' (2 Tahun)' : ''}
-                </option>
-              ))}
-            </select>
-          </VStack>
+          <Selector
+            label="Tenor (Bulan)"
+            value={applyTenor}
+            onChange={setApplyTenor}
+            options={Array.from({ length: 24 }, (_, i) => i + 1).map((m) => ({
+              value: String(m),
+              label: `${m} Bulan${m === 12 ? ' (1 Tahun)' : m === 24 ? ' (2 Tahun)' : ''}`,
+            }))}
+            width="100%"
+          />
         </Grid>
 
         <VStack gap={2}>

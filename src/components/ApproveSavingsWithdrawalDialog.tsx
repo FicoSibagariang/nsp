@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { VStack, HStack } from '@astryxdesign/core/Layout';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
+import { Selector } from '@astryxdesign/core/Selector';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { formatRp } from '../utils/format';
 import { CopyableAccountNumber } from './CopyableAccountNumber';
@@ -66,9 +67,9 @@ export function ApproveSavingsWithdrawalDialogContent({
           gap={2}
           style={{
             padding: '12px 16px',
-            backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+            backgroundColor: 'var(--color-background-secondary)',
             borderRadius: 8,
-            border: '1px solid var(--color-border-primary, #e5e7eb)',
+            border: '1px solid var(--color-border-primary)',
           }}
         >
           <HStack justify="between" vAlign="center">
@@ -95,38 +96,20 @@ export function ApproveSavingsWithdrawalDialogContent({
           )}
         </VStack>
 
-        <VStack gap={2}>
-          <label htmlFor="source-account" style={{ fontSize: 14, fontWeight: 600 }}>
-            Sumber Dana Pembayaran (Kas / Bank)
-          </label>
-          <select
-            id="source-account"
-            value={selectedAccountId}
-            onChange={(e) => setSelectedAccountId(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '10px 12px',
-              borderRadius: 6,
-              border: '1px solid var(--color-border-primary, #e5e7eb)',
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
-              color: 'var(--color-text-primary, #111827)',
-              fontSize: 14,
-              boxSizing: 'border-box',
-            }}
-          >
-            {paymentSources.map((acc) => (
-              <option key={acc.id} value={acc.id}>
-                {acc.name} ({acc.code})
-              </option>
-            ))}
-            {paymentSources.length === 0 && (
-              <>
-                <option value="ed0ad424-aff5-4a79-8fa2-24eaa541d6fc">Bank Mandiri (11102)</option>
-                <option value="64fa79d2-cd8f-414a-80ac-7daae0e3fd1f">Kas Kecil (11101)</option>
-              </>
-            )}
-          </select>
-        </VStack>
+        <Selector
+          label="Sumber Dana Pembayaran (Kas / Bank)"
+          value={selectedAccountId}
+          onChange={setSelectedAccountId}
+          options={
+            paymentSources.length > 0
+              ? paymentSources.map((acc) => ({ value: acc.id, label: `${acc.name} (${acc.code})` }))
+              : [
+                  { value: 'ed0ad424-aff5-4a79-8fa2-24eaa541d6fc', label: 'Bank Mandiri (11102)' },
+                  { value: '64fa79d2-cd8f-414a-80ac-7daae0e3fd1f', label: 'Kas Kecil (11101)' },
+                ]
+          }
+          width="100%"
+        />
 
         <VStack gap={2}>
           <label htmlFor="admin-notes" style={{ fontSize: 14, fontWeight: 600 }}>
@@ -142,9 +125,9 @@ export function ApproveSavingsWithdrawalDialogContent({
               width: '100%',
               padding: '10px 12px',
               borderRadius: 6,
-              border: '1px solid var(--color-border-primary, #e5e7eb)',
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
-              color: 'var(--color-text-primary, #111827)',
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-background-primary)',
+              color: 'var(--color-text-primary)',
               fontSize: 14,
               boxSizing: 'border-box',
             }}

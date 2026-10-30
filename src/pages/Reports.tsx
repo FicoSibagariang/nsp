@@ -9,6 +9,7 @@ import {
   LayoutHeader,
 } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
+import { Button } from '@astryxdesign/core/Button';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { useAuth } from '../hooks/useAuth';
 import { DataStateView } from '../components/DataStateView';
@@ -187,72 +188,34 @@ export default function ReportsTemplate() {
             <StackItem size="fill">
               <HStack gap={3} vAlign="center">
                 <Heading level={1}>Laporan Koperasi</Heading>
-                <button
-                  type="button"
+                <Button
+                  size="sm"
+                  variant={isSidebarCollapsed ? 'primary' : 'secondary'}
                   onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    borderRadius: '6px',
-                    border: '1px solid var(--color-border-primary)',
-                    backgroundColor: isSidebarCollapsed
-                      ? 'var(--color-primary-500)'
-                      : 'var(--color-background-primary)',
-                    color: isSidebarCollapsed ? '#ffffff' : 'var(--color-text-primary)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  title={
+                  label={isSidebarCollapsed ? '📑 Buka Menu Laporan' : '◀ Sembunyikan Menu'}
+                  tooltip={
                     isSidebarCollapsed
                       ? 'Tampilkan panel menu laporan & filter'
                       : 'Sembunyikan panel untuk memperluas tampilan laporan'
                   }
-                >
-                  <span>{isSidebarCollapsed ? '📑 Buka Menu Laporan' : '◀ Sembunyikan Menu'}</span>
-                </button>
+                />
               </HStack>
             </StackItem>
             <StackItem>
               {canExportReports && (
                 <HStack gap={2}>
-                  <button
+                  <Button
+                    size="sm"
+                    variant="primary"
                     onClick={handleExportCSV}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: 'var(--color-success-500)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    📥 Ekspor CSV
-                  </button>
-                  <button
+                    label="📥 Ekspor CSV"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
                     onClick={handlePrint}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: 'var(--color-primary-500)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    🖨️ Cetak Laporan
-                  </button>
+                    label="🖨️ Cetak Laporan"
+                  />
                 </HStack>
               )}
             </StackItem>
@@ -300,26 +263,12 @@ export default function ReportsTemplate() {
             <div style={{ flex: '1 1 0', minWidth: 0, width: '100%' }}>
               {isSidebarCollapsed && (
                 <div className="no-print" style={{ marginBottom: '12px' }}>
-                  <button
-                    type="button"
+                  <Button
+                    size="sm"
+                    variant="primary"
                     onClick={() => setIsSidebarCollapsed(false)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 14px',
-                      fontSize: '13px',
-                      fontWeight: 600,
-                      borderRadius: '6px',
-                      border: '1px solid var(--color-border-primary)',
-                      backgroundColor: 'var(--color-background-primary)',
-                      color: 'var(--color-text-primary)',
-                      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <span>📑 Buka Pilihan Laporan & Filter</span>
-                  </button>
+                    label="📑 Buka Pilihan Laporan & Filter"
+                  />
                 </div>
               )}
 

@@ -52,9 +52,9 @@ export function RejectSavingsWithdrawalDialogContent({
           gap={2}
           style={{
             padding: '12px 16px',
-            backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+            backgroundColor: 'var(--color-background-secondary)',
             borderRadius: 8,
-            border: '1px solid var(--color-border-primary, #e5e7eb)',
+            border: '1px solid var(--color-border-primary)',
           }}
         >
           <HStack justify="between" vAlign="center">
@@ -69,7 +69,7 @@ export function RejectSavingsWithdrawalDialogContent({
 
         <VStack gap={2}>
           <label htmlFor="rejection-reason" style={{ fontSize: 14, fontWeight: 600 }}>
-            Alasan Penolakan <span style={{ color: 'var(--color-critical-500, #ef4444)' }}>*</span>
+            Alasan Penolakan <span style={{ color: 'var(--color-critical-500)' }}>*</span>
           </label>
           <textarea
             id="rejection-reason"
@@ -84,9 +84,9 @@ export function RejectSavingsWithdrawalDialogContent({
               width: '100%',
               padding: '10px 12px',
               borderRadius: 6,
-              border: `1px solid ${error ? 'var(--color-critical-500, #ef4444)' : 'var(--color-border-primary, #e5e7eb)'}`,
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
-              color: 'var(--color-text-primary, #111827)',
+              border: `1px solid ${error ? 'var(--color-critical-500)' : 'var(--color-border-primary)'}`,
+              backgroundColor: 'var(--color-background-primary)',
+              color: 'var(--color-text-primary)',
               fontSize: 14,
               boxSizing: 'border-box',
               resize: 'vertical',

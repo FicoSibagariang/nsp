@@ -185,7 +185,7 @@ export const FeedbackWidget: React.FC = () => {
             display: 'flex',
             alignItems: 'center',
             padding: isHovered || isCapturing ? '10px 14px 10px 12px' : '10px 10px 10px 10px',
-            backgroundColor: 'var(--color-primary-500, #0171E3)',
+            backgroundColor: 'var(--color-primary-500)',
             color: '#ffffff',
             border: 'none',
             borderTopLeftRadius: '12px',

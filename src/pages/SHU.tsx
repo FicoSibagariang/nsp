@@ -226,42 +226,18 @@ export default function SHU() {
                       gap: 2,
                     }}
                   >
-                    <button
-                      type="button"
+                    <Button
+                      size="sm"
+                      variant={mode === 'realization' ? 'primary' : 'ghost'}
                       onClick={() => setMode('realization')}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 'var(--radius-md, 6px)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontWeight: mode === 'realization' ? 600 : 500,
-                        fontSize: 13,
-                        backgroundColor: mode === 'realization' ? 'var(--color-background-primary)' : 'transparent',
-                        color: mode === 'realization' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                        boxShadow: mode === 'realization' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      Realisasi (YTD)
-                    </button>
-                    <button
-                      type="button"
+                      label="Realisasi (YTD)"
+                    />
+                    <Button
+                      size="sm"
+                      variant={mode === 'projection' ? 'primary' : 'ghost'}
                       onClick={() => setMode('projection')}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 'var(--radius-md, 6px)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontWeight: mode === 'projection' ? 600 : 500,
-                        fontSize: 13,
-                        backgroundColor: mode === 'projection' ? 'var(--color-background-primary)' : 'transparent',
-                        color: mode === 'projection' ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                        boxShadow: mode === 'projection' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      Proyeksi Akhir Tahun
-                    </button>
+                      label="Proyeksi Akhir Tahun"
+                    />
                   </div>
                 )}
                 {hasPermission('update:settings') && (

@@ -237,7 +237,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
             padding: 'var(--spacing-4)',
             backgroundColor: 'var(--color-background-secondary, var(--color-background-body))',
             borderRadius: 'var(--radius-md, 8px)',
-            border: '1px solid var(--color-border-primary, var(--color-border, #e5e7eb))',
+            border: '1px solid var(--color-border-primary, var(--color-border))',
             width: '100%',
           }}
         >
@@ -268,7 +268,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
                 hAlign="between"
                 style={{
                   width: '100%',
-                  borderTop: '1px dashed var(--color-border-primary, #e5e7eb)',
+                  borderTop: '1px dashed var(--color-border-primary)',
                   paddingTop: 'var(--spacing-2)',
                   marginTop: 'var(--spacing-1)',
                 }}
@@ -294,7 +294,7 @@ export function AddLoanDialogContent({onClose, onAdd}: Props) {
             bottom: 0,
             paddingTop: 'var(--spacing-3)',
             paddingBottom: 'var(--spacing-1)',
-            backgroundColor: 'var(--color-background-primary, var(--color-background-body, #fff))',
+            backgroundColor: 'var(--color-background-primary, var(--color-background-body))',
             borderTop: '1px solid var(--color-border-primary, rgba(0,0,0,0.08))',
             zIndex: 1,
           }}

@@ -10,7 +10,7 @@ import {
   LayoutHeader,
 } from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
-import {Badge} from '@astryxdesign/core/Badge';
+import {StatusBadge} from '../components/common/StatusBadge';
 import {Card} from '@astryxdesign/core/Card';
 import {Grid} from '@astryxdesign/core/Grid';
 import {PowerSearch, usePowerSearchConfig} from '@astryxdesign/core/PowerSearch';
@@ -107,11 +107,9 @@ export default function CashflowTemplate() {
       key: 'flowType',
       header: 'Arus',
       width: proportional(1.5),
-      renderCell: (item: CashflowRow) => {
-        const variant = item.flowType === 'inflow' ? 'success' : 'error';
-        const label = item.flowType === 'inflow' ? 'Masuk' : 'Keluar';
-        return <Badge variant={variant} label={label} />;
-      },
+      renderCell: (item: CashflowRow) => (
+        <StatusBadge status={item.flowType as any} />
+      ),
     },
   ], []);
 

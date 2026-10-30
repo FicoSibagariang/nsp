@@ -2,7 +2,9 @@ import React from 'react';
 import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
+import { Button } from '@astryxdesign/core/Button';
 import { Badge } from '@astryxdesign/core/Badge';
+import { StatusBadge } from '../../../components/common/StatusBadge';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { formatRp } from '../../../utils/format';
@@ -77,7 +79,7 @@ export const SavingsTab: React.FC<SavingsTabProps> = ({
       header: 'Nominal Penarikan',
       width: pixel(160),
       renderCell: (i) => (
-        <Text type="body" weight="bold" style={{ color: 'var(--color-critical-500, #ef4444)' }}>
+        <Text type="body" weight="bold" style={{ color: 'var(--color-critical-500)' }}>
           {formatRp(i.amount)}
         </Text>
       ),
@@ -101,13 +103,9 @@ export const SavingsTab: React.FC<SavingsTabProps> = ({
       key: 'status',
       header: 'Status',
       width: pixel(120),
-      renderCell: (i) => {
-        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
-        if (i.status === 'Menunggu') variant = 'warning';
-        else if (i.status === 'Disetujui') variant = 'success';
-        else if (i.status === 'Ditolak') variant = 'error';
-        return <Badge variant={variant} label={i.status} />;
-      },
+      renderCell: (i) => (
+        <StatusBadge status={i.status} />
+      ),
     },
     {
       key: 'notes',
@@ -144,18 +142,9 @@ export const SavingsTab: React.FC<SavingsTabProps> = ({
       key: 'savingsType',
       header: 'Jenis Simpanan',
       width: pixel(150),
-      renderCell: (i) => {
-        let label = 'Simpanan Sukarela';
-        let variant: 'info' | 'neutral' | 'success' = 'neutral';
-        if (i.savingsType === 'pokok') {
-          label = 'Simpanan Pokok';
-          variant = 'info';
-        } else if (i.savingsType === 'wajib') {
-          label = 'Simpanan Wajib';
-          variant = 'success';
-        }
-        return <Badge variant={variant} label={label} />;
-      },
+      renderCell: (i) => (
+        <StatusBadge status={i.savingsType} />
+      ),
     },
     {
       key: 'amount',
@@ -198,7 +187,7 @@ export const SavingsTab: React.FC<SavingsTabProps> = ({
             target="_blank"
             rel="noreferrer"
             style={{
-              color: 'var(--color-primary-600, #2563eb)',
+              color: 'var(--color-primary-600)',
               textDecoration: 'underline',
               fontSize: 13,
               fontWeight: 500,
@@ -213,13 +202,9 @@ export const SavingsTab: React.FC<SavingsTabProps> = ({
       key: 'status',
       header: 'Status',
       width: pixel(120),
-      renderCell: (i) => {
-        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
-        if (i.status === 'Menunggu') variant = 'warning';
-        else if (i.status === 'Diverifikasi') variant = 'success';
-        else if (i.status === 'Ditolak') variant = 'error';
-        return <Badge variant={variant} label={i.status} />;
-      },
+      renderCell: (i) => (
+        <StatusBadge status={i.status} />
+      ),
     },
     {
       key: 'notes',
@@ -274,22 +259,12 @@ export const SavingsTab: React.FC<SavingsTabProps> = ({
             <HStack justify="between" vAlign="center">
               <Text type="supporting">Sukarela</Text>
               {(profile?.simpananSukarela || 0) > 0 && (
-                <button
-                  type="button"
+                <Button
+                  size="sm"
+                  variant="ghost"
                   onClick={onOpenWithdrawForm}
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: 'var(--color-primary-600, #2563eb)',
-                    backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                    border: 'none',
-                    borderRadius: 4,
-                    padding: '2px 8px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  + Tarik Dana
-                </button>
+                  label="+ Tarik Dana"
+                />
               )}
             </HStack>
             <Heading level={3}>{formatRp(profile?.simpananSukarela || 0)}</Heading>

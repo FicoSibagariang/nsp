@@ -28,7 +28,7 @@ import {Card} from '@astryxdesign/core/Card';
 import {IconButton} from '@astryxdesign/core/IconButton';
 import {Icon} from '@astryxdesign/core/Icon';
 import {Avatar} from '@astryxdesign/core/Avatar';
-import {Badge} from '@astryxdesign/core/Badge';
+import {StatusBadge} from '../components/common/StatusBadge';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Selector} from '@astryxdesign/core/Selector';
 import { useDemoMode } from '../contexts/DemoModeContextDef';
@@ -270,7 +270,7 @@ export default function LoansTemplate() {
                       borderRadius: '4px',
                       backgroundColor: 'var(--color-background-secondary)',
                       border: '1px solid var(--color-border-primary)',
-                      color: 'var(--color-primary-500, #0171E3)',
+                      color: 'var(--color-primary-500)',
                       textDecoration: 'none',
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -333,13 +333,9 @@ export default function LoansTemplate() {
       header: 'Status',
       width: pixel(140),
       renderCell: (item: LoanRow) => {
-        let variant: 'neutral' | 'success' | 'error' | 'warning' = 'neutral';
-        if (item.status === 'Disetujui') variant = 'success';
-        if (item.status === 'Ditolak') variant = 'error';
-        if (item.status === 'Menunggu') variant = 'warning';
         return (
           <VStack gap={1}>
-            <Badge variant={variant} label={item.status} />
+            <StatusBadge status={item.status} />
             {item.status === 'Ditolak' && (item.rejectionReason || (item as any).rejection_reason) && (
               <Text
                 type="supporting"

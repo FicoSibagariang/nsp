@@ -83,7 +83,7 @@ export const ShuTab: React.FC<ShuTabProps> = ({
 
   if (shuError) {
     return (
-      <Card style={{ padding: 16, borderColor: 'var(--color-danger-500, #ef4444)' }}>
+      <Card style={{ padding: 16, borderColor: 'var(--color-danger-500)' }}>
         <Text style={{ color: 'var(--color-text-error)' }}>{shuError}</Text>
       </Card>
     );
@@ -104,7 +104,7 @@ export const ShuTab: React.FC<ShuTabProps> = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--color-primary-500, #3b82f6)',
+                color: 'var(--color-primary-500)',
                 flexShrink: 0,
               }}
             >
@@ -153,7 +153,7 @@ export const ShuTab: React.FC<ShuTabProps> = ({
               Akumulasi hak SHU dari bunga yang sudah terbayar dan saldo simpanan berjalan s/d hari ini.
             </Text>
 
-            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--color-border-primary, #e2e8f0)' }}>
+            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--color-border-primary)' }}>
               <VStack gap={2}>
                 <HStack justify="between">
                   <Text type="supporting">Jasa Modal (Simpanan):</Text>
@@ -176,14 +176,14 @@ export const ShuTab: React.FC<ShuTabProps> = ({
         <Card
           style={{
             padding: 20,
-            border: '2px solid var(--color-primary-500, #3b82f6)',
+            border: '2px solid var(--color-primary-500)',
             backgroundColor: 'rgba(59, 130, 246, 0.03)',
           }}
         >
           <VStack gap={3}>
             <HStack justify="between" vAlign="center">
               <HStack gap={1} vAlign="center">
-                <SparklesIcon style={{ width: 16, height: 16, color: 'var(--color-primary-500, #3b82f6)' }} />
+                <SparklesIcon style={{ width: 16, height: 16, color: 'var(--color-primary-500)' }} />
                 <Text type="supporting" weight="bold" color="primary">
                   Proyeksi Akhir Tahun (s/d 31 Des)
                 </Text>
@@ -205,7 +205,7 @@ export const ShuTab: React.FC<ShuTabProps> = ({
                   )} potensi tambahan).`}
             </Text>
 
-            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--color-border-primary, #e2e8f0)' }}>
+            <div style={{ marginTop: 8, paddingTop: 12, borderTop: '1px solid var(--color-border-primary)' }}>
               <VStack gap={2}>
                 <HStack justify="between">
                   <Text type="supporting">Estimasi Jasa Modal (Simpanan):</Text>
@@ -238,7 +238,7 @@ export const ShuTab: React.FC<ShuTabProps> = ({
                   Basis pembagian Jasa Modal (Simpanan).
                 </Text>
               </VStack>
-              <div style={{ paddingTop: 8, borderTop: '1px solid var(--color-border-primary, #e2e8f0)' }}>
+              <div style={{ paddingTop: 8, borderTop: '1px solid var(--color-border-primary)' }}>
                 <VStack gap={1}>
                   <Text type="supporting">Porsi Simpanan Anda:</Text>
                   <Text type="body" weight="bold" color="primary">
@@ -301,7 +301,7 @@ export const ShuTab: React.FC<ShuTabProps> = ({
                     <Text type="supporting">Dana Pool Jasa Simpanan (Proyeksi):</Text>
                     <Text type="body" weight="semibold">{formatRp(shuData?.projection?.jasaSimpananPool || 0)}</Text>
                   </HStack>
-                  <div style={{ borderTop: '1px dashed var(--color-border-primary, #cbd5e1)', paddingTop: 6 }}>
+                  <div style={{ borderTop: '1px dashed var(--color-border-primary)', paddingTop: 6 }}>
                     <HStack justify="between">
                       <Text type="body" weight="bold">Estimasi Jasa Modal Anda:</Text>
                       <Text type="body" weight="bold" color="primary">
@@ -342,7 +342,7 @@ export const ShuTab: React.FC<ShuTabProps> = ({
                     <Text type="supporting">Dana Pool Jasa Pinjaman (Proyeksi):</Text>
                     <Text type="body" weight="semibold">{formatRp(shuData?.projection?.jasaPinjamanPool || 0)}</Text>
                   </HStack>
-                  <div style={{ borderTop: '1px dashed var(--color-border-primary, #cbd5e1)', paddingTop: 6 }}>
+                  <div style={{ borderTop: '1px dashed var(--color-border-primary)', paddingTop: 6 }}>
                     <HStack justify="between">
                       <Text type="body" weight="bold">Estimasi Jasa Pinjaman Anda:</Text>
                       <Text type="body" weight="bold" color="primary">
@@ -370,7 +370,7 @@ export const ShuTab: React.FC<ShuTabProps> = ({
         style={{
           padding: 18,
           backgroundColor: 'var(--color-background-secondary)',
-          borderLeft: '4px solid var(--color-warning-500, #f59e0b)',
+          borderLeft: '4px solid var(--color-warning-500)',
         }}
       >
         <VStack gap={2}>

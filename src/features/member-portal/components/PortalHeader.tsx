@@ -71,7 +71,7 @@ export const PortalHeader: React.FC<PortalHeaderProps> = ({
           style={{
             padding: 16,
             backgroundColor: 'var(--color-background-secondary)',
-            border: '1px solid var(--color-warning-500, #f59e0b)',
+            border: '1px solid var(--color-warning-500)',
             margin: '16px 16px 0 16px',
           }}
         >

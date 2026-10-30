@@ -11,7 +11,7 @@ import {Text} from '@astryxdesign/core/Text';
 import {formatRp} from '../utils/format';
 import {Table, proportional, pixel} from '@astryxdesign/core/Table';
 import type {TableColumn} from '@astryxdesign/core/Table';
-import {Badge} from '@astryxdesign/core/Badge';
+import {StatusBadge} from './common/StatusBadge';
 import {useApiQuery} from '../hooks/useApiQuery';
 import {Spinner} from '@astryxdesign/core/Spinner';
 import {Center} from '@astryxdesign/core/Center';
@@ -61,18 +61,9 @@ export function TransactionHistoryDialogContent({
       key: 'type',
       header: 'Jenis',
       width: pixel(190),
-      renderCell: (item: Transaction) => {
-        const labels: Record<string, string> = {
-          setor_pokok: 'Setor Simpanan Pokok',
-          setor_wajib: 'Setor Simpanan Wajib',
-          setor_sukarela: 'Setor Simpanan Sukarela',
-          tarik_sukarela: 'Tarik Simpanan Sukarela',
-          bunga: 'Jasa Simpanan',
-        };
-        const label = labels[item.type] ?? item.type?.replace(/_/g, ' ');
-        const isDebit = item.type.startsWith('tarik');
-        return <Badge variant={isDebit ? 'warning' : 'success'} label={label} />;
-      },
+      renderCell: (item: Transaction) => (
+        <StatusBadge status={item.type as string} />
+      ),
     },
     {
       key: 'amount',
