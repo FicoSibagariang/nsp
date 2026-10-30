@@ -1,10 +1,8 @@
 import { Hono } from 'hono'
 import db from '../db'
-import type { TransactionRow } from '../db/entities'
 import { requirePermission } from '../middleware'
 import { parsePagination } from '../services/pagination'
 import {
-  SAVINGS_TRANSACTION_TYPES,
   batchSavingsImportSchema,
   savingsWithdrawalApproveSchema,
   savingsWithdrawalRejectSchema,
@@ -35,11 +33,6 @@ import { audit, getActor, getClientIp } from '../lib/audit'
 import { clearStatsCache } from './stats'
 
 const savings = new Hono()
-
-// Validate that transaction type is in the allowed enum
-function isValidTransactionType(type: string): type is (typeof SAVINGS_TRANSACTION_TYPES)[number] {
-  return (SAVINGS_TRANSACTION_TYPES as readonly string[]).includes(type)
-}
 
 savings.get('/transactions', requirePermission('read:members'), async (c) => {
   const { page, limit } = parsePagination(c.req.query('page'), c.req.query('limit'))

@@ -8,8 +8,14 @@ import {formatRp, formatDate} from '../utils/format';
 import {useApiQuery} from '../hooks/useApiQuery';
 import {CopyableAccountNumber} from './CopyableAccountNumber';
 import type {LoanRow, SettingsData} from '@shared/types';
-import {useDemoMode} from '../contexts/DemoModeContext';
+import {useDemoMode} from '../contexts/DemoModeContextDef';
 import {maskName} from '../utils/privacyMask';
+import {
+  getDefaultFirstDueDate,
+  computeScheduleDueDates,
+  getEndOfMonth,
+  isEndOfMonthStr,
+} from '../utils/loanDueDates';
 
 function todayIsoDate(): string {
   const d = new Date();
@@ -17,62 +23,6 @@ function todayIsoDate(): string {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
-}
-
-export function getEndOfMonth(year: number, month1Indexed: number): string {
-  const d = new Date(year, month1Indexed, 0);
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-export function isEndOfMonthStr(dateStr: string): boolean {
-  const parts = dateStr.split('-').map(Number);
-  if (parts.length !== 3) return false;
-  const [year, month, day] = parts;
-  const maxDay = new Date(year, month, 0).getDate();
-  return day === maxDay;
-}
-
-export function getDefaultFirstDueDate(approvedDateStr: string): string {
-  const parts = approvedDateStr.split('-').map(Number);
-  if (parts.length !== 3) return todayIsoDate();
-  const [year, month, day] = parts;
-  if (day <= 20) {
-    return getEndOfMonth(year, month);
-  }
-  return getEndOfMonth(year, month + 1);
-}
-
-export function computeScheduleDueDates(firstDueDateStr: string, tenorMonths: number): string[] {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(firstDueDateStr);
-  if (!match) return [];
-  const startYear = Number(match[1]);
-  const startMonth = Number(match[2]);
-  const startDay = Number(match[3]);
-  const isEOM = isEndOfMonthStr(firstDueDateStr);
-
-  const dueDates: string[] = [];
-  for (let i = 0; i < tenorMonths; i++) {
-    const targetMonthIndex = (startMonth - 1) + i;
-    if (isEOM) {
-      const d = new Date(startYear, targetMonthIndex + 1, 0);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      dueDates.push(`${yyyy}-${mm}-${dd}`);
-    } else {
-      const maxDay = new Date(startYear, targetMonthIndex + 1, 0).getDate();
-      const actualDay = Math.min(startDay, maxDay);
-      const d = new Date(startYear, targetMonthIndex, actualDay);
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const dd = String(d.getDate()).padStart(2, '0');
-      dueDates.push(`${yyyy}-${mm}-${dd}`);
-    }
-  }
-  return dueDates;
 }
 
 function simulateAnnuity(amount: number, tenorMonths: number, annualRatePercent: number) {
@@ -122,7 +72,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
   const defaultRate = parseFloat(settings?.bungaPinjaman || '0') || 0;
 
   const {data: paymentSourcesRes} = useApiQuery<{success: boolean; data: Array<{id: string; code: string; name: string; type: string}>}>('/api/loans/payment-sources');
-  const paymentSources = paymentSourcesRes?.data || [];
+  const paymentSources = useMemo(() => paymentSourcesRes?.data || [], [paymentSourcesRes?.data]);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
 
   useEffect(() => {

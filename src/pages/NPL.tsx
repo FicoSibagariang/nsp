@@ -34,7 +34,7 @@ export default function NPLTemplate() {
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Kredit Macet');
   
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit] = useState(20);
 
   const { data: nplResponse, isLoading, error, refetch: fetchNpl } = useApiQuery<NplResponse>(`/api/npl?page=${page}&limit=${limit}`);
   const [localLoans, setLocalLoans] = useState<NplRow[]>([]);

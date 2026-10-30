@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react';
 import { DialogHeader } from '@astryxdesign/core/Dialog';
 import { Layout, LayoutContent, VStack, HStack } from '@astryxdesign/core/Layout';
-import { Text, Heading } from '@astryxdesign/core/Text';
+import { Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { DateInput } from '@astryxdesign/core/DateInput';
 import { useToast } from '@astryxdesign/core/Toast';
@@ -15,7 +15,7 @@ import { LoanInfoSection } from './loan/LoanInfoSection';
 import { LoanScheduleTable } from './loan/LoanScheduleTable';
 import { LoanPaymentSection } from './loan/LoanPaymentSection';
 import { CopyableAccountNumber } from './CopyableAccountNumber';
-import { useDemoMode } from '../contexts/DemoModeContext';
+import { useDemoMode } from '../contexts/DemoModeContextDef';
 import { maskName } from '../utils/privacyMask';
 
 interface Payment extends Record<string, unknown> {

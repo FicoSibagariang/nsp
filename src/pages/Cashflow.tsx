@@ -39,7 +39,7 @@ export default function CashflowTemplate() {
   const {config, applyFilters} = usePowerSearchConfig(fieldDefs, 'Buku Kas');
   
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit] = useState(20);
 
   const { data: cashflowResponse, isLoading, error, refetch: fetchCashflow } = useApiQuery<CashflowResponse>(`/api/cashflow?page=${page}&limit=${limit}`);
   const [localLedger, setLocalLedger] = useState<CashflowRow[]>([]);

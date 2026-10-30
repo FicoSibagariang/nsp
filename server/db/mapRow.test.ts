@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { z } from "zod";
-import { mapRow, mapRows, registerColumnNames, registerSchema, CAMEL_CASE_FIELDS, COLUMN_KEY_MAP } from "./mapRow";
+import { mapRow, registerSchema, CAMEL_CASE_FIELDS, COLUMN_KEY_MAP } from "./mapRow";
 
 describe("Dynamic Column Mapping (Eliminasi Whitelist Manual)", () => {
   test("memetakan kolom Postgres lowercase default ke camelCase", () => {

@@ -19,7 +19,7 @@ import { DataStateView } from '../../../components/DataStateView';
 import { useA11yDialog } from '../../../hooks/useA11yDialog';
 import { ImportSavingsDialogContent } from '../../../components/ImportSavingsDialog';
 import { useAuth } from '../../../hooks/useAuth';
-import { useDemoMode } from '../../../contexts/DemoModeContext';
+import { useDemoMode } from '../../../contexts/DemoModeContextDef';
 import { maskName } from '../../../utils/privacyMask';
 import type { SavingsTransactionRow, PaginatedResponse } from '@shared/types';
 

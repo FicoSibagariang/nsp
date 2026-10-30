@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Layout, LayoutHeader, LayoutContent, VStack, HStack, StackItem } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
@@ -24,6 +24,14 @@ import {
   type LettersResponse,
 } from '../features/letters';
 
+const DEFAULT_CATEGORIES: LetterCategory[] = [
+  { id: 'PINJAMAN_ANGGOTA', code: 'SPP', label: 'Surat Perjanjian Pinjaman Anggota' },
+  { id: 'PINJAMAN_MODAL', code: 'SPM', label: 'Surat Perjanjian Pinjaman Modal Masuk' },
+  { id: 'SURAT_KELUAR', code: 'SK', label: 'Surat Keluar Umum' },
+  { id: 'SURAT_KEPUTUSAN', code: 'SK-PENG', label: 'Surat Keputusan Pengurus' },
+  { id: 'PERJANJIAN_KERJASAMA', code: 'SPK', label: 'Surat Perjanjian Kerjasama' },
+];
+
 export default function LettersPage() {
   const [page] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -32,13 +40,7 @@ export default function LettersPage() {
 
   // Query categories
   const { data: catRes } = useApiQuery<LetterCategory[]>('/api/letters/categories');
-  const categories = catRes || [
-    { id: 'PINJAMAN_ANGGOTA', code: 'SPP', label: 'Surat Perjanjian Pinjaman Anggota' },
-    { id: 'PINJAMAN_MODAL', code: 'SPM', label: 'Surat Perjanjian Pinjaman Modal Masuk' },
-    { id: 'SURAT_KELUAR', code: 'SK', label: 'Surat Keluar Umum' },
-    { id: 'SURAT_KEPUTUSAN', code: 'SK-PENG', label: 'Surat Keputusan Pengurus' },
-    { id: 'PERJANJIAN_KERJASAMA', code: 'SPK', label: 'Surat Perjanjian Kerjasama' },
-  ];
+  const categories = catRes || DEFAULT_CATEGORIES;
 
   // Query letters list
   const queryUrl = `/api/letters?page=${page}&limit=20&category=${selectedCategory}&year=${selectedYear}&search=${encodeURIComponent(searchQuery)}`;
@@ -49,7 +51,7 @@ export default function LettersPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editLetter, setEditLetter] = useState<OfficialLetter | null>(null);
 
-  const handleDeleteLetter = async (letter: OfficialLetter) => {
+  const handleDeleteLetter = useCallback(async (letter: OfficialLetter) => {
     if (!window.confirm(`Yakin ingin menghapus arsip surat nomor '${letter.letterNumber}'?`)) return;
     try {
       const res = await apiFetch(`/api/v1/letters/${letter.id}`, { method: 'DELETE' }).then((r) => r.json());
@@ -61,12 +63,12 @@ export default function LettersPage() {
     } catch {
       alert('Terjadi kesalahan jaringan');
     }
-  };
+  }, [refetch]);
 
-  const handleOpenEdit = (letter: OfficialLetter) => {
+  const handleOpenEdit = useCallback((letter: OfficialLetter) => {
     setEditLetter(letter);
     setShowEditModal(true);
-  };
+  }, []);
 
   const columns: TableColumn<OfficialLetter>[] = useMemo(() => [
     {
@@ -172,7 +174,7 @@ export default function LettersPage() {
         </HStack>
       ),
     },
-  ], [categories]);
+  ], [categories, handleOpenEdit, handleDeleteLetter]);
 
   return (
     <Layout

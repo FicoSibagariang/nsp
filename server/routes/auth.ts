@@ -1,8 +1,7 @@
 import { Hono } from 'hono'
-import { sign, verify, decode } from 'hono/jwt'
+import { sign, decode } from 'hono/jwt'
 import { setCookie, getCookie, deleteCookie } from 'hono/cookie'
 import db from '../db'
-import type { AdminRow, SettingRow } from '../db/entities'
 import {
   findAdminByEmail,
   findAdminById,
@@ -22,7 +21,7 @@ import {
   updateRecoveryCodes,
 } from '../services/authService'
 import { loginSchema } from '../schemas'
-import { secretKey, checkRateLimit, rateLimitLogin } from '../middleware'
+import { secretKey, checkRateLimit } from '../middleware'
 import { verifyGoogleToken } from '../google-auth'
 import { generateSecret, verifyToken, generateRecoveryCodes, totpUrl } from '../lib/totp'
 import { getClientIp } from '../lib/audit'
@@ -44,8 +43,7 @@ auth.post('/login', async (c) => {
     return c.json({ success: false, message: 'Too many login attempts. Please try again later.' }, 429);
   }
 
-  try {
-    const body = await c.req.json()
+  const body = await c.req.json()
     // Extend login schema to optionally include TOTP token
     const parsed = loginSchema.safeParse(body)
 
@@ -128,9 +126,6 @@ auth.post('/login', async (c) => {
         expiresIn: ACCESS_TOKEN_TTL_SEC,
       },
     })
-  } catch (error) {
-    throw error
-  }
 })
 
 auth.post('/google', async (c) => {

@@ -117,7 +117,7 @@ describe('SHU Closing', () => {
 
       // Members have 1M, 2M, 3M = 6M total. Proportions: 1/6, 2/6, 3/6
       const m1Share = result.alokasiAnggota.find(a => a.id === 'shu-m1')?.savingsShare ?? 0
-      const m2Share = result.alokasiAnggota.find(a => a.id === 'shu-m2')?.savingsShare ?? 0
+      const _m2Share = result.alokasiAnggota.find(a => a.id === 'shu-m2')?.savingsShare ?? 0
       const m3Share = result.alokasiAnggota.find(a => a.id === 'shu-m3')?.savingsShare ?? 0
 
       // M3 should get roughly 3x M1's savings share (3M vs 1M)

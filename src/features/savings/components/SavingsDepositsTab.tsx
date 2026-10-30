@@ -17,7 +17,7 @@ import { useA11yDialog } from '../../../hooks/useA11yDialog';
 import { ApproveSavingsDepositDialogContent } from '../../../components/ApproveSavingsDepositDialog';
 import { RejectSavingsDepositDialogContent } from '../../../components/RejectSavingsDepositDialog';
 import { useAuth } from '../../../hooks/useAuth';
-import { useDemoMode } from '../../../contexts/DemoModeContext';
+import { useDemoMode } from '../../../contexts/DemoModeContextDef';
 import { maskName, maskNik } from '../../../utils/privacyMask';
 import type { SavingsDepositRow, PaginatedResponse } from '@shared/types';
 

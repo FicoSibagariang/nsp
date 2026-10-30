@@ -14,7 +14,6 @@ import {
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {Card} from '@astryxdesign/core/Card';
 import {Button} from '@astryxdesign/core/Button';
-import {IconButton} from '@astryxdesign/core/IconButton';
 import {Icon} from '@astryxdesign/core/Icon';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Selector} from '@astryxdesign/core/Selector';
@@ -40,7 +39,7 @@ import {ImportMembersDialogContent} from '../components/ImportMembersDialog';
 import {MembersList} from '../components/members/MembersList';
 
 import type {MemberRow, PaginatedResponse} from '@shared/types';
-import {useDemoMode} from '../contexts/DemoModeContext';
+import {useDemoMode} from '../contexts/DemoModeContextDef';
 import {maskName} from '../utils/privacyMask';
 
 const statusOptions = [
@@ -71,7 +70,7 @@ export default function MembersTemplate() {
   const [roleFilter, setRoleFilter] = useState('');
 
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit] = useState(20);
 
   // Debounce search query (500ms agar tidak terinterupsi saat mengetik)
   useEffect(() => {

@@ -9,6 +9,8 @@
     "lint": "oxlint src server shared",
     "preview": "vite preview",
     "test": "JWT_SECRET=test-secret-key-123 bun test server src shared scripts",
+    "test:unit": "JWT_SECRET=test-secret-key-123 bun test server/lib/ server/db/mapRow.test.ts shared/ src/ server/mobile/__tests__/wallet-calculator.test.ts scripts/openapi-check.test.ts",
+    "test:integration": "JWT_SECRET=test-secret-key-123 bun test server/services/ server/routes/ server/migrations/ server/db.transaction.test.ts server/__tests__/ server/index.test.ts server/mobile/__tests__/mobile-routes.test.ts server/mobile/__tests__/mock-review.test.ts server/mobile/__tests__/nusanet-sso.test.ts",
     "openapi:check": "bun test scripts/openapi-check.test.ts",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts --project=chromium",
     "db:migrate": "bun -e \"import('./server/db.ts').then(() => process.exit(0))\"",

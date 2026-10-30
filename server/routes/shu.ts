@@ -8,7 +8,6 @@ import {
 } from '../services/shuService'
 import { requirePermission } from '../middleware'
 import db from '../db'
-import type { ShuCloseRow } from '../db/entities'
 import { audit, getActor, getClientIp } from '../lib/audit'
 import { shuConfigSchema } from '../schemas'
 

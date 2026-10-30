@@ -7,7 +7,7 @@ import { Button } from '@astryxdesign/core/Button';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline';
-import { useThemeMode } from '../../../contexts/ThemeContext';
+import { useThemeMode } from '../../../hooks/useThemeMode';
 import type { MemberProfile } from '../types';
 
 interface PortalHeaderProps {

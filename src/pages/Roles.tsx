@@ -27,7 +27,6 @@ import {
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { useA11yDialog } from '../hooks/useA11yDialog';
-import { useToast } from '@astryxdesign/core/Toast';
 import { api } from '../services/api';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { useAuth } from '../hooks/useAuth';
@@ -192,7 +191,6 @@ function EditAdminRoleDialogContent({
 
 export default function RolesTemplate() {
   const dialog = useA11yDialog({ purpose: 'form', width: 480 });
-  const toast = useToast();
   const { hasPermission } = useAuth();
   const apiAction = useApiAction();
 

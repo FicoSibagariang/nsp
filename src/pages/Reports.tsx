@@ -12,7 +12,7 @@ import { Text, Heading } from '@astryxdesign/core/Text';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { useAuth } from '../hooks/useAuth';
 import { DataStateView } from '../components/DataStateView';
-import { useDemoMode } from '../contexts/DemoModeContext';
+import { useDemoMode } from '../contexts/DemoModeContextDef';
 import {
   ReportsSidebar,
   ReportPrintableArea,

@@ -25,7 +25,7 @@ import { api } from '../services/api';
 import { formatRp } from '../utils/format';
 import { DataStateView } from '../components/DataStateView';
 import { TrashIcon, PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 
 // We just borrow some UI styles from expenses or loans.
 

@@ -1,7 +1,6 @@
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { formatRp } from './format';
 
 interface ExportColumn<T> {
   header: string;

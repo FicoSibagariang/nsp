@@ -1,12 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
+import { DemoModeContext, type DemoModeContextType } from './DemoModeContextDef';
 
-interface DemoModeContextType {
-  isDemoMode: boolean;
-  toggleDemoMode: () => void;
-  setDemoMode: (enabled: boolean) => void;
-}
-
-const DemoModeContext = createContext<DemoModeContextType | null>(null);
+export type { DemoModeContextType };
 
 export function DemoModeProvider({ children }: { children: React.ReactNode }) {
   const [isDemoMode, setIsDemoModeState] = useState<boolean>(() => {
@@ -43,17 +38,4 @@ export function DemoModeProvider({ children }: { children: React.ReactNode }) {
       {children}
     </DemoModeContext.Provider>
   );
-}
-
-export function useDemoMode(): DemoModeContextType {
-  const context = useContext(DemoModeContext);
-  if (!context) {
-    // Return a safe fallback if used outside provider (e.g. in tests)
-    return {
-      isDemoMode: false,
-      toggleDemoMode: () => {},
-      setDemoMode: () => {},
-    };
-  }
-  return context;
 }

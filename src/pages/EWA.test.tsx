@@ -10,7 +10,7 @@ describe("EWA Component Permissions & Tabs", () => {
   let fetchSpy: any;
 
   beforeEach(() => {
-    fetchSpy = spyOn(configModule, "apiFetch").mockImplementation((url: string) => {
+    fetchSpy = spyOn(configModule, "apiFetch").mockImplementation((_url: string) => {
       return Promise.resolve({
         ok: true,
         json: async () => ({

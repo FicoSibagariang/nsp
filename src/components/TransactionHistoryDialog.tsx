@@ -18,7 +18,7 @@ import {Center} from '@astryxdesign/core/Center';
 import {EmptyState} from '@astryxdesign/core/EmptyState';
 import {ExclamationCircleIcon, ClockIcon} from '@heroicons/react/24/outline';
 import type {MemberRow} from '@shared/types';
-import {useDemoMode} from '../contexts/DemoModeContext';
+import {useDemoMode} from '../contexts/DemoModeContextDef';
 import {maskName} from '../utils/privacyMask';
 
 interface Transaction extends Record<string, unknown> {

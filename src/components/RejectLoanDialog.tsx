@@ -4,7 +4,7 @@ import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { formatRp } from '../utils/format';
 import type { LoanRow } from '@shared/types';
-import { useDemoMode } from '../contexts/DemoModeContext';
+import { useDemoMode } from '../contexts/DemoModeContextDef';
 import { maskName } from '../utils/privacyMask';
 
 interface Props {

@@ -78,11 +78,6 @@ export function createLoanSchedulesMigration(db: {
 
         // Calculate using annuity formula (same as #195 snapshot logic)
         const i = annualRatePercent / 1200; // Monthly rate
-        const power = Math.pow(1 + i, tenorMonths);
-        const monthlyPayment = loan.amount * (i * power) / (power - 1);
-        const roundedMonthlyPayment = Math.ceil(monthlyPayment);
-        const totalAmount = roundedMonthlyPayment * tenorMonths;
-        const interestAmount = totalAmount - loan.amount;
 
         // Generate installment schedule
         for (let month = 1; month <= tenorMonths; month++) {

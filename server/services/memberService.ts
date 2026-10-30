@@ -1,6 +1,6 @@
 import type { Db } from "../db";
 import type { MemberRow, TransactionRow } from "../db/entities";
-import { isForeignKeyError, ServiceError } from "./errors";
+import { ServiceError } from "./errors";
 import { recordAutoJournal } from "./accountingService";
 
 export type CreateMemberInput = {

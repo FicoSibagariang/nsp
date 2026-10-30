@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { VStack, HStack } from '@astryxdesign/core/Layout';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { formatRp } from '../utils/format';
 import type { SavingsDepositRow } from '@shared/types';
-import { useDemoMode } from '../contexts/DemoModeContext';
+import { useDemoMode } from '../contexts/DemoModeContextDef';
 import { maskName } from '../utils/privacyMask';
 
 interface Props {
@@ -31,7 +31,7 @@ export function ApproveSavingsDepositDialogContent({
     data: Array<{ id: string; code: string; name: string; type: string }>;
   }>('/api/savings/payment-sources');
 
-  const paymentSources = paymentSourcesRes?.data || [];
+  const paymentSources = useMemo(() => paymentSourcesRes?.data || [], [paymentSourcesRes?.data]);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
 
   useEffect(() => {

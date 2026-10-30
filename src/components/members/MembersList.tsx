@@ -10,7 +10,7 @@ import type { TableColumn } from '@astryxdesign/core/Table';
 import { formatRp } from '../../utils/format';
 import type { MemberRow } from '@shared/types';
 import { MemberActions } from './MemberActions';
-import { useDemoMode } from '../../contexts/DemoModeContext';
+import { useDemoMode } from '../../contexts/DemoModeContextDef';
 import { maskName, maskNik, hashString } from '../../utils/privacyMask';
 
 interface MembersListProps {

@@ -3,7 +3,6 @@ import { verify } from 'hono/jwt';
 import { existsSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import db from '../db';
-import type { UserFeedbackRow } from '../db/entities';
 import { secretKey } from '../middleware';
 import { createFeedbackSchema, updateFeedbackStatusSchema } from '../schemas';
 import {

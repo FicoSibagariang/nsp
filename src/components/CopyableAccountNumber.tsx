@@ -5,7 +5,7 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
 import { useToast } from '@astryxdesign/core/Toast';
 import { DocumentDuplicateIcon, CheckIcon } from '@heroicons/react/24/outline';
-import { useDemoMode } from '../contexts/DemoModeContext';
+import { useDemoMode } from '../contexts/DemoModeContextDef';
 import { maskAccountNumber, maskName } from '../utils/privacyMask';
 
 export interface CopyableAccountNumberProps {

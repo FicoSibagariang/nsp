@@ -416,7 +416,7 @@ describe("API Rate Limiting (Issue #204)", () => {
       const windowMs = 15 * 60 * 1000; // 15 minutes
 
       // Make concurrent requests (simulating race condition)
-      const promises = Array.from({ length: 10 }, (_, i) =>
+      const promises = Array.from({ length: 10 }, () =>
         checkRateLimit(key, limit, windowMs)
       );
 

@@ -26,7 +26,7 @@ import {useA11yDialog} from '../hooks/useA11yDialog';
 import {formatRp} from '../utils/format';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
-import {useDemoMode} from '../contexts/DemoModeContext';
+import {useDemoMode} from '../contexts/DemoModeContextDef';
 import {maskName} from '../utils/privacyMask';
 
 const ImportPaymentsDialogContent = lazy(() => import('../components/ImportPaymentsDialog').then(m => ({ default: m.ImportPaymentsDialogContent })));
@@ -58,7 +58,7 @@ export default function LoansTxTemplate() {
   const dialog = useA11yDialog({ purpose: 'form', width: 620 });
   
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const [limit] = useState(20);
 
   const { data: paymentsResponse, isLoading, error, refetch: fetchPayments } = useApiQuery<PaginatedResponse<LoanPaymentRow>>(`/api/loans/payments?page=${page}&limit=${limit}`);
   const [localPayments, setLocalPayments] = useState<LoanPaymentRow[]>([]);

@@ -1,5 +1,4 @@
 import type { Db } from '../db';
-import type { SettingRow } from '../db/entities';
 
 export async function getPublicBranding(database: Db): Promise<{ koperasiName: string }> {
   const row = await database
