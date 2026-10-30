@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { api } from '../../services/api';
 import { useToast } from '@astryxdesign/core/Toast';
-import { Badge } from '@astryxdesign/core/Badge';
+import { StatusBadge } from '../common/StatusBadge';
 import { Button } from '@astryxdesign/core/Button';
 import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
@@ -143,29 +143,9 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
     }
   };
 
-  const getTypeBadge = (type: string) => {
-    switch (type) {
-      case 'bug':
-        return <Badge variant="error" label="Bug" />;
-      case 'feature':
-        return <Badge variant="info" label="Usulan Fitur" />;
-      default:
-        return <Badge variant="success" label="Masukan" />;
-    }
-  };
+  const getTypeBadge = (type: string) => <StatusBadge status={type} />;
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'open':
-        return <Badge variant="warning" label="Baru (Open)" />;
-      case 'in_review':
-        return <Badge variant="info" label="Ditinjau" />;
-      case 'resolved':
-        return <Badge variant="success" label="Selesai" />;
-      default:
-        return <Badge variant="neutral" label="Ditutup" />;
-    }
-  };
+  const getStatusBadge = (status: string) => <StatusBadge status={status} />;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -194,11 +174,11 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
             style={{
               padding: '12px 16px',
               borderRadius: '12px',
-              border: '1px solid var(--color-border-primary, #e4e4e7)',
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-background-primary)',
             }}
           >
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary, #71717a)' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>
               Total Laporan
             </div>
             <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '4px' }}>
@@ -210,14 +190,14 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
             style={{
               padding: '12px 16px',
               borderRadius: '12px',
-              border: '1px solid var(--color-border-primary, #e4e4e7)',
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-background-primary)',
             }}
           >
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-warning-500, #f59e0b)' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--color-warning-500)' }}>
               Menunggu / Open
             </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '4px', color: 'var(--color-warning-500, #f59e0b)' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '4px', color: 'var(--color-warning-500)' }}>
               {stats.statusCounts.open}
             </div>
           </div>
@@ -226,14 +206,14 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
             style={{
               padding: '12px 16px',
               borderRadius: '12px',
-              border: '1px solid var(--color-border-primary, #e4e4e7)',
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-background-primary)',
             }}
           >
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-critical-500, #ef4444)' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--color-critical-500)' }}>
               Kendala (Bug)
             </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '4px', color: 'var(--color-critical-500, #ef4444)' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '4px', color: 'var(--color-critical-500)' }}>
               {stats.typeCounts.bug}
             </div>
           </div>
@@ -242,14 +222,14 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
             style={{
               padding: '12px 16px',
               borderRadius: '12px',
-              border: '1px solid var(--color-border-primary, #e4e4e7)',
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-background-primary)',
             }}
           >
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-primary-500, #0171E3)' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--color-primary-500)' }}>
               Usulan Fitur
             </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '4px', color: 'var(--color-primary-500, #0171E3)' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '4px', color: 'var(--color-primary-500)' }}>
               {stats.typeCounts.feature}
             </div>
           </div>
@@ -258,14 +238,14 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
             style={{
               padding: '12px 16px',
               borderRadius: '12px',
-              border: '1px solid var(--color-border-primary, #e4e4e7)',
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-background-primary)',
             }}
           >
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-success-500, #10b981)' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--color-success-500)' }}>
               Terselesaikan
             </div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '4px', color: 'var(--color-success-500, #10b981)' }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, marginTop: '4px', color: 'var(--color-success-500)' }}>
               {stats.statusCounts.resolved}
             </div>
           </div>
@@ -281,8 +261,8 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
           gap: '10px',
           padding: '12px 16px',
           borderRadius: '12px',
-          backgroundColor: 'var(--color-background-secondary, #f4f4f5)',
-          border: '1px solid var(--color-border-primary, #e4e4e7)',
+          backgroundColor: 'var(--color-background-secondary)',
+          border: '1px solid var(--color-border-primary)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -293,9 +273,9 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
             style={{
               padding: '6px 10px',
               borderRadius: '6px',
-              border: '1px solid var(--color-border-primary, #e4e4e7)',
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
-              color: 'var(--color-text-primary, #18181b)',
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-background-primary)',
+              color: 'var(--color-text-primary)',
               fontSize: '0.85rem',
             }}
           >
@@ -314,9 +294,9 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
             style={{
               padding: '6px 10px',
               borderRadius: '6px',
-              border: '1px solid var(--color-border-primary, #e4e4e7)',
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
-              color: 'var(--color-text-primary, #18181b)',
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-background-primary)',
+              color: 'var(--color-text-primary)',
               fontSize: '0.85rem',
             }}
           >
@@ -335,7 +315,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
               left: '10px',
               width: '16px',
               height: '16px',
-              color: 'var(--color-text-secondary, #71717a)',
+              color: 'var(--color-text-secondary)',
             }}
           />
           <input
@@ -347,9 +327,9 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
               width: '100%',
               padding: '6px 10px 6px 32px',
               borderRadius: '6px',
-              border: '1px solid var(--color-border-primary, #e4e4e7)',
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
-              color: 'var(--color-text-primary, #18181b)',
+              border: '1px solid var(--color-border-primary)',
+              backgroundColor: 'var(--color-background-primary)',
+              color: 'var(--color-text-primary)',
               fontSize: '0.85rem',
               boxSizing: 'border-box',
             }}
@@ -378,18 +358,18 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
       {/* Feedbacks List Table */}
       <div
         style={{
-          border: '1px solid var(--color-border-primary, #e4e4e7)',
+          border: '1px solid var(--color-border-primary)',
           borderRadius: '12px',
           overflow: 'hidden',
-          backgroundColor: 'var(--color-background-primary, #ffffff)',
+          backgroundColor: 'var(--color-background-primary)',
         }}
       >
         {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary, #71717a)' }}>
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
             Memuat data masukan...
           </div>
         ) : feedbacks.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary, #71717a)' }}>
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
             Tidak ada laporan masukan yang sesuai dengan filter.
           </div>
         ) : (
@@ -398,9 +378,9 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
               <thead>
                 <tr
                   style={{
-                    backgroundColor: 'var(--color-background-secondary, #f4f4f5)',
-                    borderBottom: '1px solid var(--color-border-primary, #e4e4e7)',
-                    color: 'var(--color-text-secondary, #71717a)',
+                    backgroundColor: 'var(--color-background-secondary)',
+                    borderBottom: '1px solid var(--color-border-primary)',
+                    color: 'var(--color-text-secondary)',
                     fontSize: '0.8rem',
                   }}
                 >
@@ -417,14 +397,14 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                   <tr
                     key={item.id}
                     style={{
-                      borderBottom: '1px solid var(--color-border-primary, #e4e4e7)',
+                      borderBottom: '1px solid var(--color-border-primary)',
                       transition: 'background-color 0.15s ease',
                     }}
                   >
                     <td style={{ padding: '12px 16px', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <div>{getTypeBadge(item.type)}</div>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #71717a)' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
                           {new Date(item.created_at).toLocaleDateString('id-ID', {
                             day: 'numeric',
                             month: 'short',
@@ -437,13 +417,13 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                     </td>
 
                     <td style={{ padding: '12px 16px', verticalAlign: 'top', maxWidth: '300px' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--color-text-primary, #18181b)', marginBottom: '4px' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '4px' }}>
                         {item.title || '(Tanpa Judul)'}
                       </div>
                       <div
                         style={{
                           fontSize: '0.8rem',
-                          color: 'var(--color-text-secondary, #71717a)',
+                          color: 'var(--color-text-secondary)',
                           display: '-webkit-box',
                           WebkitLineClamp: 2,
                           WebkitBoxOrient: 'vertical',
@@ -457,7 +437,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                           style={{
                             marginTop: '4px',
                             fontSize: '0.75rem',
-                            color: 'var(--color-primary-500, #0171E3)',
+                            color: 'var(--color-primary-500)',
                           }}
                         >
                           Halaman: {item.page_url}
@@ -467,7 +447,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
 
                     <td style={{ padding: '12px 16px', verticalAlign: 'top' }}>
                       <div style={{ fontWeight: 500 }}>{item.user_name || 'Anonim'}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #71717a)' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
                         {item.user_email || item.user_role || 'Pengguna'}
                       </div>
                     </td>
@@ -483,7 +463,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                             height: '40px',
                             borderRadius: '6px',
                             overflow: 'hidden',
-                            border: '1px solid var(--color-border-primary, #e4e4e7)',
+                            border: '1px solid var(--color-border-primary)',
                           }}
                         >
                           <img
@@ -493,7 +473,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                           />
                         </div>
                       ) : (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #71717a)' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
                           Tidak ada
                         </span>
                       )}
@@ -559,11 +539,11 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
               maxHeight: '90vh',
               display: 'flex',
               flexDirection: 'column',
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
-              color: 'var(--color-text-primary, #18181b)',
+              backgroundColor: 'var(--color-background-primary)',
+              color: 'var(--color-text-primary)',
               borderRadius: '16px',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-              border: '1px solid var(--color-border-primary, #e4e4e7)',
+              border: '1px solid var(--color-border-primary)',
               overflow: 'hidden',
             }}
           >
@@ -574,7 +554,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '16px 20px',
-                borderBottom: '1px solid var(--color-border-primary, #e4e4e7)',
+                borderBottom: '1px solid var(--color-border-primary)',
               }}
             >
               <HStack vAlign="center" gap={2}>
@@ -607,7 +587,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                 style={{
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  backgroundColor: 'var(--color-background-secondary, #f4f4f5)',
+                  backgroundColor: 'var(--color-background-secondary)',
                   fontSize: '0.85rem',
                   display: 'grid',
                   gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
@@ -638,8 +618,8 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                   style={{
                     padding: '12px',
                     borderRadius: '8px',
-                    border: '1px solid var(--color-border-primary, #e4e4e7)',
-                    backgroundColor: 'var(--color-background-subtle, #f8fafc)',
+                    border: '1px solid var(--color-border-primary)',
+                    backgroundColor: 'var(--color-background-subtle)',
                     fontSize: '0.9rem',
                     lineHeight: 1.5,
                     whiteSpace: 'pre-wrap',
@@ -660,7 +640,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: 'var(--color-primary-500, #0171E3)',
+                        color: 'var(--color-primary-500)',
                         fontSize: '0.8rem',
                         cursor: 'pointer',
                         display: 'flex',
@@ -678,7 +658,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                       cursor: 'pointer',
                       borderRadius: '8px',
                       overflow: 'hidden',
-                      border: '1px solid var(--color-border-primary, #e4e4e7)',
+                      border: '1px solid var(--color-border-primary)',
                       maxHeight: '220px',
                       backgroundColor: '#000',
                     }}
@@ -703,9 +683,9 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                 style={{
                   padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid var(--color-border-primary, #e4e4e7)',
+                  border: '1px solid var(--color-border-primary)',
                   fontSize: '0.75rem',
-                  color: 'var(--color-text-secondary, #71717a)',
+                  color: 'var(--color-text-secondary)',
                   lineHeight: 1.5,
                 }}
               >
@@ -716,7 +696,7 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
               {/* Status and Admin Notes Form */}
               <div
                 style={{
-                  borderTop: '1px solid var(--color-border-primary, #e4e4e7)',
+                  borderTop: '1px solid var(--color-border-primary)',
                   paddingTop: '14px',
                   display: 'flex',
                   flexDirection: 'column',
@@ -731,9 +711,9 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                     style={{
                       padding: '8px 12px',
                       borderRadius: '8px',
-                      border: '1px solid var(--color-border-primary, #e4e4e7)',
-                      backgroundColor: 'var(--color-background-primary, #ffffff)',
-                      color: 'var(--color-text-primary, #18181b)',
+                      border: '1px solid var(--color-border-primary)',
+                      backgroundColor: 'var(--color-background-primary)',
+                      color: 'var(--color-text-primary)',
                       fontSize: '0.85rem',
                       fontWeight: 500,
                     }}
@@ -758,9 +738,9 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                       width: '100%',
                       padding: '8px 12px',
                       borderRadius: '8px',
-                      border: '1px solid var(--color-border-primary, #e4e4e7)',
-                      backgroundColor: 'var(--color-background-primary, #ffffff)',
-                      color: 'var(--color-text-primary, #18181b)',
+                      border: '1px solid var(--color-border-primary)',
+                      backgroundColor: 'var(--color-background-primary)',
+                      color: 'var(--color-text-primary)',
                       fontSize: '0.85rem',
                       fontFamily: 'inherit',
                       resize: 'vertical',
@@ -778,46 +758,21 @@ export const FeedbackSettings: React.FC<FeedbackSettingsProps> = ({ hideHeader =
                 justifyContent: 'flex-end',
                 gap: '10px',
                 padding: '16px 20px',
-                borderTop: '1px solid var(--color-border-primary, #e4e4e7)',
+                borderTop: '1px solid var(--color-border-primary)',
               }}
             >
-              <button
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => setSelectedItem(null)}
-                style={{
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-border-primary, #e4e4e7)',
-                  backgroundColor: 'transparent',
-                  color: 'var(--color-text-primary, #18181b)',
-                  fontSize: '0.85rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
-                Tutup
-              </button>
+                label="Tutup"
+              />
 
-              <button
-                type="button"
+              <Button
+                variant="primary"
                 onClick={handleSaveStatus}
-                disabled={isUpdating}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 18px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  backgroundColor: 'var(--color-primary-500, #0171E3)',
-                  color: '#ffffff',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  cursor: isUpdating ? 'wait' : 'pointer',
-                }}
-              >
-                {isUpdating ? 'Menyimpan...' : 'Simpan Perubahan'}
-              </button>
+                isLoading={isUpdating}
+                label="Simpan Perubahan"
+              />
             </div>
           </div>
         </div>

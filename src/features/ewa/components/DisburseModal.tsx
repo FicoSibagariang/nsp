@@ -3,6 +3,7 @@ import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
 import { Button } from '@astryxdesign/core/Button';
+import { Selector } from '@astryxdesign/core/Selector';
 import { CopyableAccountNumber } from '../../../components/CopyableAccountNumber';
 import { formatRp } from '../../../utils/format';
 import { maskName, maskNip } from '../../../utils/privacyMask';
@@ -136,34 +137,21 @@ export function DisburseModal({
               </VStack>
             </Card>
 
-            <VStack gap={2}>
-              <Text type="body" weight="semibold">Sumber Dana Pencairan:</Text>
-              <select
+            <VStack gap={1}>
+              <Selector
+                label="Sumber Dana Pencairan"
                 value={selectedPaymentSourceId}
-                onChange={(e) => setSelectedPaymentSourceId(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: 6,
-                  border: '1px solid var(--color-border-primary)',
-                  backgroundColor: 'var(--color-background-primary)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: 14,
-                  boxSizing: 'border-box',
-                }}
-              >
-                {paymentSources.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.name} ({acc.code})
-                  </option>
-                ))}
-                {paymentSources.length === 0 && (
-                  <>
-                    <option value="64fa79d2-cd8f-414a-80ac-7daae0e3fd1f">Kas Kecil (11101)</option>
-                    <option value="ed0ad424-aff5-4a79-8fa2-24eaa541d6fc">Bank Mandiri (11102)</option>
-                  </>
-                )}
-              </select>
+                onChange={setSelectedPaymentSourceId}
+                options={
+                  paymentSources.length > 0
+                    ? paymentSources.map((acc) => ({ value: acc.id, label: `${acc.name} (${acc.code})` }))
+                    : [
+                        { value: '64fa79d2-cd8f-414a-80ac-7daae0e3fd1f', label: 'Kas Kecil (11101)' },
+                        { value: 'ed0ad424-aff5-4a79-8fa2-24eaa541d6fc', label: 'Bank Mandiri (11102)' },
+                      ]
+                }
+                width="100%"
+              />
               <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>
                 Akun kas/bank yang dipilih akan dikreditkan secara otomatis pada Jurnal Akuntansi.
               </Text>

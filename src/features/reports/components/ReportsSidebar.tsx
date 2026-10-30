@@ -1,6 +1,8 @@
 import { VStack, HStack } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
+import { Button } from '@astryxdesign/core/Button';
+import { Selector } from '@astryxdesign/core/Selector';
 import type { ReportType } from '../types';
 
 interface ReportsSidebarProps {
@@ -50,26 +52,13 @@ export function ReportsSidebar({
         <VStack gap={3}>
           <HStack vAlign="center" style={{ justifyContent: 'space-between', width: '100%' }}>
             <Heading level={3}>Pilih Laporan</Heading>
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="ghost"
               onClick={onCollapse}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                padding: '3px 8px',
-                fontSize: '12px',
-                fontWeight: 500,
-                color: 'var(--color-text-secondary)',
-                backgroundColor: 'transparent',
-                border: '1px solid var(--color-border-primary)',
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-              title="Sembunyikan panel ini"
-            >
-              ◀ Ciutkan
-            </button>
+              label="◀ Ciutkan"
+              tooltip="Sembunyikan panel ini"
+            />
           </HStack>
 
           <VStack gap={2}>
@@ -85,7 +74,7 @@ export function ReportsSidebar({
                     padding: '10px 14px',
                     borderRadius: '6px',
                     border: 'none',
-                    backgroundColor: isSelected ? 'var(--color-primary-500, #0171E3)' : 'transparent',
+                    backgroundColor: isSelected ? 'var(--color-primary-500)' : 'transparent',
                     color: isSelected ? '#ffffff' : 'var(--color-text-primary)',
                     cursor: 'pointer',
                     fontWeight: isSelected ? 600 : 500,
@@ -230,32 +219,16 @@ export function ReportsSidebar({
               }}
             >
               <Heading level={4}>Filter Tahun Proyeksi</Heading>
-              <div>
-                <Text type="supporting">Pilih Tahun Anggaran</Text>
-                <select
-                  value={projectionYear}
-                  onChange={(e) => onProjectionYearChange(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--radius-md, 6px)',
-                    border: '1px solid var(--color-border-primary)',
-                    backgroundColor: 'var(--color-background-primary)',
-                    color: 'var(--color-text-primary)',
-                    marginTop: '4px',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  {[-1, 0, 1, 2].map((offset) => {
-                    const yr = (currentYear + offset).toString();
-                    return (
-                      <option key={yr} value={yr}>
-                        {yr}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+              <Selector
+                label="Pilih Tahun Anggaran"
+                size="sm"
+                value={projectionYear}
+                onChange={onProjectionYearChange}
+                options={[-1, 0, 1, 2].map((offset) => {
+                  const yr = (currentYear + offset).toString();
+                  return { value: yr, label: yr };
+                })}
+              />
             </VStack>
           )}
         </VStack>

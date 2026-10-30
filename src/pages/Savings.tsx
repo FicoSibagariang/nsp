@@ -11,6 +11,7 @@ import {
 } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Badge } from '@astryxdesign/core/Badge';
+import { Button } from '@astryxdesign/core/Button';
 import { useApiQuery } from '../hooks/useApiQuery';
 import {
   SavingsMutationsTab,
@@ -62,66 +63,34 @@ export default function SavingsTemplate() {
           <VStack gap={4}>
             {/* Tab Navigation */}
             <HStack gap={2} style={{ borderBottom: '1px solid var(--color-border-primary)', paddingBottom: 8 }}>
-              <button
-                type="button"
+              <Button
+                variant={activeTab === 'transactions' ? 'primary' : 'ghost'}
+                size="sm"
                 onClick={() => setActiveTab('transactions')}
-                style={{
-                  padding: '6px 16px',
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: activeTab === 'transactions' ? 600 : 500,
-                  cursor: 'pointer',
-                  border: 'none',
-                  backgroundColor: activeTab === 'transactions' ? 'var(--color-primary-600, #2563eb)' : 'transparent',
-                  color: activeTab === 'transactions' ? '#ffffff' : 'var(--color-text-secondary, #6b7280)',
-                }}
-              >
-                Buku Mutasi Simpanan
-              </button>
-              <button
-                type="button"
+                label="Buku Mutasi Simpanan"
+              />
+              <Button
+                variant={activeTab === 'deposits' ? 'primary' : 'ghost'}
+                size="sm"
                 onClick={() => setActiveTab('deposits')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 16px',
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: activeTab === 'deposits' ? 600 : 500,
-                  cursor: 'pointer',
-                  border: 'none',
-                  backgroundColor: activeTab === 'deposits' ? 'var(--color-primary-600, #2563eb)' : 'transparent',
-                  color: activeTab === 'deposits' ? '#ffffff' : 'var(--color-text-secondary, #6b7280)',
-                }}
-              >
-                <span>Konfirmasi Setoran Masuk</span>
-                {pendingDepositsCount > 0 && (
-                  <Badge variant="warning" label={String(pendingDepositsCount)} />
-                )}
-              </button>
-              <button
-                type="button"
+                label="Konfirmasi Setoran Masuk"
+                endContent={
+                  pendingDepositsCount > 0 ? (
+                    <Badge variant="warning" label={String(pendingDepositsCount)} />
+                  ) : undefined
+                }
+              />
+              <Button
+                variant={activeTab === 'withdrawals' ? 'primary' : 'ghost'}
+                size="sm"
                 onClick={() => setActiveTab('withdrawals')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 16px',
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: activeTab === 'withdrawals' ? 600 : 500,
-                  cursor: 'pointer',
-                  border: 'none',
-                  backgroundColor: activeTab === 'withdrawals' ? 'var(--color-primary-600, #2563eb)' : 'transparent',
-                  color: activeTab === 'withdrawals' ? '#ffffff' : 'var(--color-text-secondary, #6b7280)',
-                }}
-              >
-                <span>Permohonan Penarikan Sukarela</span>
-                {pendingCount > 0 && (
-                  <Badge variant="warning" label={String(pendingCount)} />
-                )}
-              </button>
+                label="Permohonan Penarikan Sukarela"
+                endContent={
+                  pendingCount > 0 ? (
+                    <Badge variant="warning" label={String(pendingCount)} />
+                  ) : undefined
+                }
+              />
             </HStack>
 
             {/* Tab Contents */}

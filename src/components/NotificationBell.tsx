@@ -70,20 +70,20 @@ function getItemColors(severity: PendingActionDetailItem['severity']) {
     case 'critical':
       return {
         bg: 'rgba(239, 68, 68, 0.1)',
-        color: 'var(--color-critical-500, #ef4444)',
+        color: 'var(--color-critical-500)',
         border: 'rgba(239, 68, 68, 0.2)',
       };
     case 'warning':
       return {
         bg: 'rgba(245, 158, 11, 0.1)',
-        color: 'var(--color-warning-500, #f59e0b)',
+        color: 'var(--color-warning-500)',
         border: 'rgba(245, 158, 11, 0.2)',
       };
     case 'info':
     default:
       return {
         bg: 'rgba(59, 130, 246, 0.1)',
-        color: 'var(--color-primary-500, #3b82f6)',
+        color: 'var(--color-primary-500)',
         border: 'rgba(59, 130, 246, 0.2)',
       };
   }
@@ -125,7 +125,7 @@ export function NotificationBell({
       style={{
         width: '380px',
         maxWidth: 'calc(100vw - 24px)',
-        backgroundColor: 'var(--color-background-primary, #ffffff)',
+        backgroundColor: 'var(--color-background-primary)',
         borderRadius: '12px',
         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
         border: '1px solid var(--color-border-primary, rgba(0, 0, 0, 0.1))',
@@ -173,8 +173,8 @@ export function NotificationBell({
         <div
           style={{
             padding: '8px 16px',
-            backgroundColor: 'var(--color-background-secondary, rgba(0, 0, 0, 0.02))',
-            borderBottom: '1px solid var(--color-border-primary, rgba(0, 0, 0, 0.06))',
+            backgroundColor: 'var(--color-background-secondary)',
+            borderBottom: '1px solid var(--color-border-primary)',
             display: 'flex',
             flexWrap: 'wrap',
             gap: '6px',
@@ -354,7 +354,7 @@ export function NotificationBell({
               size="sm"
               style={
                 totalCount > 0
-                  ? { color: hasCritical ? 'var(--color-critical-500, #ef4444)' : 'var(--color-warning-500, #f59e0b)' }
+                  ? { color: hasCritical ? 'var(--color-critical-500)' : 'var(--color-warning-500)' }
                   : undefined
               }
             />
@@ -372,8 +372,8 @@ export function NotificationBell({
               padding: '0 4px',
               borderRadius: '8px',
               backgroundColor: hasCritical
-                ? 'var(--color-critical-500, #ef4444)'
-                : 'var(--color-warning-500, #f59e0b)',
+                ? 'var(--color-critical-500)'
+                : 'var(--color-warning-500)',
               color: '#ffffff',
               fontSize: '10px',
               fontWeight: 700,
@@ -382,7 +382,7 @@ export function NotificationBell({
               justifyContent: 'center',
               pointerEvents: 'none',
               lineHeight: 1,
-              boxShadow: '0 0 0 2px var(--color-background-primary, #ffffff)',
+              boxShadow: '0 0 0 2px var(--color-background-primary)',
             }}
           >
             {totalCount > 99 ? '99+' : totalCount}

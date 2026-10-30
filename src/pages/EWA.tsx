@@ -288,7 +288,7 @@ export default function EWA() {
                   actionMessage.type === 'success'
                     ? 'var(--color-background-success-subtle, rgba(34, 197, 94, 0.1))'
                     : 'var(--color-background-critical-subtle, rgba(239, 68, 68, 0.1))',
-                border: `1px solid ${actionMessage.type === 'success' ? 'var(--color-success-500, #22c55e)' : 'var(--color-critical-500, #ef4444)'}`,
+                border: `1px solid ${actionMessage.type === 'success' ? 'var(--color-success-500)' : 'var(--color-critical-500)'}`,
               }}
             >
               <Text type="body" weight="semibold">
@@ -313,31 +313,19 @@ export default function EWA() {
             {tabsConfig.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
-                <button
+                <Button
                   key={tab.id}
-                  type="button"
+                  size="sm"
+                  variant={isActive ? 'primary' : 'ghost'}
                   onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 16px',
-                    borderRadius: 'var(--radius-md, 6px)',
-                    border: 'none',
-                    fontSize: '14px',
-                    fontWeight: isActive ? 600 : 500,
-                    cursor: 'pointer',
-                    backgroundColor: isActive ? 'var(--color-background-primary)' : 'transparent',
-                    color: isActive ? 'var(--color-primary-500, var(--color-text-primary))' : 'var(--color-text-secondary)',
-                    boxShadow: isActive ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
-                  }}
-                >
-                  <tab.icon style={{ width: 18, height: 18, color: 'currentColor' }} />
-                  <span>{tab.label}</span>
-                  {typeof tab.count === 'number' && tab.count > 0 && (
-                    <Badge variant={isActive ? 'success' : 'neutral'} label={String(tab.count)} />
-                  )}
-                </button>
+                  icon={<Icon icon={tab.icon} size="sm" />}
+                  label={tab.label}
+                  endContent={
+                    typeof tab.count === 'number' && tab.count > 0 ? (
+                      <Badge variant={isActive ? 'success' : 'neutral'} label={String(tab.count)} />
+                    ) : undefined
+                  }
+                />
               );
             })}
           </div>

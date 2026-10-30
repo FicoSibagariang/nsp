@@ -134,26 +134,18 @@ export const WithdrawSavingsModal: React.FC<WithdrawSavingsModalProps> = ({
                 { label: '75%', ratio: 0.75 },
                 { label: 'Tarik Semua (100%)', ratio: 1.0 },
               ].map((preset) => (
-                <button
+                <Button
                   key={preset.label}
                   type="button"
+                  size="sm"
+                  variant="secondary"
                   onClick={() => {
                     const current = Number(profile?.simpananSukarela || 0);
                     const val = Math.floor(current * preset.ratio);
                     setWithdrawAmount(val > 0 ? val.toLocaleString('id-ID') : '');
                   }}
-                  style={{
-                    padding: '4px 10px',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    borderRadius: 4,
-                    border: '1px solid var(--color-border-primary, #d1d5db)',
-                    backgroundColor: 'var(--color-background-secondary, #f3f4f6)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {preset.label}
-                </button>
+                  label={preset.label}
+                />
               ))}
             </HStack>
           </HStack>

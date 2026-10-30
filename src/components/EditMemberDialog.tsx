@@ -11,6 +11,7 @@ import {
 } from '@astryxdesign/core/Layout';
 import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
+import {Selector} from '@astryxdesign/core/Selector';
 import {Text} from '@astryxdesign/core/Text';
 import type {MemberRow} from '@shared/types';
 import {useDemoMode} from '../contexts/DemoModeContextDef';
@@ -133,48 +134,20 @@ export function EditMemberDialogContent({
               description="Opsional — 8–15 digit, boleh diawali +"
               type="text"
             />
-            <VStack gap={1}>
-              <Text type="supporting">Jabatan</Text>
-              <select
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: 'var(--radius-md, 6px)',
-                  border: '1px solid var(--color-border-primary)',
-                  backgroundColor: 'var(--color-background-primary)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }}
-              >
-                <option value="Anggota">Anggota</option>
-                <option value="Ketua">Ketua</option>
-                <option value="Sekretaris">Sekretaris</option>
-                <option value="Bendahara">Bendahara</option>
-              </select>
-            </VStack>
-            <VStack gap={1}>
-              <Text type="supporting">Status</Text>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: 'var(--radius-md, 6px)',
-                  border: '1px solid var(--color-border-primary)',
-                  backgroundColor: 'var(--color-background-primary)',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '14px',
-                  boxSizing: 'border-box'
-                }}
-              >
-                <option value="Aktif">Aktif</option>
-                <option value="Pasif">Pasif</option>
-              </select>
-            </VStack>
+            <Selector
+              label="Jabatan"
+              value={role}
+              onChange={setRole}
+              options={['Anggota', 'Ketua', 'Sekretaris', 'Bendahara']}
+              width="100%"
+            />
+            <Selector
+              label="Status"
+              value={status}
+              onChange={setStatus}
+              options={['Aktif', 'Pasif']}
+              width="100%"
+            />
             {localError ? (
               <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                 {localError}

@@ -123,8 +123,8 @@ export function ImportSavingsDialogContent({
               style={{
                 padding: 'var(--spacing-3, 12px)',
                 borderRadius: '8px',
-                backgroundColor: 'var(--color-background-secondary, #f9fafb)',
-                border: '1px solid var(--color-border-primary, #e5e7eb)',
+                backgroundColor: 'var(--color-background-secondary)',
+                border: '1px solid var(--color-border-primary)',
               }}
             >
               <Heading level={4}>1. Unduh Template Excel</Heading>
@@ -198,7 +198,7 @@ export function ImportSavingsDialogContent({
                 style={{
                   padding: '8px',
                   borderRadius: '6px',
-                  border: '1px solid var(--color-border-primary, #ccc)',
+                  border: '1px solid var(--color-border-primary)',
                   width: '100%',
                 }}
               />
@@ -267,7 +267,7 @@ export function ImportSavingsDialogContent({
                           key={i}
                           style={{
                             borderTop: '1px solid var(--color-border-primary)',
-                            backgroundColor: r.isValid ? 'transparent' : 'var(--color-critical-50, #fef2f2)',
+                            backgroundColor: r.isValid ? 'transparent' : 'var(--color-critical-50)',
                           }}
                         >
                           <td style={{ padding: '8px', fontFamily: 'monospace' }}>{r.nik}</td>

@@ -135,8 +135,8 @@ export function LoanDetailDialogContent({
                 style={{
                   padding: '12px 16px',
                   borderRadius: 8,
-                  border: '1px solid var(--color-critical-200, #fecaca)',
-                  backgroundColor: 'var(--color-critical-50, #fef2f2)',
+                  border: '1px solid var(--color-critical-200)',
+                  backgroundColor: 'var(--color-critical-50)',
                 }}
               >
                 <Text type="body" weight="semibold" style={{ color: 'var(--color-text-error)' }}>

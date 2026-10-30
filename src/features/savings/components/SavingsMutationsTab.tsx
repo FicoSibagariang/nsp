@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { VStack, HStack } from '@astryxdesign/core/Layout';
 import { Text } from '@astryxdesign/core/Text';
-import { Badge } from '@astryxdesign/core/Badge';
+import { StatusBadge } from '../../../components/common/StatusBadge';
 import { PowerSearch, usePowerSearchConfig } from '@astryxdesign/core/PowerSearch';
 import type { PowerSearchFilter } from '@astryxdesign/core/PowerSearch';
 import { Table, proportional } from '@astryxdesign/core/Table';
@@ -122,21 +122,8 @@ export function SavingsMutationsTab() {
       header: 'Tipe Transaksi',
       width: proportional(2),
       renderCell: (item: SavingsTransactionRow) => {
-        let label = item.type;
-        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
-
         const match = transactionTypeValues.find((t) => t.value === item.type);
-        if (match) {
-          label = match.label;
-        }
-
-        if (item.type.startsWith('setor_')) {
-          variant = 'success';
-        } else if (item.type.startsWith('tarik_')) {
-          variant = 'error';
-        }
-
-        return <Badge variant={variant} label={label} />;
+        return <StatusBadge status={item.type} label={match?.label} />;
       },
     },
     {

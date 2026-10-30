@@ -4,6 +4,7 @@ import {Text, Heading} from '@astryxdesign/core/Text';
 import {DateInput} from '@astryxdesign/core/DateInput';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {Button} from '@astryxdesign/core/Button';
+import {Selector} from '@astryxdesign/core/Selector';
 import {formatRp, formatDate} from '../utils/format';
 import {useApiQuery} from '../hooks/useApiQuery';
 import {CopyableAccountNumber} from './CopyableAccountNumber';
@@ -136,9 +137,9 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
           gap={1}
           style={{
             padding: '10px 14px',
-            backgroundColor: 'var(--color-background-secondary, #f3f4f6)',
+            backgroundColor: 'var(--color-background-secondary)',
             borderRadius: 6,
-            border: '1px solid var(--color-border-primary, #e5e7eb)',
+            border: '1px solid var(--color-border-primary)',
           }}
         >
           <Text type="supporting" color="secondary" weight="medium">
@@ -180,38 +181,18 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
 
           return (
             <HStack gap={2} wrap="wrap">
-              <button
-                type="button"
+              <Button
+                size="sm"
+                variant={firstInstallmentDate === endOfThisMonth ? 'primary' : 'secondary'}
                 onClick={() => setFirstInstallmentDate(endOfThisMonth)}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  border: firstInstallmentDate === endOfThisMonth ? '1px solid var(--color-primary-500, #0171E3)' : '1px solid var(--color-border-primary, #e5e7eb)',
-                  backgroundColor: firstInstallmentDate === endOfThisMonth ? 'rgba(1, 113, 227, 0.1)' : 'transparent',
-                  color: firstInstallmentDate === endOfThisMonth ? 'var(--color-primary-500, #0171E3)' : 'var(--color-text-secondary)',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
-                Akhir Bulan Ini ({formatDate(endOfThisMonth)})
-              </button>
-              <button
-                type="button"
+                label={`Akhir Bulan Ini (${formatDate(endOfThisMonth)})`}
+              />
+              <Button
+                size="sm"
+                variant={firstInstallmentDate === endOfNextMonth ? 'primary' : 'secondary'}
                 onClick={() => setFirstInstallmentDate(endOfNextMonth)}
-                style={{
-                  padding: '4px 10px',
-                  borderRadius: '4px',
-                  border: firstInstallmentDate === endOfNextMonth ? '1px solid var(--color-primary-500, #0171E3)' : '1px solid var(--color-border-primary, #e5e7eb)',
-                  backgroundColor: firstInstallmentDate === endOfNextMonth ? 'rgba(1, 113, 227, 0.1)' : 'transparent',
-                  color: firstInstallmentDate === endOfNextMonth ? 'var(--color-primary-500, #0171E3)' : 'var(--color-text-secondary)',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-              >
-                Akhir Bulan Depan ({formatDate(endOfNextMonth)})
-              </button>
+                label={`Akhir Bulan Depan (${formatDate(endOfNextMonth)})`}
+              />
             </HStack>
           );
         })()}
@@ -222,9 +203,9 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
             padding: '8px 12px',
             borderRadius: '6px',
             backgroundColor: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid var(--color-success-500, #10B981)',
+            border: '1px solid var(--color-success-500)',
             fontSize: '12px',
-            color: 'var(--color-success-500, #10B981)',
+            color: 'var(--color-success-500)',
             lineHeight: 1.4,
           }}>
             ✨ <strong>Pola Akhir Bulan Terdeteksi:</strong> Tanggal yang dipilih adalah akhir bulan. Seluruh angsuran berikutnya akan otomatis jatuh pada <strong>setiap akhir bulan</strong> (30/31 atau 28/29).
@@ -233,8 +214,8 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
           <div style={{
             padding: '8px 12px',
             borderRadius: '6px',
-            backgroundColor: 'var(--color-background-secondary, #f3f4f6)',
-            border: '1px solid var(--color-border-primary, #e5e7eb)',
+            backgroundColor: 'var(--color-background-secondary)',
+            border: '1px solid var(--color-border-primary)',
             fontSize: '12px',
             color: 'var(--color-text-secondary)',
             lineHeight: 1.4,
@@ -275,32 +256,21 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
         <Text type="supporting" color="secondary">
           Akun kas/bank yang akan dikreditkan saat pinjaman dicairkan
         </Text>
-        <select
+        <Selector
+          label="Sumber Dana Pencairan"
+          isLabelHidden
           value={selectedAccountId}
-          onChange={(e) => setSelectedAccountId(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            borderRadius: 6,
-            border: '1px solid var(--color-border-primary, #e5e7eb)',
-            backgroundColor: 'var(--color-background-primary, #ffffff)',
-            color: 'var(--color-text-primary, #111827)',
-            fontSize: 14,
-            boxSizing: 'border-box',
-          }}
-        >
-          {paymentSources.map((acc) => (
-            <option key={acc.id} value={acc.id}>
-              {acc.name} ({acc.code})
-            </option>
-          ))}
-          {paymentSources.length === 0 && (
-            <>
-              <option value="ed0ad424-aff5-4a79-8fa2-24eaa541d6fc">Bank Mandiri (11102)</option>
-              <option value="64fa79d2-cd8f-414a-80ac-7daae0e3fd1f">Kas Kecil (11101)</option>
-            </>
-          )}
-        </select>
+          onChange={setSelectedAccountId}
+          options={
+            paymentSources.length > 0
+              ? paymentSources.map((acc) => ({ value: acc.id, label: `${acc.name} (${acc.code})` }))
+              : [
+                  { value: 'ed0ad424-aff5-4a79-8fa2-24eaa541d6fc', label: 'Bank Mandiri (11102)' },
+                  { value: '64fa79d2-cd8f-414a-80ac-7daae0e3fd1f', label: 'Kas Kecil (11101)' },
+                ]
+          }
+          width="100%"
+        />
       </VStack>
 
       {simulation && parsedRate != null ? (
@@ -310,7 +280,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
             padding: 'var(--spacing-3)',
             backgroundColor: 'var(--color-background-secondary, var(--color-background-body))',
             borderRadius: 'var(--radius-md, 8px)',
-            border: '1px solid var(--color-border-primary, var(--color-border, #e5e7eb))',
+            border: '1px solid var(--color-border-primary, var(--color-border))',
             width: '100%',
           }}
         >
@@ -350,7 +320,7 @@ export function ApproveLoanDialogContent({loan, onClose, onConfirm}: Props) {
               <div style={{
                 marginTop: '6px',
                 paddingTop: '8px',
-                borderTop: '1px solid var(--color-border-primary, #e5e7eb)',
+                borderTop: '1px solid var(--color-border-primary)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '4px',

@@ -3,6 +3,7 @@ import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
 import { Badge } from '@astryxdesign/core/Badge';
+import { StatusBadge } from '../../../components/common/StatusBadge';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
@@ -81,13 +82,9 @@ export const LoansTab: React.FC<LoansTabProps> = ({
         key: 'status',
         header: 'Status',
         width: pixel(100),
-        renderCell: (i) => {
-          const variant =
-            i.status === 'Paid' ? 'success' : i.status === 'Late' ? 'error' : 'neutral';
-          const label =
-            i.status === 'Paid' ? 'Lunas' : i.status === 'Late' ? 'Terlambat' : 'Belum';
-          return <Badge variant={variant} label={label} />;
-        },
+        renderCell: (i) => (
+          <StatusBadge status={i.status} />
+        ),
       },
     ],
     []
@@ -150,17 +147,9 @@ export const LoansTab: React.FC<LoansTabProps> = ({
       header: 'Status',
       width: pixel(140),
       renderCell: (i) => {
-        const statusMap: Record<string, { variant: 'success' | 'warning' | 'error' | 'neutral'; label: string }> = {
-          Disetujui: { variant: 'success', label: 'Disetujui' },
-          Lunas: { variant: 'success', label: 'Lunas' },
-          Menunggu: { variant: 'warning', label: 'Menunggu' },
-          Ditolak: { variant: 'error', label: 'Ditolak' },
-          Macet: { variant: 'error', label: 'Macet' },
-        };
-        const s = statusMap[i.status] || { variant: 'neutral', label: i.status };
         return (
           <VStack gap={1}>
-            <Badge variant={s.variant} label={s.label} />
+            <StatusBadge status={i.status} />
             {i.status === 'Ditolak' && i.rejectionReason && (
               <Text
                 type="supporting"

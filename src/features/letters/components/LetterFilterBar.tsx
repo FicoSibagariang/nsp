@@ -2,6 +2,7 @@ import React from 'react';
 import { HStack } from '@astryxdesign/core/Layout';
 import { Text } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
+import { Selector } from '@astryxdesign/core/Selector';
 import type { LetterCategory } from '../types';
 
 interface LetterFilterBarProps {
@@ -50,30 +51,28 @@ export function LetterFilterBar({
             />
           </div>
 
-          <select
+          <Selector
+            label="Kategori Surat"
+            isLabelHidden
+            size="sm"
             value={selectedCategory}
-            onChange={(e) => onCategoryChange(e.target.value)}
-            style={{ ...inputStyle, width: 'auto' }}
-          >
-            <option value="ALL">Semua Jenis Surat</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label} ({c.code})
-              </option>
-            ))}
-          </select>
+            onChange={onCategoryChange}
+            options={[
+              { value: 'ALL', label: 'Semua Jenis Surat' },
+              ...categories.map((c) => ({ value: c.id, label: `${c.label} (${c.code})` })),
+            ]}
+            width={220}
+          />
 
-          <select
+          <Selector
+            label="Tahun Surat"
+            isLabelHidden
+            size="sm"
             value={selectedYear}
-            onChange={(e) => onYearChange(e.target.value)}
-            style={{ ...inputStyle, width: 'auto' }}
-          >
-            {[2024, 2025, 2026, 2027].map((y) => (
-              <option key={y} value={String(y)}>
-                Tahun {y}
-              </option>
-            ))}
-          </select>
+            onChange={onYearChange}
+            options={[2024, 2025, 2026, 2027].map((y) => ({ value: String(y), label: `Tahun ${y}` }))}
+            width={130}
+          />
         </HStack>
 
         <Text type="supporting" color="secondary">

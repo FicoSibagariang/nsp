@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { VStack, HStack } from '@astryxdesign/core/Layout';
 import { Text } from '@astryxdesign/core/Text';
-import { Badge } from '@astryxdesign/core/Badge';
+import { StatusBadge } from '../../../components/common/StatusBadge';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Button } from '@astryxdesign/core/Button';
@@ -91,18 +91,9 @@ export function SavingsDepositsTab({ onMutationSuccess, pendingCount = 0 }: Savi
       key: 'savingsType',
       header: 'Jenis Simpanan',
       width: pixel(150),
-      renderCell: (item: SavingsDepositRow) => {
-        let label = 'Simpanan Sukarela';
-        let variant: 'info' | 'neutral' | 'success' = 'neutral';
-        if (item.savingsType === 'pokok') {
-          label = 'Simpanan Pokok';
-          variant = 'info';
-        } else if (item.savingsType === 'wajib') {
-          label = 'Simpanan Wajib';
-          variant = 'success';
-        }
-        return <Badge variant={variant} label={label} />;
-      },
+      renderCell: (item: SavingsDepositRow) => (
+        <StatusBadge status={item.savingsType} />
+      ),
     },
     {
       key: 'amount',
@@ -145,7 +136,7 @@ export function SavingsDepositsTab({ onMutationSuccess, pendingCount = 0 }: Savi
             target="_blank"
             rel="noreferrer"
             style={{
-              color: 'var(--color-primary-600, #2563eb)',
+              color: 'var(--color-primary-600)',
               textDecoration: 'underline',
               fontSize: 13,
               fontWeight: 500,
@@ -160,13 +151,9 @@ export function SavingsDepositsTab({ onMutationSuccess, pendingCount = 0 }: Savi
       key: 'status',
       header: 'Status',
       width: pixel(120),
-      renderCell: (item: SavingsDepositRow) => {
-        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
-        if (item.status === 'Menunggu') variant = 'warning';
-        else if (item.status === 'Diverifikasi') variant = 'success';
-        else if (item.status === 'Ditolak') variant = 'error';
-        return <Badge variant={variant} label={item.status} />;
-      },
+      renderCell: (item: SavingsDepositRow) => (
+        <StatusBadge status={item.status} />
+      ),
     },
     {
       key: 'actions',
@@ -246,7 +233,7 @@ export function SavingsDepositsTab({ onMutationSuccess, pendingCount = 0 }: Savi
         if (item.status === 'Diverifikasi') {
           return (
             <VStack gap={0}>
-              <Text type="supporting" weight="medium" style={{ color: 'var(--color-success-600, #16a34a)' }}>
+              <Text type="supporting" weight="medium" style={{ color: 'var(--color-success-600)' }}>
                 ✓ Diverifikasi
               </Text>
               <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
@@ -287,27 +274,16 @@ export function SavingsDepositsTab({ onMutationSuccess, pendingCount = 0 }: Savi
               Status:
             </Text>
             {['Semua', 'Menunggu', 'Diverifikasi', 'Ditolak'].map((st) => (
-              <button
+              <Button
                 key={st}
-                type="button"
+                size="sm"
+                variant={depositStatusFilter === st ? 'primary' : 'secondary'}
                 onClick={() => {
                   setDepositStatusFilter(st);
                   setDepositPage(1);
                 }}
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: 20,
-                  fontSize: 13,
-                  fontWeight: depositStatusFilter === st ? 600 : 500,
-                  cursor: 'pointer',
-                  border: `1px solid ${depositStatusFilter === st ? 'var(--color-primary-500, #3b82f6)' : 'var(--color-border-primary, #e5e7eb)'}`,
-                  backgroundColor: depositStatusFilter === st ? 'rgba(59, 130, 246, 0.1)' : 'var(--color-background-primary, #ffffff)',
-                  color: depositStatusFilter === st ? 'var(--color-primary-600, #2563eb)' : 'var(--color-text-secondary, #6b7280)',
-                }}
-              >
-                {st}
-                {st === 'Menunggu' && pendingCount > 0 && ` (${pendingCount})`}
-              </button>
+                label={`${st}${st === 'Menunggu' && pendingCount > 0 ? ` (${pendingCount})` : ''}`}
+              />
             ))}
           </HStack>
 
@@ -321,26 +297,16 @@ export function SavingsDepositsTab({ onMutationSuccess, pendingCount = 0 }: Savi
               { val: 'wajib', label: 'Wajib' },
               { val: 'sukarela', label: 'Sukarela' },
             ].map((t) => (
-              <button
+              <Button
                 key={t.val}
-                type="button"
+                size="sm"
+                variant={depositTypeFilter === t.val ? 'primary' : 'secondary'}
                 onClick={() => {
                   setDepositTypeFilter(t.val);
                   setDepositPage(1);
                 }}
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: 20,
-                  fontSize: 13,
-                  fontWeight: depositTypeFilter === t.val ? 600 : 500,
-                  cursor: 'pointer',
-                  border: `1px solid ${depositTypeFilter === t.val ? 'var(--color-primary-500, #3b82f6)' : 'var(--color-border-primary, #e5e7eb)'}`,
-                  backgroundColor: depositTypeFilter === t.val ? 'rgba(59, 130, 246, 0.1)' : 'var(--color-background-primary, #ffffff)',
-                  color: depositTypeFilter === t.val ? 'var(--color-primary-600, #2563eb)' : 'var(--color-text-secondary, #6b7280)',
-                }}
-              >
-                {t.label}
-              </button>
+                label={t.label}
+              />
             ))}
           </HStack>
         </HStack>

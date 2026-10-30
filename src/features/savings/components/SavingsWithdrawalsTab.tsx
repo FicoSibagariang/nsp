@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { VStack, HStack } from '@astryxdesign/core/Layout';
 import { Text } from '@astryxdesign/core/Text';
-import { Badge } from '@astryxdesign/core/Badge';
+import { StatusBadge } from '../../../components/common/StatusBadge';
 import { Table, proportional } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Button } from '@astryxdesign/core/Button';
@@ -102,7 +102,7 @@ export function SavingsWithdrawalsTab({ onMutationSuccess }: SavingsWithdrawalsT
       header: 'Nominal Penarikan',
       width: proportional(1.6),
       renderCell: (item: SavingsWithdrawalRow) => (
-        <Text type="body" weight="bold" style={{ color: 'var(--color-critical-500, #ef4444)' }}>
+        <Text type="body" weight="bold" style={{ color: 'var(--color-critical-500)' }}>
           {formatRp(item.amount)}
         </Text>
       ),
@@ -133,13 +133,9 @@ export function SavingsWithdrawalsTab({ onMutationSuccess }: SavingsWithdrawalsT
       key: 'status',
       header: 'Status',
       width: proportional(1.4),
-      renderCell: (item: SavingsWithdrawalRow) => {
-        let variant: 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
-        if (item.status === 'Menunggu') variant = 'warning';
-        else if (item.status === 'Disetujui') variant = 'success';
-        else if (item.status === 'Ditolak') variant = 'error';
-        return <Badge variant={variant} label={item.status} />;
-      },
+      renderCell: (item: SavingsWithdrawalRow) => (
+        <StatusBadge status={item.status} />
+      ),
     },
     {
       key: 'actions',
@@ -219,7 +215,7 @@ export function SavingsWithdrawalsTab({ onMutationSuccess }: SavingsWithdrawalsT
         if (item.status === 'Disetujui') {
           return (
             <VStack gap={0}>
-              <Text type="supporting" weight="medium" style={{ color: 'var(--color-success-600, #16a34a)' }}>
+              <Text type="supporting" weight="medium" style={{ color: 'var(--color-success-600)' }}>
                 ✓ Telah Dicairkan
               </Text>
               <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
@@ -258,26 +254,16 @@ export function SavingsWithdrawalsTab({ onMutationSuccess }: SavingsWithdrawalsT
             Filter Status:
           </Text>
           {['Semua', 'Menunggu', 'Disetujui', 'Ditolak'].map((st) => (
-            <button
+            <Button
               key={st}
-              type="button"
+              size="sm"
+              variant={withdrawalStatusFilter === st ? 'primary' : 'secondary'}
               onClick={() => {
                 setWithdrawalStatusFilter(st);
                 setWithdrawalPage(1);
               }}
-              style={{
-                padding: '4px 12px',
-                borderRadius: 20,
-                fontSize: 13,
-                fontWeight: withdrawalStatusFilter === st ? 600 : 500,
-                cursor: 'pointer',
-                border: `1px solid ${withdrawalStatusFilter === st ? 'var(--color-primary-500, #3b82f6)' : 'var(--color-border-primary, #e5e7eb)'}`,
-                backgroundColor: withdrawalStatusFilter === st ? 'rgba(59, 130, 246, 0.1)' : 'var(--color-background-primary, #ffffff)',
-                color: withdrawalStatusFilter === st ? 'var(--color-primary-600, #2563eb)' : 'var(--color-text-secondary, #6b7280)',
-              }}
-            >
-              {st}
-            </button>
+              label={st}
+            />
           ))}
         </HStack>
 

@@ -84,7 +84,7 @@ export function ProfileSettings({
           />
         </Grid>
 
-        <VStack gap={1} style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--color-border-primary, #e5e7eb)' }}>
+        <VStack gap={1} style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--color-border-primary)' }}>
           <Text type="body" weight="bold">Rekening Bank Resmi Koperasi (Tujuan Transfer Simpanan)</Text>
           <Text type="supporting" color="secondary" style={{ fontSize: 13 }}>
             Informasi rekening resmi ini akan ditampilkan secara otomatis pada formulir konfirmasi setoran transfer di portal anggota.

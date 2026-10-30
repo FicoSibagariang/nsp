@@ -10,6 +10,7 @@ import {
 } from '@astryxdesign/core/Layout';
 import {Button} from '@astryxdesign/core/Button';
 import {TextInput} from '@astryxdesign/core/TextInput';
+import {Selector} from '@astryxdesign/core/Selector';
 import {Text} from '@astryxdesign/core/Text';
 import {Heading} from '@astryxdesign/core/Text';
 
@@ -241,26 +242,13 @@ export function AddMemberDialogContent({
                 control={control}
                 render={({ field }) => (
                   <VStack gap={1}>
-                    <Text type="supporting">Jabatan</Text>
-                    <select
+                    <Selector
+                      label="Jabatan"
                       value={field.value}
                       onChange={field.onChange}
-                      style={{
-                        width: '100%',
-                        padding: '8px 12px',
-                        borderRadius: 'var(--radius-md, 6px)',
-                        border: '1px solid var(--color-border-primary)',
-                        backgroundColor: 'var(--color-background-primary)',
-                        color: 'var(--color-text-primary)',
-                        fontSize: '14px',
-                        boxSizing: 'border-box'
-                      }}
-                    >
-                      <option value="Anggota">Anggota</option>
-                      <option value="Ketua">Ketua</option>
-                      <option value="Sekretaris">Sekretaris</option>
-                      <option value="Bendahara">Bendahara</option>
-                    </select>
+                      options={['Anggota', 'Ketua', 'Sekretaris', 'Bendahara']}
+                      width="100%"
+                    />
                     {errors.role && (
                       <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>
                         {errors.role.message}
@@ -314,8 +302,8 @@ export function AddMemberDialogContent({
                 style={{
                   padding: 'var(--spacing-3)',
                   borderRadius: 'var(--radius-md, 8px)',
-                  border: '1px solid var(--color-border-primary, #e5e7eb)',
-                  backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-background-secondary)',
                 }}
               >
                 <VStack gap={1}>

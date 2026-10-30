@@ -10,7 +10,7 @@ import {
   LayoutHeader,
 } from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
-import {Badge} from '@astryxdesign/core/Badge';
+import {StatusBadge} from '../components/common/StatusBadge';
 import {Button} from '@astryxdesign/core/Button';
 import {Icon} from '@astryxdesign/core/Icon';
 import {ArrowDownTrayIcon, DocumentArrowDownIcon} from '@heroicons/react/24/outline';
@@ -108,15 +108,9 @@ export default function LoansTxTemplate() {
       key: 'type',
       header: 'Tipe Transaksi',
       width: proportional(1.5),
-      renderCell: (item: LoanPaymentRow) => {
-        const isDisbursement = item.type === 'pencairan';
-        return (
-          <Badge 
-            variant={isDisbursement ? 'error' : 'success'} 
-            label={isDisbursement ? 'Pencairan' : 'Angsuran'} 
-          />
-        );
-      },
+      renderCell: (item: LoanPaymentRow) => (
+        <StatusBadge status={item.type} />
+      ),
     },
     {
       key: 'amount',
@@ -137,9 +131,7 @@ export default function LoansTxTemplate() {
       width: proportional(2),
       renderCell: (item: LoanPaymentRow) => {
         const match = methodValues.find(m => m.value === item.method);
-        const label = match ? match.label : item.method;
-        const variant = item.method === 'Transfer' ? 'success' : 'neutral';
-        return <Badge variant={variant} label={label} />;
+        return <StatusBadge status={item.method} label={match?.label} />;
       },
     },
     {

@@ -23,11 +23,11 @@ export const chartColors = {
 
   // Chart UI elements
   grid: 'var(--color-border, rgba(5, 54, 89, 0.1))',
-  axis: 'var(--color-text-secondary, #4E606F)',
+  axis: 'var(--color-text-secondary)',
   tooltip: {
-    background: 'var(--color-background-primary, #fff)',
-    border: 'var(--color-border-primary, #e5e7eb)',
-    text: 'var(--color-text-primary, #1f2937)',
+    background: 'var(--color-background-primary)',
+    border: 'var(--color-border-primary)',
+    text: 'var(--color-text-primary)',
   },
 };
 

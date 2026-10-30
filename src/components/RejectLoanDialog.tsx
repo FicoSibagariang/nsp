@@ -56,9 +56,9 @@ export function RejectLoanDialogContent({
           gap={2}
           style={{
             padding: '12px 16px',
-            backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+            backgroundColor: 'var(--color-background-secondary)',
             borderRadius: 8,
-            border: '1px solid var(--color-border-primary, #e5e7eb)',
+            border: '1px solid var(--color-border-primary)',
           }}
         >
           <HStack justify="between" vAlign="center">
@@ -83,34 +83,25 @@ export function RejectLoanDialogContent({
 
         <VStack gap={2}>
           <label htmlFor="rejection-reason" style={{ fontSize: 14, fontWeight: 600 }}>
-            Alasan Penolakan <span style={{ color: 'var(--color-critical-500, #ef4444)' }}>*</span>
+            Alasan Penolakan <span style={{ color: 'var(--color-critical-500)' }}>*</span>
           </label>
 
           {/* Quick template suggestions */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 4 }}>
+          <HStack gap={2} wrap="wrap">
             {COMMON_REASONS.map((common) => (
-              <button
+              <Button
                 type="button"
+                size="sm"
                 key={common}
+                variant={reason === common ? 'primary' : 'secondary'}
                 onClick={() => {
                   setReason(common);
                   if (error) setError('');
                 }}
-                style={{
-                  fontSize: 12,
-                  padding: '4px 10px',
-                  borderRadius: 16,
-                  border: '1px solid var(--color-border-primary, #d1d5db)',
-                  backgroundColor: reason === common ? 'var(--color-primary-50, #eff6ff)' : 'var(--color-background-primary, #ffffff)',
-                  color: reason === common ? 'var(--color-primary-700, #1d4ed8)' : 'var(--color-text-secondary, #4b5563)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {common}
-              </button>
+                label={common}
+              />
             ))}
-          </div>
+          </HStack>
 
           <textarea
             id="rejection-reason"
@@ -125,9 +116,9 @@ export function RejectLoanDialogContent({
               width: '100%',
               padding: '10px 12px',
               borderRadius: 6,
-              border: `1px solid ${error ? 'var(--color-critical-500, #ef4444)' : 'var(--color-border-primary, #e5e7eb)'}`,
-              backgroundColor: 'var(--color-background-primary, #ffffff)',
-              color: 'var(--color-text-primary, #111827)',
+              border: `1px solid ${error ? 'var(--color-critical-500)' : 'var(--color-border-primary)'}`,
+              backgroundColor: 'var(--color-background-primary)',
+              color: 'var(--color-text-primary)',
               fontSize: 14,
               boxSizing: 'border-box',
               resize: 'vertical',

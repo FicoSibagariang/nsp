@@ -4,6 +4,7 @@ import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
 import { Button } from '@astryxdesign/core/Button';
+import { Selector } from '@astryxdesign/core/Selector';
 import { Spinner } from '@astryxdesign/core/Spinner';
 import { Badge } from '@astryxdesign/core/Badge';
 import { BanknotesIcon, ClipboardDocumentCheckIcon, ChartBarIcon, SparklesIcon } from '@heroicons/react/24/outline';
@@ -106,7 +107,7 @@ export default function MemberPortal() {
             ) : null}
 
             {data.profile?.isCoopMember === false && (
-              <Card style={{ padding: 20, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-primary-500, #3b82f6)' }}>
+              <Card style={{ padding: 20, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-primary-500)' }}>
                 <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
                   <VStack gap={1}>
                     <HStack gap={2} vAlign="center">
@@ -146,9 +147,10 @@ export default function MemberPortal() {
               {tabsConfig.map((tab) => {
                 const isActive = activeTab === tab.id;
                 return (
-                  <button
+                  <Button
                     key={tab.id}
-                    type="button"
+                    size="sm"
+                    variant={isActive ? 'primary' : 'ghost'}
                     onClick={() => {
                       setActiveTab(tab.id as any);
                       if (tab.id === 'savings') data.setSelectedLoan(null);
@@ -156,31 +158,9 @@ export default function MemberPortal() {
                       if (tab.id === 'reports' && (!data.incomeData || !data.balanceData)) data.loadReports();
                       if (tab.id === 'ewa' && !data.ewaQuota) data.loadEwaData();
                     }}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '8px 16px',
-                      borderRadius: 'var(--radius-md, 6px)',
-                      border: 'none',
-                      fontSize: '14px',
-                      fontWeight: isActive ? 600 : 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      backgroundColor: isActive
-                        ? 'var(--color-background-primary)'
-                        : 'transparent',
-                      color: isActive
-                        ? 'var(--color-primary-500, var(--color-text-primary))'
-                        : 'var(--color-text-secondary)',
-                      boxShadow: isActive
-                        ? '0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06)'
-                        : 'none',
-                    }}
-                  >
-                    <tab.icon style={{ width: 18, height: 18, color: 'currentColor' }} />
-                    <span>{tab.label}</span>
-                  </button>
+                    icon={<tab.icon style={{ width: 18, height: 18, color: 'currentColor' }} />}
+                    label={tab.label}
+                  />
                 );
               })}
             </div>
@@ -201,32 +181,21 @@ export default function MemberPortal() {
                   </Heading>
 
                   {activeTab === 'shu' && data.shuData?.availableYears && data.shuData.availableYears.length > 1 && (
-                    <HStack gap={2} vAlign="center">
-                      <Text type="supporting" weight="medium">Tahun Buku:</Text>
-                      <select
+                    <div style={{ minWidth: 200 }}>
+                      <Selector
+                        label="Tahun Buku"
+                        isLabelHidden
                         value={data.shuYear}
-                        onChange={(e) => {
-                          data.setShuYear(e.target.value);
-                          data.loadShuData(e.target.value);
+                        onChange={(val: string) => {
+                          data.setShuYear(val);
+                          data.loadShuData(val);
                         }}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: 'var(--radius-md, 6px)',
-                          border: '1px solid var(--color-border-primary, #cbd5e1)',
-                          backgroundColor: 'var(--color-background-primary, #ffffff)',
-                          color: 'var(--color-text-primary, #1e293b)',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {data.shuData.availableYears.map((yr: string) => (
-                          <option key={yr} value={yr}>
-                            Tahun {yr} {yr === new Date().getFullYear().toString() ? '(Berjalan)' : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </HStack>
+                        options={data.shuData.availableYears.map((yr: string) => ({
+                          value: yr,
+                          label: `Tahun ${yr}${yr === new Date().getFullYear().toString() ? ' (Berjalan)' : ''}`,
+                        }))}
+                      />
+                    </div>
                   )}
 
                   {activeTab === 'loans' && (

@@ -181,7 +181,7 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
                 <Spinner size="md" />
               </div>
             ) : error ? (
-              <Card style={{ padding: 16, backgroundColor: 'var(--color-critical-50, #fef2f2)' }}>
+              <Card style={{ padding: 16, backgroundColor: 'var(--color-critical-50)' }}>
                 <VStack gap={2}>
                   <Text style={{ color: 'var(--color-text-error)' }} weight="medium">
                     Gagal memuat pratinjau potongan payroll
@@ -235,7 +235,7 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
                     <thead>
                       <tr
                         style={{
-                          backgroundColor: 'var(--color-background-subtle, #f9fafb)',
+                          backgroundColor: 'var(--color-background-subtle)',
                           borderBottom: '1px solid var(--color-border-primary)',
                           position: 'sticky',
                           top: 0,

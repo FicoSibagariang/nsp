@@ -9,7 +9,7 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { Icon } from '@astryxdesign/core/Icon';
 import { Table, pixel, proportional } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
-import { Badge } from '@astryxdesign/core/Badge';
+import { StatusBadge } from '../components/common/StatusBadge';
 import { PaperClipIcon, PencilIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { apiFetch } from '../config';
@@ -92,11 +92,9 @@ export default function LettersPage() {
       width: pixel(300),
       renderCell: (item) => {
         const cat = categories.find((c) => c.id === item.category);
-        const isAnggota = item.category === 'PINJAMAN_ANGGOTA';
-        const isModal = item.category === 'PINJAMAN_MODAL';
         return (
-          <Badge
-            variant={isAnggota ? 'info' : isModal ? 'warning' : 'neutral'}
+          <StatusBadge
+            status={item.category}
             label={cat?.label || item.category}
           />
         );

@@ -11,6 +11,7 @@ import {
 } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
+import { Selector } from '@astryxdesign/core/Selector';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Icon } from '@astryxdesign/core/Icon';
@@ -188,47 +189,41 @@ export default function AuditLog() {
               <VStack gap={3}>
                 <Heading level={4}>Filter Riwayat</Heading>
                 <HStack gap={4} wrap="wrap">
-                  <VStack gap={1}>
-                    <Text type="supporting">Aktor</Text>
-                    <select
-                      value={filters.actor}
-                      onChange={(e) => setFilters(f => ({ ...f, actor: e.target.value }))}
-                      style={inputStyle}
-                    >
-                      <option value="">Semua Aktor</option>
-                      {uniqueActors.map(actor => (
-                        <option key={actor} value={actor}>{actor}</option>
-                      ))}
-                    </select>
-                  </VStack>
+                  <Selector
+                    label="Aktor"
+                    size="sm"
+                    value={filters.actor}
+                    onChange={(val) => setFilters(f => ({ ...f, actor: val }))}
+                    options={[
+                      { value: '', label: 'Semua Aktor' },
+                      ...uniqueActors.map(actor => ({ value: actor, label: actor })),
+                    ]}
+                    width={180}
+                  />
 
-                  <VStack gap={1}>
-                    <Text type="supporting">Aksi</Text>
-                    <select
-                      value={filters.action}
-                      onChange={(e) => setFilters(f => ({ ...f, action: e.target.value }))}
-                      style={inputStyle}
-                    >
-                      <option value="">Semua Aksi</option>
-                      {uniqueActions.map(action => (
-                        <option key={action} value={action}>{ACTION_LABELS[action] || action}</option>
-                      ))}
-                    </select>
-                  </VStack>
+                  <Selector
+                    label="Aksi"
+                    size="sm"
+                    value={filters.action}
+                    onChange={(val) => setFilters(f => ({ ...f, action: val }))}
+                    options={[
+                      { value: '', label: 'Semua Aksi' },
+                      ...uniqueActions.map(action => ({ value: action, label: ACTION_LABELS[action] || action })),
+                    ]}
+                    width={180}
+                  />
 
-                  <VStack gap={1}>
-                    <Text type="supporting">Entitas</Text>
-                    <select
-                      value={filters.entity}
-                      onChange={(e) => setFilters(f => ({ ...f, entity: e.target.value }))}
-                      style={inputStyle}
-                    >
-                      <option value="">Semua Entitas</option>
-                      {uniqueEntities.map(entity => (
-                        <option key={entity} value={entity}>{entity}</option>
-                      ))}
-                    </select>
-                  </VStack>
+                  <Selector
+                    label="Entitas"
+                    size="sm"
+                    value={filters.entity}
+                    onChange={(val) => setFilters(f => ({ ...f, entity: val }))}
+                    options={[
+                      { value: '', label: 'Semua Entitas' },
+                      ...uniqueEntities.map(entity => ({ value: entity, label: entity })),
+                    ]}
+                    width={180}
+                  />
 
                   <VStack gap={1}>
                     <Text type="supporting">Dari Tanggal</Text>
