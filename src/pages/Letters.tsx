@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Layout, LayoutHeader, LayoutContent, VStack, HStack, StackItem } from '@astryxdesign/core/Layout';
 import { Text, Heading } from '@astryxdesign/core/Text';
 import { Card } from '@astryxdesign/core/Card';
@@ -10,48 +10,22 @@ import { Icon } from '@astryxdesign/core/Icon';
 import { Table, pixel, proportional } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { Badge } from '@astryxdesign/core/Badge';
-import { Grid } from '@astryxdesign/core/Grid';
-import { PaperClipIcon, PencilIcon, TrashIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { PaperClipIcon, PencilIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { apiFetch } from '../config';
 import { formatRp, formatDate } from '../utils/format';
-
-interface OfficialLetter extends Record<string, unknown> {
-  id: string;
-  letterNumber: string;
-  seqNumber: number;
-  category: string;
-  letterDate: string;
-  partyName: string;
-  subject: string;
-  description?: string | null;
-  amount?: number | null;
-  attachmentUrl?: string | null;
-  attachmentName?: string | null;
-  status: string;
-  createdBy?: string | null;
-  createdAt: string;
-}
-
-interface LetterCategory {
-  id: string;
-  code: string;
-  label: string;
-}
-
-interface LettersResponse {
-  data: OfficialLetter[];
-  total: number;
-  page: number;
-  limit: number;
-  stats: {
-    total: number;
-    byCategory: Record<string, number>;
-  };
-}
+import {
+  LetterStatsCards,
+  LetterFilterBar,
+  CreateLetterDialog,
+  EditLetterDialog,
+  type OfficialLetter,
+  type LetterCategory,
+  type LettersResponse,
+} from '../features/letters';
 
 export default function LettersPage() {
-  const [page, setPage] = useState(1);
+  const [page] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
@@ -68,133 +42,12 @@ export default function LettersPage() {
 
   // Query letters list
   const queryUrl = `/api/letters?page=${page}&limit=20&category=${selectedCategory}&year=${selectedYear}&search=${encodeURIComponent(searchQuery)}`;
-  const { data: lettersRes, isLoading, error, refetch } = useApiQuery<LettersResponse>(queryUrl);
+  const { data: lettersRes, refetch } = useApiQuery<LettersResponse>(queryUrl);
 
-  // Dialog State for creating new letter
+  // Dialog state
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [formCategory, setFormCategory] = useState('PINJAMAN_ANGGOTA');
-  const [formDate, setFormDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [formPartyName, setFormPartyName] = useState('');
-  const [formSubject, setFormSubject] = useState('');
-  const [formDescription, setFormDescription] = useState('');
-  const [formAmount, setFormAmount] = useState('');
-  const [formAttachmentUrl, setFormAttachmentUrl] = useState('');
-  const [formAttachmentName, setFormAttachmentName] = useState('');
-  const [uploadingAttachment, setUploadingAttachment] = useState(false);
-  const [uploadError, setUploadError] = useState('');
-  const [isManualNumber, setIsManualNumber] = useState(false);
-  const [manualNumber, setManualNumber] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState('');
-  const [formSuccess, setFormSuccess] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Dialog State for editing letter
   const [showEditModal, setShowEditModal] = useState(false);
   const [editLetter, setEditLetter] = useState<OfficialLetter | null>(null);
-  const [editPartyName, setEditPartyName] = useState('');
-  const [editSubject, setEditSubject] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editAmount, setEditAmount] = useState('');
-  const [editAttachmentUrl, setEditAttachmentUrl] = useState('');
-  const [editAttachmentName, setEditAttachmentName] = useState('');
-  const [editUploadingAttachment, setEditUploadingAttachment] = useState(false);
-  const [editUploadError, setEditUploadError] = useState('');
-  const [editSubmitting, setEditSubmitting] = useState(false);
-  const [editFormError, setEditFormError] = useState('');
-  const [editFormSuccess, setEditFormSuccess] = useState('');
-  const editFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Query preview number whenever category or date changes
-  const { data: previewRes } = useApiQuery<{ nextSeq: number; letterNumber: string; categoryCode: string }>(
-    `/api/letters/preview-next-number?category=${formCategory}&date=${formDate}`
-  );
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadError('');
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError('Ukuran file maksimal adalah 10 MB');
-      return;
-    }
-    const allowedExts = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.heic'];
-    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-    if (!allowedExts.includes(ext)) {
-      setUploadError('Hanya file PDF, JPG, PNG, dan WebP yang diizinkan');
-      return;
-    }
-
-    setUploadingAttachment(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await apiFetch('/api/v1/upload/loan-attachment', {
-        method: 'POST',
-        body: formData,
-      }).then((r) => r.json());
-
-      if (res.success && res.data?.url) {
-        setFormAttachmentUrl(res.data.url);
-        setFormAttachmentName(res.data.name || file.name);
-      } else {
-        setUploadError(res.message || 'Gagal mengunggah file lampiran');
-      }
-    } catch {
-      setUploadError('Terjadi kesalahan jaringan saat mengunggah');
-    } finally {
-      setUploadingAttachment(false);
-    }
-  };
-
-  const handleCreateLetter = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-    setFormSuccess('');
-    setSubmitting(true);
-
-    try {
-      const numericAmount = formAmount ? parseFloat(formAmount.replace(/\D/g, '')) : null;
-      const res = await apiFetch('/api/v1/letters', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          category: formCategory,
-          letterDate: formDate,
-          partyName: formPartyName.trim(),
-          subject: formSubject.trim(),
-          description: formDescription.trim() || null,
-          amount: numericAmount,
-          attachmentUrl: formAttachmentUrl || null,
-          attachmentName: formAttachmentName || null,
-          manualLetterNumber: isManualNumber ? manualNumber.trim() : null,
-        }),
-      }).then((r) => r.json());
-
-      if (res.success) {
-        setFormSuccess(`Nomor surat '${res.data?.letterNumber}' berhasil diterbitkan!`);
-        setTimeout(() => {
-          setShowCreateModal(false);
-          setFormPartyName('');
-          setFormSubject('');
-          setFormDescription('');
-          setFormAmount('');
-          setFormAttachmentUrl('');
-          setFormAttachmentName('');
-          setIsManualNumber(false);
-          setManualNumber('');
-          setFormSuccess('');
-          refetch();
-        }, 1200);
-      } else {
-        setFormError(res.message || 'Gagal menerbitkan nomor surat');
-      }
-    } catch {
-      setFormError('Terjadi kesalahan jaringan');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleDeleteLetter = async (letter: OfficialLetter) => {
     if (!window.confirm(`Yakin ingin menghapus arsip surat nomor '${letter.letterNumber}'?`)) return;
@@ -212,104 +65,7 @@ export default function LettersPage() {
 
   const handleOpenEdit = (letter: OfficialLetter) => {
     setEditLetter(letter);
-    setEditPartyName(letter.partyName || '');
-    setEditSubject(letter.subject || '');
-    setEditDescription(letter.description || '');
-    setEditAmount(letter.amount ? Number(letter.amount).toLocaleString('id-ID') : '');
-    setEditAttachmentUrl(letter.attachmentUrl || '');
-    setEditAttachmentName(letter.attachmentName || '');
-    setEditUploadError('');
-    setEditFormError('');
-    setEditFormSuccess('');
     setShowEditModal(true);
-  };
-
-  const handleEditFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setEditUploadError('');
-    if (file.size > 10 * 1024 * 1024) {
-      setEditUploadError('Ukuran file maksimal adalah 10 MB');
-      return;
-    }
-    const allowedExts = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.heic'];
-    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-    if (!allowedExts.includes(ext)) {
-      setEditUploadError('Hanya file PDF, JPG, PNG, dan WebP yang diizinkan');
-      return;
-    }
-
-    setEditUploadingAttachment(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await apiFetch('/api/v1/upload/loan-attachment', {
-        method: 'POST',
-        body: formData,
-      }).then((r) => r.json());
-
-      if (res.success && res.data?.url) {
-        setEditAttachmentUrl(res.data.url);
-        setEditAttachmentName(res.data.name || file.name);
-      } else {
-        setEditUploadError(res.message || 'Gagal mengunggah file lampiran');
-      }
-    } catch {
-      setEditUploadError('Terjadi kesalahan jaringan saat mengunggah');
-    } finally {
-      setEditUploadingAttachment(false);
-    }
-  };
-
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editLetter) return;
-    setEditFormError('');
-    setEditFormSuccess('');
-    setEditSubmitting(true);
-
-    try {
-      const numericAmount = editAmount ? parseFloat(editAmount.replace(/\D/g, '')) : null;
-      const res = await apiFetch(`/api/v1/letters/${editLetter.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          partyName: editPartyName.trim(),
-          subject: editSubject.trim(),
-          description: editDescription.trim() || null,
-          amount: numericAmount,
-          attachmentUrl: editAttachmentUrl || null,
-          attachmentName: editAttachmentName || null,
-        }),
-      }).then((r) => r.json());
-
-      if (res.success) {
-        setEditFormSuccess('Data surat berhasil diperbarui!');
-        setTimeout(() => {
-          setShowEditModal(false);
-          setEditLetter(null);
-          setEditFormSuccess('');
-          refetch();
-        }, 1000);
-      } else {
-        setEditFormError(res.message || 'Gagal memperbarui data surat');
-      }
-    } catch {
-      setEditFormError('Terjadi kesalahan jaringan');
-    } finally {
-      setEditSubmitting(false);
-    }
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '8px 12px',
-    borderRadius: '6px',
-    border: '1px solid var(--color-border-primary)',
-    backgroundColor: 'var(--color-background-primary)',
-    color: 'var(--color-text-primary)',
-    fontSize: '14px',
-    boxSizing: 'border-box',
   };
 
   const columns: TableColumn<OfficialLetter>[] = useMemo(() => [
@@ -418,8 +174,6 @@ export default function LettersPage() {
     },
   ], [categories]);
 
-  const stats = lettersRes?.stats;
-
   return (
     <Layout
       height="auto"
@@ -438,11 +192,7 @@ export default function LettersPage() {
               label="Terbitkan Nomor Surat"
               variant="primary"
               icon={<Icon icon={PlusIcon} size="sm" />}
-              onClick={() => {
-                setShowCreateModal(true);
-                setFormError('');
-                setFormSuccess('');
-              }}
+              onClick={() => setShowCreateModal(true)}
             />
           </HStack>
         </LayoutHeader>
@@ -450,83 +200,19 @@ export default function LettersPage() {
       content={
         <LayoutContent padding={4}>
           <VStack gap={6}>
-            {/* Metric Cards */}
-            <Grid columns={{ minWidth: 220, repeat: 'fit' }} gap={4}>
-              <Card style={{ padding: 16 }}>
-                <VStack gap={1}>
-                  <Text type="supporting" color="secondary">Total Surat Terdaftar</Text>
-                  <Heading level={2}>{stats?.total || 0}</Heading>
-                </VStack>
-              </Card>
-              <Card style={{ padding: 16 }}>
-                <VStack gap={1}>
-                  <Text type="supporting" color="secondary">Perjanjian Pinjaman Anggota (SPP-ANG)</Text>
-                  <Heading level={2} color="primary">{stats?.byCategory?.['PINJAMAN_ANGGOTA'] || 0}</Heading>
-                </VStack>
-              </Card>
-              <Card style={{ padding: 16 }}>
-                <VStack gap={1}>
-                  <Text type="supporting" color="secondary">Perjanjian Pinjaman Modal (SPH-MODAL)</Text>
-                  <Heading level={2} style={{ color: 'var(--color-warning-600, #d97706)' }}>
-                    {stats?.byCategory?.['PINJAMAN_MODAL'] || 0}
-                  </Heading>
-                </VStack>
-              </Card>
-              <Card style={{ padding: 16 }}>
-                <VStack gap={1}>
-                  <Text type="supporting" color="secondary">Surat Keluar &amp; SK Lainnya</Text>
-                  <Heading level={2}>
-                    {(stats?.byCategory?.['SURAT_KELUAR'] || 0) +
-                      (stats?.byCategory?.['SURAT_KEPUTUSAN'] || 0) +
-                      (stats?.byCategory?.['PERJANJIAN_KERJASAMA'] || 0)}
-                  </Heading>
-                </VStack>
-              </Card>
-            </Grid>
+            <LetterStatsCards stats={lettersRes?.stats} />
 
-            {/* Filter Bar */}
-            <Card style={{ padding: 16 }}>
-              <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
-                <HStack gap={3} vAlign="center" wrap="wrap">
-                  <div style={{ minWidth: 240 }}>
-                    <input
-                      type="text"
-                      placeholder="Cari Nomor Surat / Nama Pihak / Perihal..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
+            <LetterFilterBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+              selectedYear={selectedYear}
+              onYearChange={setSelectedYear}
+              categories={categories}
+              totalFound={lettersRes?.total || 0}
+            />
 
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    style={{ ...inputStyle, width: 'auto' }}
-                  >
-                    <option value="ALL">Semua Jenis Surat</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>{c.label} ({c.code})</option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(e.target.value)}
-                    style={{ ...inputStyle, width: 'auto' }}
-                  >
-                    {[2024, 2025, 2026, 2027].map((y) => (
-                      <option key={y} value={String(y)}>Tahun {y}</option>
-                    ))}
-                  </select>
-                </HStack>
-
-                <Text type="supporting" color="secondary">
-                  Ditemukan: {lettersRes?.total || 0} surat
-                </Text>
-              </HStack>
-            </Card>
-
-            {/* Main Table */}
             <Card>
               <Table
                 data={lettersRes?.data || []}
@@ -537,492 +223,23 @@ export default function LettersPage() {
             </Card>
           </VStack>
 
-          {/* Modal / Dialog Buat Surat Baru */}
-          {showCreateModal && (
-            <div
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '16px',
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: 'var(--color-background-primary)',
-                  borderRadius: '12px',
-                  maxWidth: '650px',
-                  width: '100%',
-                  maxHeight: '90vh',
-                  overflowY: 'auto',
-                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-                  border: '1px solid var(--color-border-primary)',
-                }}
-              >
-                <div
-                  style={{
-                    padding: '20px 24px',
-                    borderBottom: '1px solid var(--color-border-primary)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  <Heading level={3} style={{ margin: 0 }}>
-                    Terbitkan Nomor Surat Resmi Baru
-                  </Heading>
-                  <IconButton
-                    icon={<Icon icon={XMarkIcon} />}
-                    label="Tutup Modal"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowCreateModal(false)}
-                  />
-                </div>
+          <CreateLetterDialog
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            categories={categories}
+            onSuccess={() => refetch()}
+          />
 
-                <form onSubmit={handleCreateLetter} style={{ padding: '20px 24px' }}>
-                  <VStack gap={4}>
-                    {formError && (
-                      <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 600  }}>
-                        ⚠️ {formError}
-                      </Text>
-                    )}
-                    {formSuccess && (
-                      <Text type="supporting" style={{ fontWeight: 600, color: 'var(--color-text-success)' }}>
-                        ✅ {formSuccess}
-                      </Text>
-                    )}
-
-                    {/* Preview Nomor Surat Otomatis */}
-                    <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-primary-500, #0171E3)' }}>
-                      <VStack gap={1}>
-                        <Text type="supporting" color="secondary">
-                          {isManualNumber ? 'Nomor Surat (Input Manual):' : 'Pratinjau Nomor Surat Ter-Generate Otomatis:'}
-                        </Text>
-                        <Heading level={3} color="primary">
-                          {isManualNumber ? (manualNumber || 'Contoh: 040/KOPNUTERA/SPP/IX/2026') : (previewRes?.letterNumber || 'Memuat nomor...')}
-                        </Heading>
-                        <HStack justify="between" vAlign="center" style={{ marginTop: 4 }}>
-                          <Text type="supporting" size="sm" color="secondary">
-                            Bebas duplikasi nomor, tersinkronisasi atomik dengan sequence database.
-                          </Text>
-                          <button
-                            type="button"
-                            onClick={() => setIsManualNumber(!isManualNumber)}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: 'var(--color-primary-500, #0171E3)',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                            }}
-                          >
-                            {isManualNumber ? 'Gunakan Auto-Number' : 'Gunakan Nomor Manual / Lama'}
-                          </button>
-                        </HStack>
-                      </VStack>
-                    </Card>
-
-                    {isManualNumber && (
-                      <VStack gap={1}>
-                        <Text type="supporting">Nomor Surat Kustom / Manual</Text>
-                        <input
-                          type="text"
-                          placeholder="Masukkan nomor surat manual lengkap..."
-                          value={manualNumber}
-                          onChange={(e) => setManualNumber(e.target.value)}
-                          style={inputStyle}
-                          required
-                        />
-                      </VStack>
-                    )}
-
-                    <Grid gap={4}>
-                      <VStack gap={2}>
-                        <Text type="supporting">Kategori Surat</Text>
-                        <select
-                          value={formCategory}
-                          onChange={(e) => setFormCategory(e.target.value)}
-                          style={inputStyle}
-                          required
-                        >
-                          {categories.map((c) => (
-                            <option key={c.id} value={c.id}>{c.label} ({c.code})</option>
-                          ))}
-                        </select>
-                      </VStack>
-
-                      <VStack gap={2}>
-                        <Text type="supporting">Tanggal Terbit Surat</Text>
-                        <input
-                          type="date"
-                          value={formDate}
-                          onChange={(e) => setFormDate(e.target.value)}
-                          style={inputStyle}
-                          required
-                        />
-                      </VStack>
-                    </Grid>
-
-                    <Grid gap={4}>
-                      <VStack gap={2}>
-                        <Text type="supporting">Pihak Terkait (Nama Anggota / Lembaga / Bank / Peminjam)</Text>
-                        <input
-                          type="text"
-                          placeholder="Contoh: Budi Santoso / PT Modal Bersama"
-                          value={formPartyName}
-                          onChange={(e) => setFormPartyName(e.target.value)}
-                          style={inputStyle}
-                          required
-                        />
-                      </VStack>
-
-                      <VStack gap={2}>
-                        <Text type="supporting">Nilai Transaksi / Pokok Pinjaman (Opsional)</Text>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="Contoh: 10.000.000"
-                          value={formAmount}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '');
-                            setFormAmount(digits ? Number(digits).toLocaleString('id-ID') : '');
-                          }}
-                          style={inputStyle}
-                        />
-                      </VStack>
-                    </Grid>
-
-                    <VStack gap={2}>
-                      <Text type="supporting">Perihal Surat</Text>
-                      <input
-                        type="text"
-                        placeholder="Contoh: Surat Perjanjian Pinjaman Multiguna Anggota"
-                        value={formSubject}
-                        onChange={(e) => setFormSubject(e.target.value)}
-                        style={inputStyle}
-                        required
-                      />
-                    </VStack>
-
-                    <VStack gap={2}>
-                      <Text type="supporting">Ringkasan / Catatan Tambahan (Opsional)</Text>
-                      <textarea
-                        rows={2}
-                        placeholder="Keterangan jaminan, nomor rekening pencairan, atau klausul penting..."
-                        value={formDescription}
-                        onChange={(e) => setFormDescription(e.target.value)}
-                        style={inputStyle}
-                      />
-                    </VStack>
-
-                    {/* Unggah Berkas Fisik / Scan */}
-                    <VStack gap={2}>
-                      <HStack justify="between" vAlign="center">
-                        <Text type="supporting">Unggah Berkas Fisik / Scan Surat Bertandatangan (Opsional)</Text>
-                        <Text type="supporting" size="sm" color="secondary">PDF / JPG / PNG (Maks 10 MB)</Text>
-                      </HStack>
-
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".pdf,.png,.jpg,.jpeg,.webp,.heic"
-                        onChange={handleFileUpload}
-                        style={{ display: 'none' }}
-                      />
-
-                      {!formAttachmentUrl ? (
-                        <div
-                          onClick={() => fileInputRef.current?.click()}
-                          style={{
-                            border: '2px dashed var(--color-border-primary)',
-                            borderRadius: '8px',
-                            padding: '14px',
-                            textAlign: 'center',
-                            cursor: uploadingAttachment ? 'wait' : 'pointer',
-                            backgroundColor: 'var(--color-background-primary)',
-                          }}
-                        >
-                          <Text type="body" weight="semibold">
-                            {uploadingAttachment ? '⏳ Sedang mengunggah berkas...' : '📎 Klik untuk Unggah Scan Surat / Perjanjian'}
-                          </Text>
-                        </div>
-                      ) : (
-                        <Card style={{ padding: 12, backgroundColor: 'var(--color-background-secondary)' }}>
-                          <HStack justify="between" vAlign="center">
-                            <HStack vAlign="center" gap={2}>
-                              <span>📄</span>
-                              <Text type="body" weight="bold">{formAttachmentName}</Text>
-                            </HStack>
-                            <Button
-                              label="Hapus Berkas"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => {
-                                setFormAttachmentUrl('');
-                                setFormAttachmentName('');
-                                if (fileInputRef.current) fileInputRef.current.value = '';
-                              }}
-                            />
-                          </HStack>
-                        </Card>
-                      )}
-
-                      {uploadError && (
-                        <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>⚠️ {uploadError}</Text>
-                      )}
-                    </VStack>
-
-                    <HStack justify="end" gap={3} style={{ marginTop: 12 }}>
-                      <Button
-                        label="Batal"
-                        variant="ghost"
-                        type="button"
-                        onClick={() => setShowCreateModal(false)}
-                        isDisabled={submitting}
-                      />
-                      <Button
-                        label={submitting ? 'Menerbitkan...' : 'Terbitkan Nomor Surat'}
-                        variant="primary"
-                        type="submit"
-                        isDisabled={submitting}
-                      />
-                    </HStack>
-                  </VStack>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Modal / Dialog Edit Surat */}
-          {showEditModal && editLetter && (
-            <div
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                padding: '16px',
-              }}
-            >
-              <div
-                style={{
-                  backgroundColor: 'var(--color-background-primary)',
-                  borderRadius: '12px',
-                  maxWidth: '650px',
-                  width: '100%',
-                  maxHeight: '90vh',
-                  overflowY: 'auto',
-                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-                  border: '1px solid var(--color-border-primary)',
-                }}
-              >
-                <div
-                  style={{
-                    padding: '20px 24px',
-                    borderBottom: '1px solid var(--color-border-primary)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  <Heading level={3} style={{ margin: 0 }}>
-                    Edit Data Surat Resmi
-                  </Heading>
-                  <IconButton
-                    icon={<Icon icon={XMarkIcon} />}
-                    label="Tutup Modal"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowEditModal(false)}
-                  />
-                </div>
-
-                <form onSubmit={handleSaveEdit} style={{ padding: '20px 24px' }}>
-                  <VStack gap={4}>
-                    {editFormError && (
-                      <Text type="supporting" style={{ color: 'var(--color-text-error)',  fontWeight: 600  }}>
-                        ⚠️ {editFormError}
-                      </Text>
-                    )}
-                    {editFormSuccess && (
-                      <Text type="supporting" style={{ fontWeight: 600, color: 'var(--color-text-success)' }}>
-                        ✅ {editFormSuccess}
-                      </Text>
-                    )}
-
-                    {/* Informasi Nomor Surat Resmi & Kategori (Terkunci) */}
-                    <Card style={{ padding: 16, backgroundColor: 'var(--color-background-secondary)', border: '1px solid var(--color-border-primary)' }}>
-                      <VStack gap={2}>
-                        <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
-                          <VStack gap={0}>
-                            <Text type="supporting" color="secondary" size="sm">
-                              Nomor Surat Resmi (Terkunci):
-                            </Text>
-                            <Heading level={3} color="primary">
-                              {editLetter.letterNumber}
-                            </Heading>
-                          </VStack>
-                          <Badge
-                            variant="info"
-                            label={categories.find((c) => c.id === editLetter.category)?.label || editLetter.category}
-                          />
-                        </HStack>
-                        <Text type="supporting" size="sm" color="secondary">
-                          Tanggal Terbit: {formatDate(editLetter.letterDate)} • Nomor surat dan jenis surat dikunci untuk menjaga integritas agenda penomoran.
-                        </Text>
-                      </VStack>
-                    </Card>
-
-                    <Grid gap={4}>
-                      <VStack gap={2}>
-                        <Text type="supporting">Pihak Terkait (Nama Anggota / Lembaga / Bank / Peminjam)</Text>
-                        <input
-                          type="text"
-                          placeholder="Contoh: Budi Santoso / PT Modal Bersama"
-                          value={editPartyName}
-                          onChange={(e) => setEditPartyName(e.target.value)}
-                          style={inputStyle}
-                          required
-                        />
-                      </VStack>
-
-                      <VStack gap={2}>
-                        <Text type="supporting">Nilai Transaksi / Pokok Pinjaman (Opsional)</Text>
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="Contoh: 10.000.000"
-                          value={editAmount}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '');
-                            setEditAmount(digits ? Number(digits).toLocaleString('id-ID') : '');
-                          }}
-                          style={inputStyle}
-                        />
-                      </VStack>
-                    </Grid>
-
-                    <VStack gap={2}>
-                      <Text type="supporting">Perihal Surat</Text>
-                      <input
-                        type="text"
-                        placeholder="Contoh: Surat Perjanjian Pinjaman Multiguna Anggota"
-                        value={editSubject}
-                        onChange={(e) => setEditSubject(e.target.value)}
-                        style={inputStyle}
-                        required
-                      />
-                    </VStack>
-
-                    <VStack gap={2}>
-                      <Text type="supporting">Ringkasan / Catatan Tambahan (Keterangan)</Text>
-                      <textarea
-                        rows={3}
-                        placeholder="Keterangan jaminan, nomor rekening pencairan, atau klausul penting..."
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                        style={inputStyle}
-                      />
-                    </VStack>
-
-                    {/* Unggah / Ganti Berkas Fisik */}
-                    <VStack gap={2}>
-                      <HStack justify="between" vAlign="center">
-                        <Text type="supporting">Lampiran Berkas Fisik / Scan Surat (Opsional)</Text>
-                        <Text type="supporting" size="sm" color="secondary">PDF / JPG / PNG (Maks 10 MB)</Text>
-                      </HStack>
-
-                      <input
-                        ref={editFileInputRef}
-                        type="file"
-                        accept=".pdf,.png,.jpg,.jpeg,.webp,.heic"
-                        onChange={handleEditFileUpload}
-                        style={{ display: 'none' }}
-                      />
-
-                      {!editAttachmentUrl ? (
-                        <div
-                          onClick={() => editFileInputRef.current?.click()}
-                          style={{
-                            border: '2px dashed var(--color-border-primary)',
-                            borderRadius: '8px',
-                            padding: '14px',
-                            textAlign: 'center',
-                            cursor: editUploadingAttachment ? 'wait' : 'pointer',
-                            backgroundColor: 'var(--color-background-primary)',
-                          }}
-                        >
-                          <Text type="body" weight="semibold">
-                            {editUploadingAttachment ? '⏳ Sedang mengunggah berkas...' : '📎 Klik untuk Unggah / Ganti Scan Berkas'}
-                          </Text>
-                        </div>
-                      ) : (
-                        <Card style={{ padding: 12, backgroundColor: 'var(--color-background-secondary)' }}>
-                          <HStack justify="between" vAlign="center">
-                            <HStack vAlign="center" gap={2}>
-                              <span>📄</span>
-                              <Text type="body" weight="bold">{editAttachmentName || 'Lampiran Surat'}</Text>
-                            </HStack>
-                            <HStack gap={2}>
-                              <Button
-                                label="Lihat"
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => window.open(editAttachmentUrl, '_blank')}
-                              />
-                              <Button
-                                label="Hapus"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  setEditAttachmentUrl('');
-                                  setEditAttachmentName('');
-                                  if (editFileInputRef.current) editFileInputRef.current.value = '';
-                                }}
-                              />
-                            </HStack>
-                          </HStack>
-                        </Card>
-                      )}
-
-                      {editUploadError && (
-                        <Text type="supporting" style={{ color: 'var(--color-text-error)' }}>⚠️ {editUploadError}</Text>
-                      )}
-                    </VStack>
-
-                    <HStack justify="end" gap={3} style={{ marginTop: 12 }}>
-                      <Button
-                        label="Batal"
-                        variant="ghost"
-                        type="button"
-                        onClick={() => setShowEditModal(false)}
-                        isDisabled={editSubmitting}
-                      />
-                      <Button
-                        label={editSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
-                        variant="primary"
-                        type="submit"
-                        isDisabled={editSubmitting}
-                      />
-                    </HStack>
-                  </VStack>
-                </form>
-              </div>
-            </div>
-          )}
+          <EditLetterDialog
+            isOpen={showEditModal}
+            letter={editLetter}
+            categories={categories}
+            onClose={() => {
+              setShowEditModal(false);
+              setEditLetter(null);
+            }}
+            onSuccess={() => refetch()}
+          />
         </LayoutContent>
       }
     />
