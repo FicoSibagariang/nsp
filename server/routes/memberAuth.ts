@@ -1,14 +1,15 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
-import { sign, verify } from 'hono/jwt';
+import { sign, verify, decode } from 'hono/jwt';
 import { setCookie, deleteCookie, getCookie } from 'hono/cookie';
 import db from '../db';
 import type { MemberRow } from '../db/entities';
 import { loginSchema } from '../schemas';
-import { secretKey, checkRateLimit } from '../middleware';
+import { secretKey, checkRateLimit, isKeyRateLimited, clearRateLimit } from '../middleware';
 import { getClientIp } from '../lib/audit';
 import { verifyGoogleToken } from '../google-auth';
 import { findMemberByEmailOrId, findMemberById } from '../services/memberService';
+import { blacklistAccessToken, blacklistRefreshToken } from '../services/authService';
 import {
   accessTokenExpUnix,
   refreshTokenExpUnix,
@@ -19,12 +20,16 @@ import {
 const memberAuth = new Hono();
 
 async function issueMemberSession(c: Context, member: MemberRow) {
+  const accessJti = crypto.randomUUID();
+  const refreshJti = crypto.randomUUID();
+
   const payload = {
     sub: member.id,
     email: member.email,
     role: 'member' as const,
     name: member.name,
     exp: accessTokenExpUnix(),
+    jti: accessJti,
   };
 
   const accessToken = await sign(payload, secretKey);
@@ -34,6 +39,7 @@ async function issueMemberSession(c: Context, member: MemberRow) {
     email: member.email,
     role: 'member' as const,
     exp: refreshTokenExpUnix(),
+    jti: refreshJti,
   };
   const refreshToken = await sign(refreshPayload, secretKey);
 
@@ -56,6 +62,9 @@ async function issueMemberSession(c: Context, member: MemberRow) {
 }
 
 async function issueEmployeeSession(c: Context, employee: { id: string; email: string; name: string; is_member?: boolean; member_id?: string | null }) {
+  const accessJti = crypto.randomUUID();
+  const refreshJti = crypto.randomUUID();
+
   const payload = {
     sub: employee.member_id || employee.id,
     email: employee.email,
@@ -63,6 +72,7 @@ async function issueEmployeeSession(c: Context, employee: { id: string; email: s
     name: employee.name,
     employeeId: employee.id,
     exp: accessTokenExpUnix(),
+    jti: accessJti,
   };
 
   const accessToken = await sign(payload, secretKey);
@@ -73,6 +83,7 @@ async function issueEmployeeSession(c: Context, employee: { id: string; email: s
     role: 'member' as const,
     employeeId: employee.id,
     exp: refreshTokenExpUnix(),
+    jti: refreshJti,
   };
   const refreshToken = await sign(refreshPayload, secretKey);
 
@@ -111,22 +122,36 @@ memberAuth.post('/login', async (c) => {
     }
 
     const { email, password } = parsed.data;
+    const normalizedEmail = email.toLowerCase().trim();
+    const emailKey = `login:failed:email:${normalizedEmail}`;
+
+    if (await isKeyRateLimited(emailKey, 5)) {
+      return c.json({
+        success: false,
+        message: 'Too many failed login attempts for this account. Please try again later.'
+      }, 429);
+    }
 
     // A member can log in using their email or their ID (NIP) mapped to the email field in the login form
     const member = await findMemberByEmailOrId(db, email);
     
     if (!member || !member.password) {
+      await checkRateLimit(emailKey, 5, 15 * 60 * 1000);
       return c.json({ success: false, message: 'Invalid credentials' }, 401);
     }
 
     const isMatch = await Bun.password.verify(password, member.password);
     if (!isMatch) {
+      await checkRateLimit(emailKey, 5, 15 * 60 * 1000);
       return c.json({ success: false, message: 'Invalid credentials' }, 401);
     }
 
     if (member.status !== 'Aktif') {
       return c.json({ success: false, message: 'Akun anggota tidak aktif.' }, 403);
     }
+
+    // Clear failed attempts upon successful login
+    await clearRateLimit(emailKey);
 
     const data = await issueMemberSession(c, member);
     return c.json({ success: true, message: 'Login successful', data });
@@ -250,12 +275,16 @@ memberAuth.post('/refresh', async (c) => {
       return c.json({ success: false, message: 'User no longer valid' }, 401);
     }
 
+    const newAccessJti = crypto.randomUUID();
+    const newRefreshJti = crypto.randomUUID();
+
     const payload = {
       sub: member.id,
       email: member.email,
       role: 'member',
       name: member.name,
       exp: accessTokenExpUnix(),
+      jti: newAccessJti,
     };
     const newAccessToken = await sign(payload, secretKey);
 
@@ -264,8 +293,15 @@ memberAuth.post('/refresh', async (c) => {
       email: member.email,
       role: 'member',
       exp: refreshTokenExpUnix(),
+      jti: newRefreshJti,
     };
     const newRefreshToken = await sign(refreshPayload, secretKey);
+
+    // Invalidate old refresh token if it had a jti
+    const oldRefreshJti = decodedRefresh?.jti as string | undefined;
+    if (oldRefreshJti) {
+      await blacklistRefreshToken(db, oldRefreshJti, member.id, Date.now() + REFRESH_TOKEN_TTL_SEC * 1000);
+    }
 
     setCookie(c, 'memberRefreshToken', newRefreshToken, {
       httpOnly: true,
@@ -282,6 +318,42 @@ memberAuth.post('/refresh', async (c) => {
 });
 
 memberAuth.post('/logout', async (c) => {
+  const authHeader = c.req.header('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = decode(token);
+      const jti = decoded?.payload?.jti as string | undefined;
+      let exp = Date.now() + ACCESS_TOKEN_TTL_SEC * 1000;
+      if (decoded?.payload?.exp) {
+        exp = (decoded.payload.exp as number) * 1000;
+      }
+      if (jti) {
+        await blacklistAccessToken(db, jti, exp);
+      }
+    } catch (e) {
+      console.warn('Failed to decode member token for logout blacklist:', e);
+    }
+  }
+
+  const refreshToken = getCookie(c, 'memberRefreshToken');
+  if (refreshToken) {
+    try {
+      const decodedRefresh = decode(refreshToken);
+      const refreshJti = decodedRefresh?.payload?.jti as string | undefined;
+      const sub = (decodedRefresh?.payload?.sub || 'member') as string;
+      let exp = Date.now() + REFRESH_TOKEN_TTL_SEC * 1000;
+      if (decodedRefresh?.payload?.exp) {
+        exp = (decodedRefresh.payload.exp as number) * 1000;
+      }
+      if (refreshJti) {
+        await blacklistRefreshToken(db, refreshJti, sub, exp);
+      }
+    } catch (e) {
+      console.warn('Failed to decode member refresh token for logout:', e);
+    }
+  }
+
   deleteCookie(c, 'memberRefreshToken', { path: '/' });
   return c.json({ success: true, message: 'Logout successful' });
 });

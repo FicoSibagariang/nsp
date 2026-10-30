@@ -8,6 +8,7 @@ import { Spinner } from '@astryxdesign/core/Spinner';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { formatRp } from '../../../utils/format';
+import { getAuthenticatedFileUrl } from '../../../utils/fileUrl';
 import type { PortalLoan, ScheduleRow, PaymentRow } from '../types';
 
 interface LoansTabProps {
@@ -172,7 +173,7 @@ export const LoansTab: React.FC<LoansTabProps> = ({
             label="📎 Buka"
             size="sm"
             variant="secondary"
-            onClick={() => window.open(i.attachmentUrl!, '_blank')}
+            onClick={() => window.open(getAuthenticatedFileUrl(i.attachmentUrl), '_blank')}
           />
         ) : (
           <Text type="supporting" color="secondary">—</Text>

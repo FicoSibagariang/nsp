@@ -25,6 +25,7 @@ import ewaRoutes from './routes/ewa'
 import uploadRoutes from './routes/upload'
 import lettersRoutes from './routes/letters'
 import feedbacksRoutes from './routes/feedbacks'
+import protectedFilesRoutes from './routes/protectedFiles'
 import mobileRoutes from './mobile'
 import { registerLegacyAuthAliases } from './lib/authLegacy'
 import { serveStatic } from 'hono/bun'
@@ -71,7 +72,16 @@ app.get('/health', async (c) => {
   }
 })
 
-app.use('*', secureHeaders())
+app.use('*', secureHeaders({
+  contentSecurityPolicy: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'", "'unsafe-inline'", 'https://accounts.google.com'],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: ["'self'", 'data:', 'blob:', 'https://accounts.google.com', 'https://*.googleusercontent.com'],
+    connectSrc: ["'self'", 'https://accounts.google.com'],
+    frameSrc: ["'self'", 'https://accounts.google.com'],
+  },
+}))
 
 const allowedOrigins = (process.env.CORS_ORIGIN || Bun.env.CORS_ORIGIN || 'http://localhost:5173')
   .split(',')
@@ -153,8 +163,11 @@ app.route('/api/v1', apiRoutes)
 registerLegacyAuthAliases(app)
 app.route('/api', mobileRoutes)
 
-// Serve uploaded files statically
-app.use('/uploads/*', serveStatic({ root: './' }))
+// Protect sensitive financial uploads (loans attachments, savings deposit proofs) with auth & IDOR check
+app.route('/uploads', protectedFilesRoutes)
+
+// Serve non-sensitive uploads (feedbacks screenshots) statically
+app.use('/uploads/feedbacks/*', serveStatic({ root: './' }))
 
 // OpenAPI spec + Swagger UI (available in dev/test/staging)
 app.route('/', docsRoutes)

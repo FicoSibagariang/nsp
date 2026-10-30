@@ -8,6 +8,7 @@ import { StatusBadge } from '../../../components/common/StatusBadge';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { formatRp } from '../../../utils/format';
+import { getAuthenticatedFileUrl } from '../../../utils/fileUrl';
 import { Grid } from './Grid';
 import type { MemberProfile, SavingsTransaction, SavingsWithdrawal, SavingsDeposit } from '../types';
 
@@ -183,7 +184,7 @@ export const SavingsTab: React.FC<SavingsTabProps> = ({
         }
         return (
           <a
-            href={i.proofUrl}
+            href={getAuthenticatedFileUrl(i.proofUrl)}
             target="_blank"
             rel="noreferrer"
             style={{

@@ -11,6 +11,7 @@ import { useToast } from '@astryxdesign/core/Toast';
 import { useApiQuery } from '../../../hooks/useApiQuery';
 import { apiFetch } from '../../../config';
 import { formatRp } from '../../../utils/format';
+import { getAuthenticatedFileUrl } from '../../../utils/fileUrl';
 import { Pagination } from '../../../components/Pagination';
 import { DataStateView } from '../../../components/DataStateView';
 import { useA11yDialog } from '../../../hooks/useA11yDialog';
@@ -132,7 +133,7 @@ export function SavingsDepositsTab({ onMutationSuccess, pendingCount = 0 }: Savi
         }
         return (
           <a
-            href={item.proofUrl}
+            href={getAuthenticatedFileUrl(item.proofUrl)}
             target="_blank"
             rel="noreferrer"
             style={{

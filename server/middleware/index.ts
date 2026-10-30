@@ -117,6 +117,32 @@ export async function checkRateLimit(
 }
 
 /**
+ * Checks if a key has exceeded its rate limit without incrementing.
+ */
+export async function isKeyRateLimited(key: string, limit: number): Promise<boolean> {
+  const enabled = (process.env.RATE_LIMIT_ENABLED ?? Bun.env.RATE_LIMIT_ENABLED ?? 'true') !== 'false';
+  if (!enabled || process.env.BYPASS_RATE_LIMIT === 'true' || Bun.env.BYPASS_RATE_LIMIT === 'true') {
+    return false;
+  }
+
+  const now = Date.now();
+  const row = await db
+    .query('SELECT count, reset_at FROM rate_limits WHERE ip = ?')
+    .get<{ count: number; reset_at: number }>(key);
+
+  if (!row) return false;
+  if (row.reset_at < now) return false;
+  return row.count >= limit;
+}
+
+/**
+ * Clears rate limit counter for a specific key (e.g. on successful login).
+ */
+export async function clearRateLimit(key: string): Promise<void> {
+  await db.run('DELETE FROM rate_limits WHERE ip = ?', [key]);
+}
+
+/**
  * @deprecated Use checkRateLimit(key, limit, windowMs) instead for atomic race-safe rate limiting.
  * Kept for backward compatibility with existing code.
  */

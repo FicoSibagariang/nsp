@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { timingSafeEqual, createHash } from 'node:crypto';
 import db from '../db';
 import { processDueDatesJob } from '../services/cronService';
 
@@ -16,7 +17,15 @@ cronRoutes.use('/*', async (c, next) => {
     cronSecret = 'default-cron-secret';
   }
   
-  if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+  if (!authHeader) {
+    return c.json({ success: false, message: 'Unauthorized cron access' }, 401);
+  }
+
+  const expected = `Bearer ${cronSecret}`;
+  const headerHash = createHash('sha256').update(authHeader).digest();
+  const expectedHash = createHash('sha256').update(expected).digest();
+
+  if (!timingSafeEqual(headerHash, expectedHash)) {
     return c.json({ success: false, message: 'Unauthorized cron access' }, 401);
   }
   return next();

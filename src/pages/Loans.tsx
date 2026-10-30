@@ -18,6 +18,7 @@ import {useApiQuery} from '../hooks/useApiQuery';
 import {useAuth} from '../hooks/useAuth';
 import {useApiAction} from '../hooks/useApiAction';
 import {formatRp} from '../utils/format';
+import {getAuthenticatedFileUrl} from '../utils/fileUrl';
 import {exportToExcel, exportToPDF} from '../utils/exportUtils';
 import {Pagination} from '../components/Pagination';
 import {DataStateView} from '../components/DataStateView';
@@ -259,7 +260,7 @@ export default function LoansTemplate() {
                 <Text type="body" weight="semibold">{displayName}</Text>
                 {item.attachmentUrl && (
                   <a
-                    href={item.attachmentUrl}
+                    href={getAuthenticatedFileUrl(item.attachmentUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}

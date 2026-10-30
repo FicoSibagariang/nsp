@@ -74,7 +74,7 @@ describe("API Rate Limiting (Issue #204)", () => {
               "Content-Type": "application/json",
               "x-forwarded-for": ip1,
             },
-            body: JSON.stringify({ email: "test@example.com", password: "wrong" }),
+            body: JSON.stringify({ email: "user1@example.com", password: "wrong" }),
           })
         );
       }
@@ -87,7 +87,7 @@ describe("API Rate Limiting (Issue #204)", () => {
             "Content-Type": "application/json",
             "x-forwarded-for": ip2,
           },
-          body: JSON.stringify({ email: "test@example.com", password: "wrong" }),
+          body: JSON.stringify({ email: "user2@example.com", password: "wrong" }),
         })
       );
       expect(res.status).not.toBe(429); // IP2 should not be rate limited
