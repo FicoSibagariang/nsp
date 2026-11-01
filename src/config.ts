@@ -1,4 +1,7 @@
 export function apiUrl(path: string): string {
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
   const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
   let resolvedPath = path;
   if (resolvedPath.startsWith('/api/') && !resolvedPath.startsWith('/api/v1/')) {
@@ -7,10 +10,22 @@ export function apiUrl(path: string): string {
   return `${baseUrl}${resolvedPath}`;
 }
 
+function extractPathname(path: string): string {
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    try {
+      return new URL(path).pathname;
+    } catch {
+      return path;
+    }
+  }
+  return path;
+}
+
 function isPublicApiPath(path: string): boolean {
-  const normalized = path.startsWith('/api/') && !path.startsWith('/api/v1/')
-    ? path.replace('/api/', '/api/v1/')
-    : path;
+  const pathname = extractPathname(path);
+  const normalized = pathname.startsWith('/api/') && !pathname.startsWith('/api/v1/')
+    ? pathname.replace('/api/', '/api/v1/')
+    : pathname;
   return (
     normalized === '/api/v1/settings/branding' ||
     normalized === '/api/v1/auth/login' ||
@@ -33,7 +48,7 @@ function clearSessionAndRedirectToLogin() {
 }
 
 export async function apiFetch(path: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('token');
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
   const headers = {
     ...options.headers,
     ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -41,12 +56,13 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   options.credentials = 'include';
   let res = await fetch(apiUrl(path), { ...options, headers });
   
+  const pathname = extractPathname(path);
   const isAuthRefreshPath =
-    path === '/api/auth/refresh' ||
-    path === '/api/v1/auth/refresh';
+    pathname === '/api/auth/refresh' ||
+    pathname === '/api/v1/auth/refresh';
   const isAuthLoginPath =
-    path === '/api/auth/login' ||
-    path === '/api/v1/auth/login';
+    pathname === '/api/auth/login' ||
+    pathname === '/api/v1/auth/login';
 
   // Public endpoints must never trigger refresh/redirect (would flicker login forever)
   if (res.status === 401 && !isAuthRefreshPath && !isAuthLoginPath && !isPublicApiPath(path)) {
@@ -62,7 +78,9 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
         (typeof data?.token === 'string' && data.token) ||
         null;
       if (data.success && newToken) {
-        localStorage.setItem('token', newToken);
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('token', newToken);
+        }
         // Retry original request with new token
         const retryHeaders = {
           ...headers,

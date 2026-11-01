@@ -42,14 +42,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
  * Provides end-to-end type safety, autocompletion on endpoints,
  * and typed payloads/responses synchronized with backend route declarations.
  */
-const rpcBaseUrl = typeof window !== 'undefined'
-  ? (import.meta.env.VITE_API_URL || window.location.origin)
-  : 'http://localhost:3000';
-
 const createRpcClient = () => hc<AppType>('');
 export type RpcClient = ReturnType<typeof createRpcClient>;
 
-export const rpc: RpcClient = hc<AppType>(`${rpcBaseUrl}/api/v1`, {
+export const rpc: RpcClient = hc<AppType>('/api/v1', {
   fetch: (input: string | URL | Request, init?: RequestInit) => {
     return apiFetch(input.toString(), init);
   },
