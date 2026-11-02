@@ -64,9 +64,14 @@ const mockJournalEntries = [
 ];
 
 describe("Accounting Page Privacy Masking (Issue #312)", () => {
+  let authSpy: any;
+  let scrollSpy: any;
+  let apiQuerySpy: any;
+  let confirmSpy: any;
+
   beforeEach(() => {
     cleanup();
-    spyOn(authModule, "useAuth").mockReturnValue({
+    authSpy = spyOn(authModule, "useAuth").mockReturnValue({
       isAuthenticated: true,
       role: "superadmin",
       isAdmin: true,
@@ -74,7 +79,7 @@ describe("Accounting Page Privacy Masking (Issue #312)", () => {
       hasPermission: () => true,
     } as any);
 
-    spyOn(infiniteScrollModule, "useInfiniteScroll").mockReturnValue({
+    scrollSpy = spyOn(infiniteScrollModule, "useInfiniteScroll").mockReturnValue({
       items: mockJournalEntries,
       isLoading: false,
       isFetchingMore: false,
@@ -84,7 +89,7 @@ describe("Accounting Page Privacy Masking (Issue #312)", () => {
       refetch: () => {},
     } as any);
 
-    spyOn(apiQueryModule, "useApiQuery").mockReturnValue({
+    apiQuerySpy = spyOn(apiQueryModule, "useApiQuery").mockReturnValue({
       data: [
         { id: "acc-1", code: "11102", name: "Bank Mandiri", type: "ASSET", normal_balance: "DEBIT" },
       ],
@@ -96,6 +101,10 @@ describe("Accounting Page Privacy Masking (Issue #312)", () => {
 
   afterEach(() => {
     cleanup();
+    authSpy?.mockRestore?.();
+    scrollSpy?.mockRestore?.();
+    apiQuerySpy?.mockRestore?.();
+    confirmSpy?.mockRestore?.();
   });
 
   it("masks PII in journal descriptions and creator names when Demo Mode is ACTIVE", () => {
@@ -149,7 +158,7 @@ describe("Accounting Page Privacy Masking (Issue #312)", () => {
   });
 
   it("uses masked description in confirmation dialogs when Demo Mode is ACTIVE", () => {
-    const confirmSpy = spyOn(window, "confirm").mockReturnValue(false);
+    confirmSpy = spyOn(window, "confirm").mockReturnValue(false);
 
     render(
       <DemoModeContext.Provider

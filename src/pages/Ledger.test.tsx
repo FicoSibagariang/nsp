@@ -43,9 +43,11 @@ const mockExpandedDetails = {
 };
 
 describe("Ledger Page Privacy Masking (Issue #312)", () => {
+  let apiQuerySpy: any;
+
   beforeEach(() => {
     cleanup();
-    spyOn(apiQueryModule, "useApiQuery").mockImplementation((url: string) => {
+    apiQuerySpy = spyOn(apiQueryModule, "useApiQuery").mockImplementation((url: string) => {
       if (url.includes("/api/accounting/ledger/acc-11301")) {
         return {
           data: mockExpandedDetails,
@@ -65,6 +67,7 @@ describe("Ledger Page Privacy Masking (Issue #312)", () => {
 
   afterEach(() => {
     cleanup();
+    apiQuerySpy?.mockRestore?.();
   });
 
   it("masks transaction mutation descriptions in Ledger drill-down when Demo Mode is ACTIVE", () => {
