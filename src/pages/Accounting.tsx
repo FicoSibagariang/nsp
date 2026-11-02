@@ -26,6 +26,8 @@ import { formatRp } from '../utils/format';
 import { DataStateView } from '../components/DataStateView';
 import { TrashIcon, PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
+import { useDemoMode } from '../contexts/DemoModeContextDef';
+import { maskJournalDescription, maskName } from '../utils/privacyMask';
 
 // We just borrow some UI styles from expenses or loans.
 
@@ -192,6 +194,7 @@ function JournalDialog({
 
 export default function Accounting() {
   const { isSuperAdmin } = useAuth();
+  const { isDemoMode } = useDemoMode();
   const dialog = useA11yDialog();
   const apiAction = useApiAction();
 
@@ -267,90 +270,97 @@ export default function Accounting() {
                   </tr>
                 </thead>
                 <tbody>
-                  {journalRows.map((entry: any) => (
-                    <React.Fragment key={entry.id}>
-                      <tr style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-background-muted)' }}>
-                        <td style={{ padding: '16px 16px 4px', verticalAlign: 'top', width: 110, whiteSpace: 'nowrap' }}>
-                           <Text type="supporting" color="secondary" style={{ fontWeight: 500 }}>
-                             {new Date(entry.transaction_date).toLocaleDateString('id-ID', {
-                               day: '2-digit', month: 'short', year: 'numeric',
-                             })}
-                           </Text>
-                        </td>
-                        <td colSpan={3} style={{ padding: '16px 16px 4px', verticalAlign: 'top', wordBreak: 'break-word' }}>
-                           <VStack gap={0}>
-                             <Text style={{ fontWeight: 600, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{entry.description}</Text>
-                             {entry.reference_type && <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>Ref: {entry.reference_type}</Text>}
-                           </VStack>
-                        </td>
-                        <td style={{ padding: '16px 16px 4px', verticalAlign: 'top', textAlign: 'center' }}>
-                          <HStack gap={1} hAlign="center">
-                            {entry.reference_type !== 'reversal_of' && (
-                              <Button
-                                label="Koreksi"
-                                icon={<ArrowPathIcon width={14} />}
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => {
-                                  if (!confirm(`Buat jurnal koreksi (reversal) untuk "${entry.description}"?\n\nIni akan membuat entri baru yang membalik semua Debit dan Kredit jurnal ini.`)) return;
-                                  apiAction.execute(
-                                    () => api.post(`/api/accounting/journals/${entry.id}/reverse`, {}),
-                                    {
-                                      successMsg: 'Jurnal koreksi berhasil dibuat',
-                                      errorMsg: 'Gagal membuat koreksi',
-                                      onSuccess: () => refetch(),
-                                    }
-                                  );
-                                }}
-                              />
-                            )}
-                            {isSuperAdmin && (
-                              <Button
-                                label="Hapus"
-                                icon={<TrashIcon width={14} />}
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => {
-                                  if (!confirm(`HAPUS PERMANEN jurnal "${entry.description}"?\n\nData tidak dapat dipulihkan. Yakin?`)) return;
-                                  apiAction.execute(
-                                    () => api.delete(`/api/accounting/journals/${entry.id}`),
-                                    {
-                                      successMsg: 'Jurnal berhasil dihapus',
-                                      errorMsg: 'Gagal menghapus jurnal',
-                                      onSuccess: () => refetch(),
-                                    }
-                                  );
-                                }}
-                              />
-                            )}
-                          </HStack>
-                        </td>
-                      </tr>
-                      {entry.lines?.map((line: any) => (
-                         <tr key={line.id} style={{ backgroundColor: 'var(--color-background-surface)' }}>
-                           <td style={{ padding: '6px 16px' }}></td>
-                           <td style={{ padding: '6px 16px', paddingLeft: line.debit > 0 ? 16 : 48, wordBreak: 'break-word' }}>
-                             <Text style={{ fontFamily: 'monospace', fontSize: 13, marginRight: 8, color: 'var(--color-text-secondary)' }}>{line.account_code}</Text>
-                             <Text style={{ fontWeight: line.debit > 0 ? 500 : 400, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{line.account_name}</Text>
-                             {line.description && <Text type="supporting" color="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{line.description}</Text>}
-                           </td>
-                           <td style={{ padding: '6px 16px', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                             <Text>{line.debit > 0 ? formatRp(line.debit) : ''}</Text>
-                           </td>
-                           <td style={{ padding: '6px 16px', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                             <Text>{line.credit > 0 ? formatRp(line.credit) : ''}</Text>
-                           </td>
-                           <td style={{ padding: '6px 16px' }}></td>
-                         </tr>
-                      ))}
-                      <tr>
-                        <td></td>
-                        <td colSpan={4} style={{ padding: '4px 16px 16px 16px' }}>
-                           <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>Dicatat oleh: {entry.creator_name || 'Sistem'}</Text>
-                        </td>
-                      </tr>
-                    </React.Fragment>
-                  ))}
+                  {journalRows.map((entry: any) => {
+                    const displayDescription = maskJournalDescription(entry.description, isDemoMode);
+                    const creatorDisplay = !entry.creator_name || entry.creator_name.toLowerCase() === 'sistem'
+                      ? (entry.creator_name || 'Sistem')
+                      : maskName(entry.created_by || entry.creator_name, entry.creator_name, isDemoMode);
+
+                    return (
+                      <React.Fragment key={entry.id}>
+                        <tr style={{ borderTop: '1px solid var(--color-border)', backgroundColor: 'var(--color-background-muted)' }}>
+                          <td style={{ padding: '16px 16px 4px', verticalAlign: 'top', width: 110, whiteSpace: 'nowrap' }}>
+                             <Text type="supporting" color="secondary" style={{ fontWeight: 500 }}>
+                               {new Date(entry.transaction_date).toLocaleDateString('id-ID', {
+                                 day: '2-digit', month: 'short', year: 'numeric',
+                               })}
+                             </Text>
+                          </td>
+                          <td colSpan={3} style={{ padding: '16px 16px 4px', verticalAlign: 'top', wordBreak: 'break-word' }}>
+                             <VStack gap={0}>
+                               <Text style={{ fontWeight: 600, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{displayDescription}</Text>
+                               {entry.reference_type && <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>Ref: {entry.reference_type}</Text>}
+                             </VStack>
+                          </td>
+                          <td style={{ padding: '16px 16px 4px', verticalAlign: 'top', textAlign: 'center' }}>
+                            <HStack gap={1} hAlign="center">
+                              {entry.reference_type !== 'reversal_of' && (
+                                <Button
+                                  label="Koreksi"
+                                  icon={<ArrowPathIcon width={14} />}
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => {
+                                    if (!confirm(`Buat jurnal koreksi (reversal) untuk "${displayDescription}"?\n\nIni akan membuat entri baru yang membalik semua Debit dan Kredit jurnal ini.`)) return;
+                                    apiAction.execute(
+                                      () => api.post(`/api/accounting/journals/${entry.id}/reverse`, {}),
+                                      {
+                                        successMsg: 'Jurnal koreksi berhasil dibuat',
+                                        errorMsg: 'Gagal membuat koreksi',
+                                        onSuccess: () => refetch(),
+                                      }
+                                    );
+                                  }}
+                                />
+                              )}
+                              {isSuperAdmin && (
+                                <Button
+                                  label="Hapus"
+                                  icon={<TrashIcon width={14} />}
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => {
+                                    if (!confirm(`HAPUS PERMANEN jurnal "${displayDescription}"?\n\nData tidak dapat dipulihkan. Yakin?`)) return;
+                                    apiAction.execute(
+                                      () => api.delete(`/api/accounting/journals/${entry.id}`),
+                                      {
+                                        successMsg: 'Jurnal berhasil dihapus',
+                                        errorMsg: 'Gagal menghapus jurnal',
+                                        onSuccess: () => refetch(),
+                                      }
+                                    );
+                                  }}
+                                />
+                              )}
+                            </HStack>
+                          </td>
+                        </tr>
+                        {entry.lines?.map((line: any) => (
+                           <tr key={line.id} style={{ backgroundColor: 'var(--color-background-surface)' }}>
+                             <td style={{ padding: '6px 16px' }}></td>
+                             <td style={{ padding: '6px 16px', paddingLeft: line.debit > 0 ? 16 : 48, wordBreak: 'break-word' }}>
+                               <Text style={{ fontFamily: 'monospace', fontSize: 13, marginRight: 8, color: 'var(--color-text-secondary)' }}>{line.account_code}</Text>
+                               <Text style={{ fontWeight: line.debit > 0 ? 500 : 400, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{line.account_name}</Text>
+                               {line.description && <Text type="supporting" color="secondary" style={{ fontSize: 12, display: 'block', marginTop: 2, wordBreak: 'break-word', overflowWrap: 'break-word' }}>{maskJournalDescription(line.description, isDemoMode)}</Text>}
+                             </td>
+                             <td style={{ padding: '6px 16px', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                               <Text>{line.debit > 0 ? formatRp(line.debit) : ''}</Text>
+                             </td>
+                             <td style={{ padding: '6px 16px', textAlign: 'right', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                               <Text>{line.credit > 0 ? formatRp(line.credit) : ''}</Text>
+                             </td>
+                             <td style={{ padding: '6px 16px' }}></td>
+                           </tr>
+                        ))}
+                        <tr>
+                          <td></td>
+                          <td colSpan={4} style={{ padding: '4px 16px 16px 16px' }}>
+                             <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>Dicatat oleh: {creatorDisplay}</Text>
+                          </td>
+                        </tr>
+                      </React.Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

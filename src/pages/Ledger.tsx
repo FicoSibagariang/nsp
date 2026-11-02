@@ -19,6 +19,8 @@ import { Card } from '@astryxdesign/core/Card';
 import { Icon } from '@astryxdesign/core/Icon';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { Spinner } from '@astryxdesign/core/Spinner';
+import { useDemoMode } from '../contexts/DemoModeContextDef';
+import { maskJournalDescription } from '../utils/privacyMask';
 
 type LedgerRow = {
   id: string;
@@ -53,6 +55,7 @@ type LedgerDetailsResponse = {
 
 // Sub-component to fetch and render the expanded transaction details
 function ExpandedTransactions({ accountId, startDate, endDate }: { accountId: string, startDate: string, endDate: string }) {
+  const { isDemoMode } = useDemoMode();
   const queryStr = `/api/accounting/ledger/${accountId}?startDate=${startDate}&endDate=${endDate}`;
   const { data, isLoading, error } = useApiQuery<LedgerDetailsResponse>(queryStr);
 
@@ -87,7 +90,7 @@ function ExpandedTransactions({ accountId, startDate, endDate }: { accountId: st
               <tr key={item.id} style={{ borderBottom: '1px solid var(--color-border-primary)' }}>
                 <td style={{ padding: '8px 4px', fontSize: 13 }}>{formatDate(item.transaction_date)}</td>
                 <td style={{ padding: '8px 4px', fontSize: 13 }}>
-                  <Text>{item.line_description || item.journal_description || '-'}</Text>
+                  <Text>{maskJournalDescription(item.line_description || item.journal_description || '-', isDemoMode)}</Text>
                   {item.reference_type && (
                     <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
                       Ref: {item.reference_type.replace(/_/g, ' ')}

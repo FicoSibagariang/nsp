@@ -100,3 +100,45 @@ export function maskAccountNumber(idOrKey?: string | null, original?: string | n
   if (!idOrKey && !original) return '';
   return getMaskedIdentity(String(idOrKey || original)).accountNumber;
 }
+
+export function maskJournalDescription(description?: string | null, isDemo: boolean = true): string {
+  if (!isDemo || !description) return description || '';
+
+  // 1. Pola EWA: Pencairan EWA Kasbon Karyawan: {Name} ({NIP})
+  const ewaMatch = description.match(/^(Pencairan EWA Kasbon Karyawan:\s*)(.+?)\s*\(([^)]+)\)$/i);
+  if (ewaMatch) {
+    const prefix = ewaMatch[1];
+    const name = ewaMatch[2].trim();
+    const nip = ewaMatch[3].trim();
+    const maskedName = maskName(name, name, true);
+    const maskedNip = maskNip(nip, nip, true);
+    return `${prefix}${maskedName} (${maskedNip})`;
+  }
+
+  // 2. Pola Em-Dash: {Transaksi} — {Nama}
+  const dashMatch = description.match(/^(.*?)\s*([—–])\s*(.+)$/);
+  if (dashMatch) {
+    const prefix = dashMatch[1];
+    const sep = dashMatch[2];
+    const namePart = dashMatch[3].trim();
+    if (namePart && !/^\d+$/.test(namePart)) {
+      const maskedName = maskName(namePart, namePart, true);
+      return `${prefix} ${sep} ${maskedName}`;
+    }
+  }
+
+  // 3. Pola Nama Pejabat dalam Kurung: ... (Nama)
+  // Menyamarkan nama di dalam tanda kurung, kecuali jika berisi angka (e.g. (34 Karyawan), (0202549), (2026-09))
+  // atau kata-kata operasional non-nama (karyawan, pegawai, anggota, dsb.)
+  return description.replace(/\(([^)]+)\)/g, (fullMatch, inner) => {
+    const trimmed = inner.trim();
+    const hasDigit = /\d/.test(trimmed);
+    const isCollectiveOrOperational = /\b(karyawan|pegawai|anggota|transaksi|items|entri|periode|bulan|tahun|reversal|koreksi|jurnal)\b/i.test(trimmed);
+    const isAlphaOnly = /^[A-Za-z\s'.-]+$/.test(trimmed);
+
+    if (!hasDigit && !isCollectiveOrOperational && isAlphaOnly && trimmed.length >= 2) {
+      return `(${maskName(trimmed, trimmed, true)})`;
+    }
+    return fullMatch;
+  });
+}
