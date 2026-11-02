@@ -269,49 +269,87 @@ export function LoanScheduleTable({
                   <th style={{ textAlign: 'left', padding: '6px 4px' }}>Jatuh Tempo</th>
                   <th style={{ textAlign: 'left', padding: '6px 4px' }}>Pokok</th>
                   <th style={{ textAlign: 'left', padding: '6px 4px' }}>Biaya Admin</th>
+                  <th style={{ textAlign: 'right', padding: '6px 4px' }}>Total Angsuran</th>
                   <th style={{ textAlign: 'left', padding: '6px 4px' }}>Status</th>
                 </tr>
               </thead>
               <tbody>
-                {scheduleDraft.map((row, index) => (
-                  <tr key={row.installmentNo}>
-                    <td style={{ padding: '6px 4px' }}>{row.installmentNo}</td>
-                    <td style={{ padding: '6px 4px', minWidth: 140 }}>
-                      <input
-                        type="date"
-                        value={row.dueDate}
-                        onChange={(e) => updateDraftRow(index, { dueDate: e.target.value })}
-                        style={inputCellStyle}
-                      />
-                    </td>
-                    <td style={{ padding: '6px 4px', minWidth: 120 }}>
-                      <input
-                        type="text"
-                        value={row.principalAmount}
-                        onChange={(e) =>
-                          updateDraftRow(index, { principalAmount: formatAmountInput(e.target.value) })
-                        }
-                        style={inputCellStyle}
-                      />
-                    </td>
-                    <td style={{ padding: '6px 4px', minWidth: 120 }}>
-                      <input
-                        type="text"
-                        value={row.interestAmount}
-                        onChange={(e) =>
-                          updateDraftRow(index, { interestAmount: formatAmountInput(e.target.value) })
-                        }
-                        style={inputCellStyle}
-                      />
-                    </td>
-                    <td style={{ padding: '6px 4px' }}>
-                      <Text type="supporting">
-                        {row.status === 'Paid' ? 'Lunas' : row.status === 'Late' ? 'Terlambat' : 'Belum'}
-                      </Text>
-                    </td>
-                  </tr>
-                ))}
+                {scheduleDraft.map((row, index) => {
+                  const rowPrincipal = parseAmountInput(row.principalAmount);
+                  const rowInterest = parseAmountInput(row.interestAmount);
+                  const rowTotal = rowPrincipal + rowInterest;
+                  return (
+                    <tr key={row.installmentNo}>
+                      <td style={{ padding: '6px 4px' }}>{row.installmentNo}</td>
+                      <td style={{ padding: '6px 4px', minWidth: 140 }}>
+                        <input
+                          type="date"
+                          value={row.dueDate}
+                          onChange={(e) => updateDraftRow(index, { dueDate: e.target.value })}
+                          style={inputCellStyle}
+                        />
+                      </td>
+                      <td style={{ padding: '6px 4px', minWidth: 120 }}>
+                        <input
+                          type="text"
+                          value={row.principalAmount}
+                          onChange={(e) =>
+                            updateDraftRow(index, { principalAmount: formatAmountInput(e.target.value) })
+                          }
+                          style={inputCellStyle}
+                        />
+                      </td>
+                      <td style={{ padding: '6px 4px', minWidth: 120 }}>
+                        <input
+                          type="text"
+                          value={row.interestAmount}
+                          onChange={(e) =>
+                            updateDraftRow(index, { interestAmount: formatAmountInput(e.target.value) })
+                          }
+                          style={inputCellStyle}
+                        />
+                      </td>
+                      <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 600, minWidth: 120 }}>
+                        {formatRp(rowTotal)}
+                      </td>
+                      <td style={{ padding: '6px 4px' }}>
+                        <Text type="supporting">
+                          {row.status === 'Paid' ? 'Lunas' : row.status === 'Late' ? 'Terlambat' : 'Belum'}
+                        </Text>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
+              <tfoot>
+                <tr
+                  style={{
+                    borderTop: '2px solid var(--color-border-primary)',
+                    fontWeight: 600,
+                    backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+                  }}
+                >
+                  <td colSpan={2} style={{ padding: '8px 4px', textAlign: 'left' }}>
+                    Total
+                  </td>
+                  <td
+                    style={{
+                      padding: '8px 4px',
+                      textAlign: 'left',
+                      color: principalMismatch ? 'var(--color-text-error)' : undefined,
+                    }}
+                  >
+                    {formatRp(draftPrincipalSum)}
+                  </td>
+                  <td style={{ padding: '8px 4px', textAlign: 'left' }}>
+                    {formatRp(draftAdminSum)}
+                  </td>
+                  <td style={{ padding: '8px 4px', textAlign: 'right' }}>
+                    {formatRp(draftPrincipalSum + draftAdminSum)}
+                  </td>
+                  <td style={{ padding: '8px 4px' }}></td>
+                </tr>
+              </tfoot>
             </table>
           </div>
           <HStack gap={2} hAlign="end">
@@ -341,7 +379,7 @@ export function LoanScheduleTable({
                 <th style={{ textAlign: 'left', padding: '8px 4px' }}>Jatuh Tempo</th>
                 <th style={{ textAlign: 'right', padding: '8px 4px' }}>Pokok</th>
                 <th style={{ textAlign: 'right', padding: '8px 4px' }}>Biaya Admin</th>
-                <th style={{ textAlign: 'right', padding: '8px 4px' }}>Tagihan</th>
+                <th style={{ textAlign: 'right', padding: '8px 4px' }}>Total Angsuran</th>
                 <th style={{ textAlign: 'left', padding: '8px 4px' }}>Status</th>
               </tr>
             </thead>
@@ -372,6 +410,29 @@ export function LoanScheduleTable({
                 );
               })}
             </tbody>
+            <tfoot>
+              <tr
+                style={{
+                  borderTop: '2px solid var(--color-border-primary)',
+                  fontWeight: 600,
+                  backgroundColor: 'var(--color-background-secondary, #f9fafb)',
+                }}
+              >
+                <td colSpan={2} style={{ padding: '8px 4px', textAlign: 'left' }}>
+                  Total
+                </td>
+                <td style={{ padding: '8px 4px', textAlign: 'right' }}>
+                  {formatRp(draftPrincipalSum)}
+                </td>
+                <td style={{ padding: '8px 4px', textAlign: 'right' }}>
+                  {formatRp(draftAdminSum)}
+                </td>
+                <td style={{ padding: '8px 4px', textAlign: 'right' }}>
+                  {formatRp(draftPrincipalSum + draftAdminSum)}
+                </td>
+                <td style={{ padding: '8px 4px' }}></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
