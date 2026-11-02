@@ -6,6 +6,7 @@ import {
   maskNip,
   maskNik,
   maskAccountNumber,
+  maskJournalDescription,
   FIRST_NAMES,
   LAST_NAMES,
 } from "./privacyMask";
@@ -80,5 +81,80 @@ describe("Deterministic Pseudonymization Utility", () => {
     expect(maskNip(sampleIdA, originalNip, true)).not.toBe(originalNip);
     expect(maskNik(sampleIdA, originalNik, true)).not.toBe(originalNik);
     expect(maskAccountNumber(sampleIdA, originalAcc, true)).not.toBe(originalAcc);
+  });
+
+  describe("maskJournalDescription (Issue #312)", () => {
+    test("masks EWA journal description pattern with masked name and EMP NIP", () => {
+      const original = "Pencairan EWA Kasbon Karyawan: Irwan Pancariadi (0202549)";
+      const masked = maskJournalDescription(original, true);
+
+      expect(masked).not.toBe(original);
+      expect(masked.startsWith("Pencairan EWA Kasbon Karyawan: ")).toBe(true);
+      expect(masked).not.toContain("Irwan Pancariadi");
+      expect(masked).not.toContain("0202549");
+      expect(masked).toMatch(/Pencairan EWA Kasbon Karyawan: [A-Za-z]+ [A-Za-z]+ \(EMP-\d{4}\)/);
+
+      // Deterministic
+      expect(maskJournalDescription(original, true)).toBe(masked);
+
+      // When demo is false, returns original
+      expect(maskJournalDescription(original, false)).toBe(original);
+    });
+
+    test("masks member names in savings and loan journal descriptions with em-dash separator", () => {
+      const desc1 = "Setoran Simpanan sukarela — Wardi";
+      const masked1 = maskJournalDescription(desc1, true);
+      expect(masked1).not.toBe(desc1);
+      expect(masked1.startsWith("Setoran Simpanan sukarela — ")).toBe(true);
+      expect(masked1).not.toContain("Wardi");
+      expect(maskJournalDescription(desc1, false)).toBe(desc1);
+
+      const desc2 = "Pembayaran Cicilan Pinjaman — Rosaliana Seftiani Devi";
+      const masked2 = maskJournalDescription(desc2, true);
+      expect(masked2).not.toBe(desc2);
+      expect(masked2.startsWith("Pembayaran Cicilan Pinjaman — ")).toBe(true);
+      expect(masked2).not.toContain("Rosaliana Seftiani Devi");
+      expect(maskJournalDescription(desc2, false)).toBe(desc2);
+
+      const desc3 = "Pencairan Pinjaman Anggota — Alfhyra Haya Aulia Pohan";
+      const masked3 = maskJournalDescription(desc3, true);
+      expect(masked3).not.toBe(desc3);
+      expect(masked3.startsWith("Pencairan Pinjaman Anggota — ")).toBe(true);
+      expect(masked3).not.toContain("Alfhyra Haya Aulia Pohan");
+      expect(maskJournalDescription(desc3, false)).toBe(desc3);
+    });
+
+    test("masks officer name in parentheses while preserving operational context", () => {
+      const original = "Pengisian Kas Kecil via transfer Bank Mandiri ke Bendahara (Ramadina)";
+      const masked = maskJournalDescription(original, true);
+
+      expect(masked).not.toBe(original);
+      expect(masked.startsWith("Pengisian Kas Kecil via transfer Bank Mandiri ke Bendahara (")).toBe(true);
+      expect(masked).not.toContain("Ramadina");
+      expect(masked.endsWith(")")).toBe(true);
+
+      // Returns original when demo is false
+      expect(maskJournalDescription(original, false)).toBe(original);
+    });
+
+    test("leaves non-PII operational descriptions and aggregate counts intact", () => {
+      const bankFee = "Biaya Administrasi Bank Mandiri Bulanan";
+      expect(maskJournalDescription(bankFee, true)).toBe(bankFee);
+      expect(maskJournalDescription(bankFee, false)).toBe(bankFee);
+
+      const payrollAggregate = "Pelunasan Payroll Potong Gaji EWA (34 Karyawan)";
+      expect(maskJournalDescription(payrollAggregate, true)).toBe(payrollAggregate);
+      expect(maskJournalDescription(payrollAggregate, false)).toBe(payrollAggregate);
+
+      const payrollPeriod = "Pelunasan Payroll Potong Gaji EWA Periode 2026-09 (34 Karyawan)";
+      expect(maskJournalDescription(payrollPeriod, true)).toBe(payrollPeriod);
+      expect(maskJournalDescription(payrollPeriod, false)).toBe(payrollPeriod);
+    });
+
+    test("safely handles empty or null descriptions", () => {
+      expect(maskJournalDescription("", true)).toBe("");
+      expect(maskJournalDescription(null as any, true)).toBe("");
+      expect(maskJournalDescription(undefined as any, true)).toBe("");
+    });
   });
 });
