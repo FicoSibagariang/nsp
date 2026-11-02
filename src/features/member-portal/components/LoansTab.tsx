@@ -74,6 +74,12 @@ export const LoansTab: React.FC<LoansTabProps> = ({
         renderCell: (i) => formatRp(i.interestAmount),
       },
       {
+        key: 'totalAmount',
+        header: 'Total Angsuran',
+        width: pixel(120),
+        renderCell: (i) => formatRp(Number(i.principalAmount || 0) + Number(i.interestAmount || 0)),
+      },
+      {
         key: 'paidAmount',
         header: 'Sudah Bayar',
         width: pixel(120),
