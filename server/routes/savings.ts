@@ -10,12 +10,15 @@ import {
   savingsWithdrawalRejectSchema,
   savingsDepositApproveSchema,
   savingsDepositRejectSchema,
+  savingsPayrollWajibSettleSchema,
 } from '../schemas'
 import {
   batchImportSavings,
   getSavingsTransactions,
   getUnpaidPokokMembers,
   getSavingsPaymentSources,
+  getSavingsPayrollWajibRecap,
+  settleSavingsPayrollWajib,
 } from '../services/savingsService'
 import {
   getWithdrawalsList,
@@ -403,6 +406,62 @@ savings.post('/deposits/:id/reject', requirePermission('update:savings'), async 
     })
   } catch (err: any) {
     return c.json({ success: false, message: err.message || 'Gagal menolak setoran simpanan' }, 400)
+  }
+})
+
+// Payroll Mandatory Savings (Simpanan Wajib) Recap
+savings.get('/payroll/recap-wajib', requirePermission('read:members'), async (c) => {
+  const month = c.req.query('month') || c.req.query('periodMonth') || new Date().toISOString().substring(0, 7)
+  try {
+    const recap = await getSavingsPayrollWajibRecap(db, month)
+    return c.json({
+      success: true,
+      data: recap,
+    })
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal mengambil rekap simpanan wajib payroll' }, 400)
+  }
+})
+
+// Payroll Mandatory Savings 1-Click Settlement
+savings.post('/payroll/settle-wajib', requirePermission('update:savings'), async (c) => {
+  const body = await c.req.json().catch(() => ({}))
+  const parsed = savingsPayrollWajibSettleSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400)
+  }
+
+  const actor = getActor(c) || 'admin'
+  try {
+    const result = await settleSavingsPayrollWajib(
+      db,
+      parsed.data,
+      actor
+    )
+
+    await audit(db, {
+      actor,
+      action: 'settle_savings_payroll_wajib',
+      entity: 'members',
+      after: {
+        periodMonth: result.periodMonth,
+        settledMembersCount: result.settledMembersCount,
+        totalSettledAmount: result.totalSettledAmount,
+        journalEntryId: result.journalEntryId,
+      },
+      ip: getClientIp(c),
+    })
+
+    clearStatsCache()
+
+    return c.json({
+      success: true,
+      message: `Berhasil membukukan simpanan wajib payroll untuk ${result.settledMembersCount} anggota (Total: Rp ${result.totalSettledAmount.toLocaleString('id-ID')})`,
+      data: result,
+    })
+  } catch (err: any) {
+    return c.json({ success: false, message: err.message || 'Gagal membukukan simpanan wajib payroll' }, 400)
   }
 })
 

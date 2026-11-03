@@ -326,6 +326,14 @@ export const loanPayrollSettleSchema = z.object({
 });
 export type LoanPayrollSettleInput = z.infer<typeof loanPayrollSettleSchema>;
 
+export const savingsPayrollWajibSettleSchema = z.object({
+  periodMonth: z.string().regex(/^\d{4}-\d{2}$/, "Format periode harus YYYY-MM"),
+  targetAccountId: z.string().uuid("Akun kas/bank tidak valid").optional(),
+  transactionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal transaksi harus YYYY-MM-DD").optional(),
+  amountPerMember: z.number().int().positive("Nominal simpanan wajib per anggota harus positif").optional(),
+});
+export type SavingsPayrollWajibSettleInput = z.infer<typeof savingsPayrollWajibSettleSchema>;
+
 // Common passwords blocklist (top 100 most common)
 const COMMON_PASSWORDS = [
   'password', '123456789', 'qwerty123', 'admin123', 'letmein1',
