@@ -31,13 +31,20 @@ import {
   getLoansList,
   getLoanPaymentSources,
   getLoanPayrollDeductions,
+  getLoanPayrollRecap,
+  settleLoanPayroll,
   getLoanPaymentsLedger,
   getLoanPaymentsByLoanId,
 } from '../services/loanService'
 import { requireRouteParam } from '../lib/serviceResponse'
 import { clearStatsCache } from './stats'
 import { audit, getActor, getClientIp } from '../lib/audit'
-import { batchLoanImportSchema, batchPaymentImportSchema, batchScheduleImportSchema } from '../schemas'
+import {
+  batchLoanImportSchema,
+  batchPaymentImportSchema,
+  batchScheduleImportSchema,
+  loanPayrollSettleSchema,
+} from '../schemas'
 
 const loans = new Hono()
 
@@ -181,6 +188,7 @@ loans.get('/payroll-deductions', requirePermission('read:loans'), async (c) => {
   const endDate = `${month}-${String(lastDay).padStart(2, '0')}`;
 
   const rows = await getLoanPayrollDeductions(db, startDate, endDate);
+  const recap = await getLoanPayrollRecap(db, startDate, endDate);
 
   const items = rows.map((r: any) => ({
     employeeId: r.employeeId || '',
@@ -243,9 +251,61 @@ loans.get('/payroll-deductions', requirePermission('read:loans'), async (c) => {
       endDate,
       totalEmployees,
       totalAmount,
+      totalPrincipal: recap.totalPrincipal,
+      totalInterest: recap.totalInterest,
+      totalSchedules: recap.totalSchedules,
+      paidCount: recap.paidCount,
+      unpaidCount: recap.unpaidCount,
+      isSettled: recap.isSettled,
+      settledAt: recap.settledAt,
       items,
     },
   });
+});
+
+// Settle Monthly Loan Installments from Company Payroll
+loans.post('/payroll/settle', requirePermission('approve:loans'), async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = loanPayrollSettleSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json({ success: false, errors: parsed.error.format() }, 400);
+  }
+
+  const actor = getActor(c);
+  try {
+    const result = await settleLoanPayroll(
+      db,
+      parsed.data,
+      actor
+    );
+
+    await audit(db, {
+      actor,
+      action: 'settle_loan_payroll',
+      entity: 'loans',
+      after: {
+        periodMonth: parsed.data.periodMonth,
+        settledSchedulesCount: result.settledSchedulesCount,
+        settledBorrowersCount: result.settledBorrowersCount,
+        totalPrincipal: result.totalPrincipal,
+        totalInterest: result.totalInterest,
+        totalSettledAmount: result.totalSettledAmount,
+        journalEntryId: result.journalEntryId,
+      },
+      ip: getClientIp(c),
+    });
+
+    clearStatsCache();
+
+    return c.json({
+      success: true,
+      message: `Pelunasan payroll angsuran pinjaman periode ${parsed.data.periodMonth} berhasil dibukukan! Total: Rp ${result.totalSettledAmount.toLocaleString('id-ID')}`,
+      data: result,
+    });
+  } catch (err: any) {
+    return c.json({ success: false, message: err?.message || 'Gagal memproses pelunasan payroll pinjaman' }, 400);
+  }
 });
 
 loans.get('/payments', requirePermission('read:loans'), async (c) => {

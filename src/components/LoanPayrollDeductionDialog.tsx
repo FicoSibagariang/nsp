@@ -44,6 +44,13 @@ interface DeductionResponse {
   endDate: string;
   totalEmployees: number;
   totalAmount: number;
+  totalPrincipal?: number;
+  totalInterest?: number;
+  totalSchedules?: number;
+  paidCount?: number;
+  unpaidCount?: number;
+  isSettled?: boolean;
+  settledAt?: string | null;
   items: DeductionItem[];
 }
 
@@ -62,6 +69,22 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
   const [data, setData] = useState<DeductionResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [transactionDate, setTransactionDate] = useState<string>('');
+  const [isSettling, setIsSettling] = useState<boolean>(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState<boolean>(false);
+  const [settleError, setSettleError] = useState<string | null>(null);
+  const [settleSuccessMsg, setSettleSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const [yearStr, monthStr] = month.split('-');
+    if (yearStr && monthStr) {
+      const lastDay = new Date(Number(yearStr), Number(monthStr), 0).getDate();
+      setTransactionDate(`${month}-${String(lastDay).padStart(2, '0')}`);
+    }
+    setSettleSuccessMsg(null);
+    setSettleError(null);
+  }, [month]);
 
   const fetchDeductions = useCallback(async (selectedMonth: string) => {
     setIsLoading(true);
@@ -82,6 +105,24 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
   useEffect(() => {
     fetchDeductions(month);
   }, [month, fetchDeductions]);
+
+  const handleSettle = async () => {
+    setIsSettling(true);
+    setSettleError(null);
+    try {
+      const res: any = await api.post('/api/loans/payroll/settle', {
+        periodMonth: month,
+        transactionDate: transactionDate || undefined,
+      });
+      setIsConfirmOpen(false);
+      setSettleSuccessMsg(res?.message || `Pelunasan payroll periode ${month} berhasil dibukukan!`);
+      await fetchDeductions(month);
+    } catch (err: any) {
+      setSettleError(err?.message || 'Gagal memproses pelunasan payroll pinjaman');
+    } finally {
+      setIsSettling(false);
+    }
+  };
 
   // Synchronous download matching /ewa export mechanism directly in user click gesture
   const handleDownload = (e?: React.MouseEvent) => {
@@ -106,6 +147,14 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
 
   const totalEmployees = data?.totalEmployees || 0;
   const totalAmount = data?.totalAmount || 0;
+  const calculatedPrincipal =
+    data?.totalPrincipal ??
+    data?.items.reduce((sum, it) => sum + (it.principalAmount || 0), 0) ??
+    0;
+  const calculatedInterest =
+    data?.totalInterest ??
+    data?.items.reduce((sum, it) => sum + (it.interestAmount || 0), 0) ??
+    0;
 
   return (
     <div ref={containerRef} style={{ display: 'contents' }}>
@@ -120,6 +169,47 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
       content={
         <LayoutContent padding={4}>
           <VStack gap={4}>
+            {/* Status Lunas Badge */}
+            {data?.isSettled && (
+              <div
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: 8,
+                  backgroundColor: 'var(--color-background-success-subtle, #ecfdf5)',
+                  border: '1px solid var(--color-success-500, #10b981)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                }}
+              >
+                <Text weight="semibold" style={{ color: 'var(--color-success-700, #047857)' }}>
+                  ✅ Angsuran Payroll Periode Ini Sudah Lunas Dibukukan
+                </Text>
+                {data.settledAt && (
+                  <Text type="supporting" style={{ color: 'var(--color-success-700, #047857)', fontSize: 12 }}>
+                    Dibukukan: {new Date(data.settledAt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </Text>
+                )}
+              </div>
+            )}
+
+            {/* Notification message */}
+            {settleSuccessMsg && (
+              <div
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 6,
+                  backgroundColor: 'var(--color-background-success-subtle, #ecfdf5)',
+                  border: '1px solid var(--color-success-500, #10b981)',
+                  color: 'var(--color-success-700, #047857)',
+                  fontSize: 13,
+                }}
+              >
+                {settleSuccessMsg}
+              </div>
+            )}
+
             {/* Filter Periode Bulan */}
             <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
               <HStack gap={2} vAlign="center">
@@ -291,15 +381,142 @@ export function LoanPayrollDeductionDialogContent({ onClose }: Props) {
             <Button label="Tutup" variant="secondary" onClick={onClose} />
             <Button
               label="Unduh Berkas XLSX"
-              variant="primary"
+              variant="secondary"
               icon={<Icon icon={DocumentArrowDownIcon} size="sm" />}
               isDisabled={isLoading || !data || data.items.length === 0}
               onClick={(e) => handleDownload(e)}
             />
+            {!data?.isSettled && totalEmployees > 0 && (
+              <Button
+                label="Bukukan Pelunasan Angsuran Payroll Dari Perusahaan"
+                variant="primary"
+                isDisabled={isLoading || isSettling}
+                onClick={() => {
+                  setSettleError(null);
+                  setIsConfirmOpen(true);
+                }}
+              />
+            )}
           </HStack>
         </LayoutFooter>
       }
     />
+
+    {/* Confirmation Modal */}
+    {isConfirmOpen && (
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 9999,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 16,
+        }}
+      >
+        <Card
+          style={{
+            width: '100%',
+            maxWidth: 520,
+            backgroundColor: 'var(--color-background-primary, #ffffff)',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+            borderRadius: 12,
+            padding: 24,
+          }}
+        >
+          <VStack gap={4}>
+            <VStack gap={1}>
+              <Heading level={3}>Konfirmasi Pelunasan Angsuran Payroll</Heading>
+              <Text type="supporting" color="secondary">
+                Sistem akan membukukan pelunasan seluruh jadwal angsuran pinjaman periode {month} ke rekening Bank Mandiri dan mencatat jurnal akuntansi secara otomatis.
+              </Text>
+            </VStack>
+
+            {settleError && (
+              <div
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 6,
+                  backgroundColor: 'var(--color-background-danger-subtle, #fef2f2)',
+                  border: '1px solid var(--color-critical-500, #ef4444)',
+                  color: 'var(--color-text-error, #dc2626)',
+                  fontSize: 13,
+                }}
+              >
+                {settleError}
+              </div>
+            )}
+
+            {/* Tanggal Transaksi Jurnal */}
+            <VStack gap={1}>
+              <Text weight="medium" style={{ fontSize: 13 }}>
+                Tanggal Transaksi Pembukuan / Jurnal:
+              </Text>
+              <input
+                type="date"
+                value={transactionDate}
+                onChange={(e) => setTransactionDate(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  border: '1px solid var(--color-border-primary)',
+                  backgroundColor: 'var(--color-background-primary)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: 13,
+                }}
+              />
+            </VStack>
+
+            {/* Ringkasan Nominal */}
+            <div
+              style={{
+                padding: 16,
+                borderRadius: 8,
+                backgroundColor: 'var(--color-background-secondary, #f8fafc)',
+                border: '1px solid var(--color-border-primary, #e2e8f0)',
+              }}
+            >
+              <VStack gap={2}>
+                <HStack justify="between">
+                  <Text type="supporting" color="secondary">Total Peminjam:</Text>
+                  <Text weight="medium">{totalEmployees} Orang</Text>
+                </HStack>
+                <HStack justify="between">
+                  <Text type="supporting" color="secondary">Akumulasi Pokok Pinjaman:</Text>
+                  <Text weight="medium">{formatRp(calculatedPrincipal)}</Text>
+                </HStack>
+                <HStack justify="between">
+                  <Text type="supporting" color="secondary">Akumulasi Jasa / Bunga Pinjaman:</Text>
+                  <Text weight="medium">{formatRp(calculatedInterest)}</Text>
+                </HStack>
+                <div style={{ height: 1, backgroundColor: 'var(--color-border-primary, #e2e8f0)', margin: '4px 0' }} />
+                <HStack justify="between">
+                  <Text weight="semibold">Grand Total Pembukuan (Debit Bank):</Text>
+                  <Heading level={3} color="primary">{formatRp(totalAmount)}</Heading>
+                </HStack>
+              </VStack>
+            </div>
+
+            <HStack gap={2} justify="end">
+              <Button
+                label="Batal"
+                variant="secondary"
+                isDisabled={isSettling}
+                onClick={() => setIsConfirmOpen(false)}
+              />
+              <Button
+                label={isSettling ? "Memproses..." : "Konfirmasi & Bukukan Pelunasan"}
+                variant="primary"
+                isDisabled={isSettling || totalEmployees === 0}
+                onClick={handleSettle}
+              />
+            </HStack>
+          </VStack>
+        </Card>
+      </div>
+    )}
   </div>
 );
 }

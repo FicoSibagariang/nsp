@@ -1394,3 +1394,256 @@ export async function getLoanPaymentsByLoanId(
     .query("SELECT * FROM loan_payments WHERE loanId = ? ORDER BY paymentDate DESC")
     .all<LoanPaymentRow>(loanId);
 }
+
+export interface SettleLoanPayrollResult {
+  periodMonth: string;
+  settledSchedulesCount: number;
+  settledBorrowersCount: number;
+  totalPrincipal: number;
+  totalInterest: number;
+  totalSettledAmount: number;
+  journalEntryId: string | null;
+}
+
+export async function getLoanPayrollRecap(
+  database: Db,
+  startDate: string,
+  endDate: string
+): Promise<{
+  totalSchedules: number;
+  paidCount: number;
+  unpaidCount: number;
+  isSettled: boolean;
+  settledAt: string | null;
+  totalPrincipal: number;
+  totalInterest: number;
+  totalAmount: number;
+}> {
+  const recap = await database.query(`
+    SELECT 
+      COUNT(ls.id) as total_schedules,
+      SUM(CASE WHEN ls.status = 'Paid' THEN 1 ELSE 0 END) as paid_count,
+      SUM(CASE WHEN ls.status != 'Paid' THEN 1 ELSE 0 END) as unpaid_count,
+      MAX(ls.paidat) as settled_at,
+      SUM(COALESCE(ls.principalamount, 0)) as total_principal,
+      SUM(COALESCE(ls.interestamount, 0)) as total_interest,
+      SUM(COALESCE(ls.principalamount, 0) + COALESCE(ls.interestamount, 0)) as total_amount
+    FROM loan_schedules ls
+    JOIN loans l ON l.id = ls.loanid
+    WHERE ls.duedate >= ? AND ls.duedate <= ?
+      AND l.deletedat IS NULL
+  `).get<{
+    total_schedules: number;
+    paid_count: number;
+    unpaid_count: number;
+    settled_at: string | null;
+    total_principal: number;
+    total_interest: number;
+    total_amount: number;
+  }>(startDate, endDate);
+
+  const totalSchedules = Number(recap?.total_schedules || 0);
+  const paidCount = Number(recap?.paid_count || 0);
+  const unpaidCount = Number(recap?.unpaid_count || 0);
+  const isSettled = totalSchedules > 0 && unpaidCount === 0;
+
+  return {
+    totalSchedules,
+    paidCount,
+    unpaidCount,
+    isSettled,
+    settledAt: recap?.settled_at ? String(recap.settled_at) : null,
+    totalPrincipal: Math.round(Number(recap?.total_principal || 0)),
+    totalInterest: Math.round(Number(recap?.total_interest || 0)),
+    totalAmount: Math.round(Number(recap?.total_amount || 0)),
+  };
+}
+
+export async function settleLoanPayroll(
+  database: Db,
+  input: {
+    periodMonth: string;
+    targetAccountId?: string;
+    transactionDate?: string;
+  },
+  _adminId?: string
+): Promise<SettleLoanPayrollResult> {
+  const { periodMonth, targetAccountId } = input;
+  if (!periodMonth || !/^\d{4}-\d{2}$/.test(periodMonth)) {
+    throw new ServiceError("Format periodMonth tidak valid. Gunakan format YYYY-MM", 400);
+  }
+
+  const [yearStr, monthStr] = periodMonth.split('-');
+  const year = parseInt(yearStr, 10);
+  const m = parseInt(monthStr, 10);
+  const lastDay = new Date(year, m, 0).getDate();
+  const startDate = `${periodMonth}-01`;
+  const endDate = `${periodMonth}-${String(lastDay).padStart(2, '0')}`;
+  const effectiveDate = input.transactionDate || endDate;
+
+  return await database.transaction(async () => {
+    // 1. Ambil seluruh jadwal angsuran yang belum Paid pada periode ini
+    const pendingSchedules = await database.query(`
+      SELECT 
+        ls.id as schedule_id,
+        ls.loanid as loan_id,
+        ls.installmentno as installment_no,
+        COALESCE(ls.principalamount, 0) as principal_amount,
+        COALESCE(ls.interestamount, 0) as interest_amount,
+        COALESCE(ls.paidamount, 0) as paid_amount,
+        l.memberid as member_id,
+        COALESCE(m.name, l.name) as borrower_name
+      FROM loan_schedules ls
+      JOIN loans l ON l.id = ls.loanid
+      LEFT JOIN members m ON m.id = l.memberid
+      WHERE ls.duedate >= ? AND ls.duedate <= ?
+        AND ls.status != 'Paid'
+        AND l.deletedat IS NULL
+      ORDER BY ls.duedate ASC, ls.installmentno ASC
+    `).all<{
+      schedule_id: string;
+      loan_id: string;
+      installment_no: number;
+      principal_amount: number;
+      interest_amount: number;
+      paid_amount: number;
+      member_id: string;
+      borrower_name: string;
+    }>(startDate, endDate);
+
+    // 2. Validasi idempotensi
+    if (pendingSchedules.length === 0) {
+      const existingInPeriod = await database.query(`
+        SELECT COUNT(*) as count 
+        FROM loan_schedules ls
+        JOIN loans l ON l.id = ls.loanid
+        WHERE ls.duedate >= ? AND ls.duedate <= ?
+          AND l.deletedat IS NULL
+      `).get<{ count: number }>(startDate, endDate);
+
+      if (Number(existingInPeriod?.count || 0) > 0) {
+        throw new ServiceError(`Seluruh jadwal angsuran pinjaman untuk periode ${periodMonth} sudah lunas dibukukan.`, 400);
+      } else {
+        throw new ServiceError(`Tidak ada jadwal angsuran pinjaman yang jatuh tempo pada periode ${periodMonth}.`, 400);
+      }
+    }
+
+    let totalPrincipal = 0;
+    let totalInterest = 0;
+    let totalSettledAmount = 0;
+    const affectedLoanIds = new Set<string>();
+    const uniqueBorrowers = new Set<string>();
+
+    // 3. Catat pembayaran dan lunasi jadwal
+    for (const schedule of pendingSchedules) {
+      const p = Number(schedule.principal_amount || 0);
+      const i = Number(schedule.interest_amount || 0);
+      const installmentTotal = p + i;
+      const alreadyPaid = Number(schedule.paid_amount || 0);
+      const remainingAmount = Math.max(0, installmentTotal - alreadyPaid);
+
+      if (remainingAmount > 0) {
+        const paymentId = crypto.randomUUID();
+        await database.prepare(`
+          INSERT INTO loan_payments (id, loanId, amount, paymentDate, method)
+          VALUES (?, ?, ?, ?, 'Transfer')
+        `).run(paymentId, schedule.loan_id, remainingAmount, effectiveDate);
+
+        totalPrincipal += p;
+        totalInterest += i;
+        totalSettledAmount += remainingAmount;
+      }
+
+      await database.prepare(`
+        UPDATE loan_schedules
+        SET paidamount = ?, status = 'Paid', paidat = ?, updatedat = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(installmentTotal, effectiveDate, schedule.schedule_id);
+
+      affectedLoanIds.add(schedule.loan_id);
+      uniqueBorrowers.add(schedule.member_id || schedule.borrower_name);
+    }
+
+    // 4. Sinkronisasi pinjaman (paidInstallments dan status Lunas)
+    for (const loanId of affectedLoanIds) {
+      const paidCountRes = await database.query(
+        `SELECT COUNT(*) as count FROM loan_schedules WHERE loanid = ? AND status = 'Paid'`
+      ).get<{ count: number }>(loanId);
+      const paidCount = Number(paidCountRes?.count || 0);
+
+      const totalSchedulesRes = await database.query(
+        `SELECT COUNT(*) as count FROM loan_schedules WHERE loanid = ?`
+      ).get<{ count: number }>(loanId);
+      const totalSchedules = Number(totalSchedulesRes?.count || 0);
+
+      const remainingPendingRes = await database.query(
+        `SELECT COUNT(*) as count FROM loan_schedules WHERE loanid = ? AND status IN ('Pending', 'Late')`
+      ).get<{ count: number }>(loanId);
+      const remainingPending = Number(remainingPendingRes?.count || 0);
+
+      if (totalSchedules > 0 && remainingPending === 0) {
+        await database.run(
+          `UPDATE loans SET status = 'Lunas', paidinstallments = ? WHERE id = ?`,
+          [paidCount, loanId]
+        );
+      } else {
+        await database.run(
+          `UPDATE loans SET paidinstallments = ? WHERE id = ?`,
+          [paidCount, loanId]
+        );
+      }
+    }
+
+    // 5. Akun kas/bank pelunasan
+    let kasCode = '11102'; // default Bank Mandiri
+    if (targetAccountId) {
+      const acc = await database.query("SELECT code FROM accounts WHERE id = ?").get<{ code: string }>(targetAccountId);
+      if (acc?.code) {
+        kasCode = acc.code;
+      }
+    }
+
+    // 6. Buat entri jurnal akuntansi konsolidasi atomik
+    let journalEntryId: string | null = null;
+    if (totalSettledAmount > 0) {
+      const lines = [
+        {
+          account_code: kasCode,
+          debit: totalSettledAmount,
+          description: `Penerimaan Pelunasan Payroll Angsuran Pinjaman Periode ${periodMonth}`,
+        },
+        {
+          account_code: '11201',
+          credit: totalPrincipal,
+          description: `Pelunasan Pokok Pinjaman Payroll Periode ${periodMonth}`,
+        },
+      ];
+
+      if (totalInterest > 0) {
+        lines.push({
+          account_code: '41101',
+          credit: totalInterest,
+          description: `Pendapatan Jasa Pinjaman Payroll Periode ${periodMonth}`,
+        });
+      }
+
+      journalEntryId = await recordAutoJournal({
+        transaction_date: effectiveDate,
+        description: `Pelunasan Payroll Potong Gaji Pinjaman Periode ${periodMonth} (${uniqueBorrowers.size} Peminjam)`,
+        reference_type: 'loan_payroll_settlement',
+        reference_id: periodMonth,
+        lines,
+      });
+    }
+
+    return {
+      periodMonth,
+      settledSchedulesCount: pendingSchedules.length,
+      settledBorrowersCount: uniqueBorrowers.size,
+      totalPrincipal,
+      totalInterest,
+      totalSettledAmount,
+      journalEntryId,
+    };
+  })();
+}

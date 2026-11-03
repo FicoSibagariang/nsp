@@ -153,4 +153,90 @@ describe("LoanPayrollDeductionDialogComponent", () => {
     expect(screen.getByText("Network connection error")).toBeDefined();
     expect(screen.getByText("Coba Lagi")).toBeDefined();
   });
+
+  test("opens confirmation modal and executes 1-click payroll settlement (Issue #315)", async () => {
+    const postSpy = spyOn(api, "post").mockImplementation((url: string) => {
+      if (url.includes("/api/loans/payroll/settle")) {
+        return Promise.resolve({
+          success: true,
+          message: "Pelunasan payroll periode 2026-09 berhasil dibukukan! Total: Rp 1.144.976",
+          data: {
+            periodMonth: "2026-09",
+            settledSchedulesCount: 2,
+            totalSettledAmount: 1144976,
+          },
+        } as any);
+      }
+      return Promise.resolve({ success: true } as any);
+    });
+
+    try {
+      await act(async () => {
+        render(<LoanPayrollDeductionDialogContent onClose={() => {}} />);
+      });
+
+      // Change selected month to 2026-09 to test specific month settlement
+      const monthInputs = screen.getAllByDisplayValue(/^\d{4}-\d{2}$/);
+      if (monthInputs.length > 0) {
+        await act(async () => {
+          fireEvent.change(monthInputs[0], { target: { value: "2026-09" } });
+        });
+      }
+
+      // Settle button should be visible when not settled
+      const settleBtn = screen.getByText("Bukukan Pelunasan Angsuran Payroll Dari Perusahaan");
+      expect(settleBtn).toBeDefined();
+
+      // Click to open confirmation modal
+      await act(async () => {
+        fireEvent.click(settleBtn);
+      });
+
+      // Verify confirmation modal content
+      expect(screen.getByText("Konfirmasi Pelunasan Angsuran Payroll")).toBeDefined();
+      expect(screen.getByText("Total Peminjam:")).toBeDefined();
+      expect(screen.getByText("Akumulasi Pokok Pinjaman:")).toBeDefined();
+      expect(screen.getByText("Akumulasi Jasa / Bunga Pinjaman:")).toBeDefined();
+      expect(screen.getByText("Grand Total Pembukuan (Debit Bank):")).toBeDefined();
+
+      // Click confirm button
+      const confirmBtn = screen.getByText("Konfirmasi & Bukukan Pelunasan");
+      await act(async () => {
+        fireEvent.click(confirmBtn);
+      });
+
+      expect(postSpy).toHaveBeenCalled();
+      const postArgs = (postSpy.mock.calls as any)[0];
+      expect(postArgs[0]).toBe("/api/loans/payroll/settle");
+      expect(postArgs[1].periodMonth).toBe("2026-09");
+      expect(postArgs[1].transactionDate).toBe("2026-09-30");
+
+      // Verify success message rendered
+      expect(screen.getByText(/Pelunasan payroll periode 2026-09 berhasil dibukukan!/)).toBeDefined();
+    } finally {
+      postSpy.mockRestore();
+    }
+  });
+
+  test("displays settled badge and hides settle button when isSettled is true (Issue #315)", async () => {
+    apiGetSpy.mockImplementation(() => {
+      return Promise.resolve({
+        ...mockData,
+        isSettled: true,
+        settledAt: "2026-09-30T10:00:00.000Z",
+        unpaidCount: 0,
+        paidCount: 2,
+      } as any);
+    });
+
+    await act(async () => {
+      render(<LoanPayrollDeductionDialogContent onClose={() => {}} />);
+    });
+
+    // Settled badge must be visible
+    expect(screen.getByText("✅ Angsuran Payroll Periode Ini Sudah Lunas Dibukukan")).toBeDefined();
+
+    // Settle button must NOT be visible
+    expect(screen.queryByText("Bukukan Pelunasan Angsuran Payroll Dari Perusahaan")).toBeNull();
+  });
 });
