@@ -40,6 +40,7 @@ export type AuditAction =
   | 'import_company_employees'
   | 'settle_ewa_payroll'
   | 'settle_loan_payroll'
+  | 'settle_savings_payroll_wajib'
   | 'create_letter'
   | 'update_letter'
   | 'delete_letter'

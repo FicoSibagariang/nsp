@@ -282,3 +282,238 @@ export async function getSavingsPaymentSources(
     `)
     .all<{ id: string; code: string; name: string; type: string }>();
 }
+
+export interface SavingsPayrollWajibRecap {
+  periodMonth: string;
+  totalActiveMembers: number;
+  defaultAmountPerMember: number;
+  alreadyPaidCount: number;
+  pendingCount: number;
+  totalPendingAmount: number;
+  isSettled: boolean;
+  settledAt: string | null;
+  pendingMembers: Array<{
+    id: string;
+    name: string;
+    nik: string | null;
+  }>;
+}
+
+export interface SettleSavingsPayrollWajibResult {
+  periodMonth: string;
+  settledMembersCount: number;
+  amountPerMember: number;
+  totalSettledAmount: number;
+  journalEntryId: string | null;
+}
+
+export async function getSavingsPayrollWajibRecap(
+  database: Db,
+  periodMonth: string
+): Promise<SavingsPayrollWajibRecap> {
+  if (!periodMonth || !/^\d{4}-\d{2}$/.test(periodMonth)) {
+    throw new ServiceError("Format periodMonth tidak valid. Gunakan format YYYY-MM", 400);
+  }
+
+  // 1. Ambil setting default simpanan wajib
+  const setting = await database
+    .query("SELECT value FROM settings WHERE key IN ('simpanan_wajib', 'simpananWajib') LIMIT 1")
+    .get<{ value: string }>();
+  const defaultAmountPerMember = setting?.value ? parseInt(setting.value, 10) || 50000 : 50000;
+
+  // 2. Total anggota aktif
+  const totalActiveRes = await database
+    .query("SELECT COUNT(*) as count FROM members WHERE status = 'Aktif' AND deletedAt IS NULL")
+    .get<{ count: number }>();
+  const totalActiveMembers = Number(totalActiveRes?.count || 0);
+
+  // 3. Anggota aktif yang sudah bayar simpanan wajib di bulan ini
+  const monthPrefix = `${periodMonth}%`;
+  const paidRes = await database
+    .query(`
+      SELECT COUNT(DISTINCT t.memberId) as count
+      FROM transactions t
+      JOIN members m ON m.id = t.memberId
+      WHERE m.status = 'Aktif' AND m.deletedAt IS NULL
+        AND t.type = 'setor_wajib'
+        AND t.createdAt LIKE ?
+    `)
+    .get<{ count: number }>(monthPrefix);
+  const alreadyPaidCount = Number(paidRes?.count || 0);
+
+  // 4. Daftar anggota aktif yang pending belum setor wajib di bulan ini
+  const pendingMembers = await database
+    .query(`
+      SELECT m.id, m.name, m.nik
+      FROM members m
+      WHERE m.status = 'Aktif' AND m.deletedAt IS NULL
+        AND m.id NOT IN (
+          SELECT DISTINCT t.memberId
+          FROM transactions t
+          WHERE t.type = 'setor_wajib'
+            AND t.createdAt LIKE ?
+        )
+      ORDER BY m.name ASC
+    `)
+    .all<{ id: string; name: string; nik: string | null }>(monthPrefix);
+
+  const pendingCount = pendingMembers.length;
+  const totalPendingAmount = pendingCount * defaultAmountPerMember;
+  const isSettled = totalActiveMembers > 0 && pendingCount === 0;
+
+  // 5. Cek apakah ada journal settlement untuk periode ini
+  const journalRes = await database
+    .query(`
+      SELECT transaction_date, created_at
+      FROM journal_entries
+      WHERE reference_type = 'savings_payroll_wajib' AND reference_id = ?
+      ORDER BY created_at DESC LIMIT 1
+    `)
+    .get<{ transaction_date: string; created_at: string }>(periodMonth);
+
+  const settledAt = journalRes?.created_at ? String(journalRes.created_at) : null;
+
+  return {
+    periodMonth,
+    totalActiveMembers,
+    defaultAmountPerMember,
+    alreadyPaidCount,
+    pendingCount,
+    totalPendingAmount,
+    isSettled,
+    settledAt,
+    pendingMembers,
+  };
+}
+
+export async function settleSavingsPayrollWajib(
+  database: Db,
+  input: {
+    periodMonth: string;
+    targetAccountId?: string;
+    transactionDate?: string;
+    amountPerMember?: number;
+  },
+  adminId?: string
+): Promise<SettleSavingsPayrollWajibResult> {
+  const { periodMonth, targetAccountId } = input;
+  if (!periodMonth || !/^\d{4}-\d{2}$/.test(periodMonth)) {
+    throw new ServiceError("Format periodMonth tidak valid. Gunakan format YYYY-MM", 400);
+  }
+
+  const [yearStr, monthStr] = periodMonth.split('-');
+  const year = parseInt(yearStr, 10);
+  const m = parseInt(monthStr, 10);
+  const lastDay = new Date(year, m, 0).getDate();
+  const effectiveDate = input.transactionDate || `${periodMonth}-${String(lastDay).padStart(2, '0')}`;
+  const effectiveDateIso = `${effectiveDate}T12:00:00.000Z`;
+
+  return await database.transaction(async () => {
+    // 1. Ambil nominal per anggota
+    let amount = input.amountPerMember;
+    if (!amount || amount <= 0) {
+      const setting = await database
+        .query("SELECT value FROM settings WHERE key IN ('simpanan_wajib', 'simpananWajib') LIMIT 1")
+        .get<{ value: string }>();
+      amount = setting?.value ? parseInt(setting.value, 10) || 50000 : 50000;
+    }
+
+    // 2. Ambil daftar anggota aktif yang belum bayar simpanan wajib di bulan ini
+    const monthPrefix = `${periodMonth}%`;
+    const pendingMembers = await database
+      .query(`
+        SELECT m.id, m.name, m.simpananPokok, m.simpananWajib, m.simpananSukarela, m.totalSavings
+        FROM members m
+        WHERE m.status = 'Aktif' AND m.deletedAt IS NULL
+          AND m.id NOT IN (
+            SELECT DISTINCT t.memberId
+            FROM transactions t
+            WHERE t.type = 'setor_wajib'
+              AND t.createdAt LIKE ?
+          )
+        ORDER BY m.name ASC
+        FOR UPDATE
+      `)
+      .all<MemberSavingsCols & { id: string; name: string }>(monthPrefix);
+
+    if (pendingMembers.length === 0) {
+      const totalActiveRes = await database
+        .query("SELECT COUNT(*) as count FROM members WHERE status = 'Aktif' AND deletedAt IS NULL")
+        .get<{ count: number }>();
+      if (Number(totalActiveRes?.count || 0) > 0) {
+        throw new ServiceError(`Seluruh anggota aktif sudah menyetor simpanan wajib untuk periode ${periodMonth}.`, 400);
+      } else {
+        throw new ServiceError("Tidak ada anggota aktif yang ditemukan.", 400);
+      }
+    }
+
+    // 3. Update saldo dan insert record transaksi
+    for (const member of pendingMembers) {
+      const curWajib = Number(member.simpananWajib || 0);
+      const curTotal = Number(member.totalSavings || 0);
+      const newWajib = curWajib + amount;
+      const newTotal = curTotal + amount;
+
+      await database
+        .query("UPDATE members SET simpananWajib = ?, totalSavings = ? WHERE id = ?")
+        .run(newWajib, newTotal, member.id);
+
+      const transactionId = crypto.randomUUID();
+      await database
+        .query(`
+          INSERT INTO transactions (id, memberId, type, amount, balanceBefore, balanceAfter, createdAt, createdBy)
+          VALUES (?, ?, 'setor_wajib', ?, ?, ?, ?, ?)
+        `)
+        .run(
+          transactionId,
+          member.id,
+          amount,
+          curTotal,
+          newTotal,
+          effectiveDateIso,
+          adminId || 'System'
+        );
+    }
+
+    // 4. Kas/bank target
+    let kasCode = '11102'; // default Bank Mandiri
+    if (targetAccountId) {
+      const acc = await database.query("SELECT code FROM accounts WHERE id = ?").get<{ code: string }>(targetAccountId);
+      if (acc?.code) {
+        kasCode = acc.code;
+      }
+    }
+
+    // 5. Jurnal konsolidasi atomik
+    const totalAmount = pendingMembers.length * amount;
+    let journalEntryId: string | null = null;
+    if (totalAmount > 0) {
+      journalEntryId = await recordAutoJournal({
+        transaction_date: effectiveDate,
+        description: `Setoran Simpanan Wajib Payroll Periode ${periodMonth} (${pendingMembers.length} Anggota)`,
+        reference_type: 'savings_payroll_wajib',
+        reference_id: periodMonth,
+        lines: [
+          {
+            account_code: kasCode,
+            debit: totalAmount,
+            description: `Penerimaan Setoran Simpanan Wajib Payroll Periode ${periodMonth}`,
+          },
+          {
+            account_code: '31102',
+            credit: totalAmount,
+            description: `Setoran Simpanan Wajib Anggota Payroll Periode ${periodMonth}`,
+          },
+        ],
+      });
+    }
+
+    return {
+      periodMonth,
+      settledMembersCount: pendingMembers.length,
+      amountPerMember: amount,
+      totalSettledAmount: totalAmount,
+      journalEntryId,
+    };
+  })();
+}
