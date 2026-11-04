@@ -134,6 +134,25 @@ export const loanScheduleRowSchema = z.object({
 });
 export type LoanScheduleRow = z.infer<typeof loanScheduleRowSchema>;
 
+export const loanAttachmentRowSchema = z.object({
+  id: str,
+  loanId: str.optional(),
+  loan_id: str.optional(),
+  fileName: str.optional(),
+  file_name: str.optional(),
+  fileUrl: str.optional(),
+  file_url: str.optional(),
+  fileSize: numNull,
+  file_size: numNull,
+  isSupplemental: bool.optional(),
+  is_supplemental: bool.optional(),
+  uploadedBy: strNull,
+  uploaded_by: strNull,
+  createdAt: strNull,
+  created_at: strNull,
+});
+export type LoanAttachmentRow = z.infer<typeof loanAttachmentRowSchema>;
+
 // ---------------------------------------------------------------------------
 // Admins
 // ---------------------------------------------------------------------------

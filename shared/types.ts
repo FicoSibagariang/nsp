@@ -183,6 +183,20 @@ export interface LoanRow extends Record<string, unknown> {
   destinationName?: string | null;
   /** Alasan penolakan pengajuan pinjaman jika status Ditolak */
   rejectionReason?: string | null;
+  /** Daftar berkas lampiran pendukung */
+  attachments?: LoanAttachmentItem[];
+  attachmentCount?: number;
+}
+
+export interface LoanAttachmentItem extends Record<string, unknown> {
+  id: string;
+  loanId: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize?: number | null;
+  isSupplemental: boolean;
+  uploadedBy: string;
+  createdAt: string;
 }
 
 export interface PaginatedResponse<T> {
