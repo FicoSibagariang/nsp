@@ -121,6 +121,19 @@ protectedFiles.get('/loans/:filename', async (c) => {
 
       if (matchedLoan && matchedLoan.memberId === sub) {
         isOwner = true;
+      } else {
+        const matchedAtt = await db
+          .query(`
+            SELECT l.memberId 
+            FROM loan_attachments la 
+            JOIN loans l ON l.id = la.loan_id 
+            WHERE la.file_url LIKE ? LIMIT 1
+          `)
+          .get<{ memberId: string }>(`%${safeName}%`);
+
+        if (matchedAtt && matchedAtt.memberId === sub) {
+          isOwner = true;
+        }
       }
     }
 

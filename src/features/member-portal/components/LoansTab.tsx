@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { VStack, HStack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { Button } from '@astryxdesign/core/Button';
@@ -8,7 +8,7 @@ import { Spinner } from '@astryxdesign/core/Spinner';
 import { Table, proportional, pixel } from '@astryxdesign/core/Table';
 import type { TableColumn } from '@astryxdesign/core/Table';
 import { formatRp } from '../../../utils/format';
-import { getAuthenticatedFileUrl } from '../../../utils/fileUrl';
+import { LoanAttachmentsModal } from './LoanAttachmentsModal';
 import type { PortalLoan, ScheduleRow, PaymentRow } from '../types';
 
 interface LoansTabProps {
@@ -21,6 +21,8 @@ interface LoansTabProps {
   paymentsLoading: boolean;
   loadSchedule: (loan: PortalLoan) => void;
   setSchedule: (sched: ScheduleRow[]) => void;
+  portalToken?: string | null;
+  onReloadLoans?: () => void;
 }
 
 export const LoansTab: React.FC<LoansTabProps> = ({
@@ -33,7 +35,10 @@ export const LoansTab: React.FC<LoansTabProps> = ({
   paymentsLoading,
   loadSchedule,
   setSchedule,
+  portalToken,
+  onReloadLoans,
 }) => {
+  const [attachmentsModalLoan, setAttachmentsModalLoan] = useState<PortalLoan | null>(null);
   const remainingOnSchedule = useMemo(() => {
     return schedule.reduce((sum, row) => {
       const due =
@@ -172,18 +177,32 @@ export const LoansTab: React.FC<LoansTabProps> = ({
     {
       key: 'attachment',
       header: 'Lampiran',
-      width: pixel(110),
-      renderCell: (i) =>
-        i.attachmentUrl ? (
-          <Button
-            label="📎 Buka"
-            size="sm"
-            variant="secondary"
-            onClick={() => window.open(getAuthenticatedFileUrl(i.attachmentUrl), '_blank')}
-          />
-        ) : (
-          <Text type="supporting" color="secondary">—</Text>
-        ),
+      width: pixel(180),
+      renderCell: (i) => {
+        const count = Number(i.attachmentCount ?? (i.attachmentUrl ? 1 : 0));
+        return (
+          <HStack gap={1} vAlign="center" wrap="wrap">
+            {count > 0 ? (
+              <Button
+                label={`📎 ${count > 1 ? `${count} Berkas` : 'Buka'}`}
+                size="sm"
+                variant="secondary"
+                onClick={() => setAttachmentsModalLoan(i)}
+              />
+            ) : (
+              <Text type="supporting" color="secondary">—</Text>
+            )}
+            {i.status === 'Menunggu' && (
+              <Button
+                label="📎 Tambah Dokumen"
+                size="sm"
+                variant="ghost"
+                onClick={() => setAttachmentsModalLoan(i)}
+              />
+            )}
+          </HStack>
+        );
+      },
     },
     {
       key: 'actions',
@@ -287,6 +306,14 @@ export const LoansTab: React.FC<LoansTabProps> = ({
           </VStack>
         </VStack>
       )}
+
+      <LoanAttachmentsModal
+        isOpen={attachmentsModalLoan !== null}
+        onClose={() => setAttachmentsModalLoan(null)}
+        loan={attachmentsModalLoan}
+        portalToken={portalToken || (typeof localStorage !== 'undefined' ? localStorage.getItem('portal_token') : null)}
+        onUpdate={onReloadLoans}
+      />
     </VStack>
   );
 };

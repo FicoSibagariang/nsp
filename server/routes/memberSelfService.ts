@@ -37,11 +37,15 @@ import {
   getMemberLoanSchedule,
   getMemberLoanPayments,
   applyMemberLoan,
+  getLoanAttachments,
+  addLoanAttachment,
+  deleteLoanSupplementalAttachment,
   getMemberIncomeStatement,
   getMemberBalanceSheet,
   getMemberCashflowStatement,
   getMemberShuPortal,
 } from '../services/memberPortalService';
+import { audit, getActor, getClientIp } from '../lib/audit';
 
 const memberSelfService = new Hono();
 
@@ -345,6 +349,7 @@ const handleLoanApplication = async (c: any) => {
   const purpose = String(body.purpose || '').trim();
   const attachmentUrl = body.attachmentUrl ? String(body.attachmentUrl).trim() : null;
   const attachmentName = body.attachmentName ? String(body.attachmentName).trim() : null;
+  const attachments = Array.isArray(body.attachments) ? body.attachments : undefined;
 
   if (!amount || isNaN(amount) || amount <= 0) {
     return c.json({ success: false, message: 'Nominal pinjaman harus lebih dari 0' }, 400);
@@ -355,16 +360,18 @@ const handleLoanApplication = async (c: any) => {
   if (!purpose) {
     return c.json({ success: false, message: 'Keperluan pinjaman wajib diisi' }, 400);
   }
-  if (!attachmentUrl) {
+  if ((!attachments || attachments.length === 0) && !attachmentUrl) {
     return c.json({ success: false, message: 'Lampiran dokumen pendukung wajib diunggah' }, 400);
   }
 
-  const result = await applyMemberLoan(db, memberId, {
+  try {
+    const result = await applyMemberLoan(db, memberId, {
       amount,
       tenor,
       purpose,
       attachmentUrl,
       attachmentName,
+      attachments,
     });
 
     notifyLoanApplication({
@@ -384,14 +391,124 @@ const handleLoanApplication = async (c: any) => {
         purpose,
         status: 'Menunggu',
         createdAt: result.createdAt,
-        attachmentUrl,
-        attachmentName,
+        attachmentUrl: result.attachmentUrl,
+        attachmentName: result.attachmentName,
+        attachments: result.attachments,
       },
     });
+  } catch (err: any) {
+    const status = err.statusCode || err.status || 400;
+    return c.json({ success: false, message: err.message || 'Gagal mengajukan pinjaman' }, status);
+  }
 };
 
 memberSelfService.post('/loans/apply', handleLoanApplication);
 memberSelfService.post('/loans', handleLoanApplication);
+
+// List attachments for a member's loan
+memberSelfService.get('/loans/:id/attachments', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload;
+  const memberId = payload.sub;
+  const loanId = c.req.param('id');
+
+  const loan = await db
+    .query('SELECT id, memberId FROM loans WHERE id = ? AND deletedAt IS NULL')
+    .get<{ id: string; memberId: string }>(loanId);
+
+  if (!loan) {
+    return c.json({ success: false, message: 'Pinjaman tidak ditemukan' }, 404);
+  }
+
+  if (loan.memberId !== memberId) {
+    return c.json({ success: false, message: 'Akses ditolak: Pinjaman bukan milik Anda' }, 403);
+  }
+
+  const attachments = await getLoanAttachments(db, loanId);
+  return c.json({ success: true, data: attachments });
+});
+
+// Upload supplemental document to an existing pending loan
+memberSelfService.post('/loans/:id/attachments', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload;
+  const memberId = payload.sub;
+  const loanId = c.req.param('id');
+
+  const body = await c.req.json().catch(() => ({}));
+  const url = String(body.url || '').trim();
+  const name = String(body.name || '').trim();
+  const size = body.size != null ? Number(body.size) : null;
+
+  if (!url || !name) {
+    return c.json({ success: false, message: 'File URL dan nama dokumen wajib diisi' }, 400);
+  }
+
+  try {
+    const attachment = await addLoanAttachment(db, loanId, memberId, {
+      url,
+      name,
+      size,
+    });
+
+    await audit(db, {
+      actor: getActor(c) || memberId,
+      action: 'add_loan_attachment',
+      entity: 'loan_attachments',
+      entityId: attachment.id,
+      after: {
+        loanId,
+        fileName: attachment.fileName,
+        fileUrl: attachment.fileUrl,
+        isSupplemental: true,
+      },
+      ip: getClientIp(c),
+    });
+
+    return c.json(
+      {
+        success: true,
+        message: 'Dokumen susulan berhasil ditambahkan ke pengajuan pinjaman.',
+        data: attachment,
+      },
+      201
+    );
+  } catch (err: any) {
+    const status = err.statusCode || err.status || 400;
+    return c.json({ success: false, message: err.message || 'Gagal menambahkan dokumen susulan' }, status);
+  }
+});
+
+// Delete supplemental document from an existing pending loan
+memberSelfService.delete('/loans/:id/attachments/:attachmentId', async (c) => {
+  const payload = c.get('jwtPayload') as JwtPayload;
+  const memberId = payload.sub;
+  const loanId = c.req.param('id');
+  const attachmentId = c.req.param('attachmentId');
+
+  try {
+    const result = await deleteLoanSupplementalAttachment(db, loanId, attachmentId, memberId);
+
+    await audit(db, {
+      actor: getActor(c) || memberId,
+      action: 'delete_loan_attachment',
+      entity: 'loan_attachments',
+      entityId: attachmentId,
+      before: {
+        loanId,
+        fileName: result.fileName,
+        fileUrl: result.fileUrl,
+      },
+      ip: getClientIp(c),
+    });
+
+    return c.json({
+      success: true,
+      message: 'Dokumen susulan berhasil dihapus.',
+    });
+  } catch (err: any) {
+    const status = err.statusCode || err.status || 400;
+    return c.json({ success: false, message: err.message || 'Gagal menghapus dokumen susulan' }, status);
+  }
+});
 
 // Financial Report: Income Statement for Members
 memberSelfService.get('/reports/income-statement', async (c) => {

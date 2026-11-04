@@ -29,6 +29,12 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
+interface UploadedAttachment {
+  url: string;
+  name: string;
+  size: number;
+}
+
 export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
   isOpen,
   onClose,
@@ -39,9 +45,7 @@ export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
   const [applyAmount, setApplyAmount] = useState('');
   const [applyTenor, setApplyTenor] = useState('12');
   const [applyPurpose, setApplyPurpose] = useState('');
-  const [attachmentUrl, setAttachmentUrl] = useState<string>('');
-  const [attachmentName, setAttachmentName] = useState<string>('');
-  const [attachmentSize, setAttachmentSize] = useState<number>(0);
+  const [attachments, setAttachments] = useState<UploadedAttachment[]>([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [attachmentError, setAttachmentError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,42 +56,69 @@ export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
   if (!isOpen) return null;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     setAttachmentError('');
-    if (file.size > 10 * 1024 * 1024) {
-      setAttachmentError('Ukuran file maksimal adalah 10 MB');
+
+    if (attachments.length + files.length > 5) {
+      setAttachmentError('Maksimal 5 berkas lampiran yang dapat diunggah.');
+      if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
+
     const allowedExts = ['.pdf', '.jpg', '.jpeg', '.png', '.webp', '.heic'];
-    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-    if (!allowedExts.includes(ext)) {
-      setAttachmentError('Format file hanya boleh PDF, JPG, PNG, atau WebP');
-      return;
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) {
+        setAttachmentError(`Ukuran file "${file.name}" melebihi 10 MB.`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
+      const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+      if (!allowedExts.includes(ext)) {
+        setAttachmentError(`Format file "${file.name}" tidak didukung. Hanya file PDF, JPG, PNG, atau WebP yang diizinkan.`);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+        return;
+      }
     }
 
     setUploadingAttachment(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/v1/upload/loan-attachment', {
-        method: 'POST',
-        headers: portalToken ? { Authorization: `Bearer ${portalToken}` } : {},
-        body: formData,
-      }).then((r) => r.json());
+    const newUploaded: UploadedAttachment[] = [];
 
-      if (res.success && res.data?.url) {
-        setAttachmentUrl(res.data.url);
-        setAttachmentName(res.data.name || file.name);
-        setAttachmentSize(file.size);
-      } else {
-        setAttachmentError(res.message || 'Gagal mengunggah file lampiran');
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch('/api/v1/upload/loan-attachment', {
+          method: 'POST',
+          headers: portalToken ? { Authorization: `Bearer ${portalToken}` } : {},
+          body: formData,
+        }).then((r) => r.json());
+
+        if (res.success && res.data?.url) {
+          newUploaded.push({
+            url: res.data.url,
+            name: res.data.name || file.name,
+            size: file.size,
+          });
+        } else {
+          setAttachmentError(res.message || `Gagal mengunggah file ${file.name}`);
+          break;
+        }
+      }
+
+      if (newUploaded.length > 0) {
+        setAttachments((prev) => [...prev, ...newUploaded].slice(0, 5));
       }
     } catch {
-      setAttachmentError('Terjadi kesalahan saat mengunggah file');
+      setAttachmentError('Terjadi kesalahan saat mengunggah file.');
     } finally {
       setUploadingAttachment(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const handleRemoveAttachment = (indexToRemove: number) => {
+    setAttachments((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   const handleApplyLoan = async (e: React.FormEvent) => {
@@ -97,8 +128,8 @@ export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
     setApplyError('');
     setApplySuccess('');
     try {
-      if (!attachmentUrl) {
-        setApplyError('Lampiran dokumen pendukung wajib diunggah');
+      if (attachments.length === 0) {
+        setApplyError('Lampiran dokumen pendukung wajib diunggah (minimal 1 berkas)');
         setApplyLoading(false);
         return;
       }
@@ -114,8 +145,13 @@ export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
           amount: numericAmount,
           tenor: parseInt(applyTenor, 10),
           purpose: applyPurpose,
-          attachmentUrl: attachmentUrl || null,
-          attachmentName: attachmentName || null,
+          attachments: attachments.map((a) => ({
+            url: a.url,
+            name: a.name,
+            size: a.size,
+          })),
+          attachmentUrl: attachments[0]?.url || null,
+          attachmentName: attachments[0]?.name || null,
         }),
       }).then((r) => r.json());
 
@@ -123,9 +159,7 @@ export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
         setApplySuccess(res.message || 'Pengajuan pinjaman berhasil dikirim!');
         setApplyAmount('');
         setApplyPurpose('');
-        setAttachmentUrl('');
-        setAttachmentName('');
-        setAttachmentSize(0);
+        setAttachments([]);
         if (fileInputRef.current) fileInputRef.current.value = '';
         onSuccess();
         setTimeout(() => {
@@ -203,22 +237,72 @@ export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
         {/* Lampiran Dokumen Pendukung */}
         <VStack gap={2}>
           <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
-            <Text type="supporting">Lampiran Dokumen Pendukung (Wajib)</Text>
+            <Text type="supporting">
+              Lampiran Dokumen Pendukung (Wajib{attachments.length > 0 ? ` • ${attachments.length}/5 Berkas` : ''})
+            </Text>
             <Text type="supporting" size="sm" color="secondary">
-              PDF, JPG, PNG, WEBP (Maks. 10 MB)
+              PDF, JPG, PNG, WEBP (Maks. 5 berkas, @10 MB)
             </Text>
           </HStack>
 
           <input
             ref={fileInputRef}
             type="file"
+            multiple
             accept=".pdf,.png,.jpg,.jpeg,.webp,.heic"
             onChange={handleFileUpload}
             style={{ display: 'none' }}
             id="loan-attachment-input"
           />
 
-          {!attachmentUrl ? (
+          {/* List of uploaded attachments */}
+          {attachments.length > 0 && (
+            <VStack gap={2}>
+              {attachments.map((att, idx) => (
+                <Card
+                  key={idx}
+                  style={{
+                    padding: 12,
+                    backgroundColor: 'var(--color-background-primary)',
+                    border: '1px solid var(--color-border-primary)',
+                  }}
+                >
+                  <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
+                    <HStack vAlign="center" gap={2}>
+                      <span style={{ fontSize: '24px' }}>
+                        {att.name.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}
+                      </span>
+                      <VStack gap={0}>
+                        <Text type="body" weight="bold">{att.name}</Text>
+                        <Text type="supporting" size="sm" color="secondary">
+                          {att.size ? `${(att.size / (1024 * 1024)).toFixed(2)} MB • ` : ''}
+                          Dokumen #{idx + 1}
+                        </Text>
+                      </VStack>
+                    </HStack>
+                    <HStack gap={2}>
+                      <Button
+                        label="Lihat File"
+                        size="sm"
+                        variant="secondary"
+                        type="button"
+                        onClick={() => window.open(getAuthenticatedFileUrl(att.url), '_blank')}
+                      />
+                      <Button
+                        label="Hapus"
+                        size="sm"
+                        variant="ghost"
+                        type="button"
+                        onClick={() => handleRemoveAttachment(idx)}
+                      />
+                    </HStack>
+                  </HStack>
+                </Card>
+              ))}
+            </VStack>
+          )}
+
+          {attachments.length < 5 && (
             <div
               onClick={() => fileInputRef.current?.click()}
               style={{
@@ -233,58 +317,26 @@ export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
             >
               <VStack gap={2} vAlign="center">
                 <Text type="body" weight="semibold">
-                  {uploadingAttachment ? '⏳ Sedang mengunggah file...' : '📎 Klik untuk Unggah Dokumen / Foto Pendukung'}
+                  {uploadingAttachment
+                    ? '⏳ Sedang mengunggah file...'
+                    : attachments.length === 0
+                    ? '📎 Klik untuk Unggah Dokumen / Foto Pendukung (Bisa Multi-file)'
+                    : `📎 + Tambah Dokumen Pendukung (${attachments.length}/5)`}
                 </Text>
-                <VStack gap={1} vAlign="center" style={{ maxWidth: '520px' }}>
-                  <Text type="supporting" size="sm" color="secondary" weight="semibold">
-                    Contoh dokumen yang dapat diunggah sesuai tujuan pinjaman:
-                  </Text>
-                  <VStack gap={1} vAlign="start" style={{ textAlign: 'left', width: '100%', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-                    <div>• <strong>Kuitansi / Bukti Tagihan / Invoice</strong> (Pembelian barang, biaya pendidikan/kesehatan)</div>
-                    <div>• <strong>Foto Kondisi Rumah</strong> (Untuk renovasi / perbaikan rumah)</div>
-                    <div>• <strong>Laporan SLIK OJK / Dokumen Penunjang Lainnya</strong></div>
+                {attachments.length === 0 && (
+                  <VStack gap={1} vAlign="center" style={{ maxWidth: '520px' }}>
+                    <Text type="supporting" size="sm" color="secondary" weight="semibold">
+                      Contoh dokumen yang dapat diunggah sesuai tujuan pinjaman:
+                    </Text>
+                    <VStack gap={1} vAlign="start" style={{ textAlign: 'left', width: '100%', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+                      <div>• <strong>Kuitansi / Bukti Tagihan / Invoice</strong> (Pembelian barang, biaya pendidikan/kesehatan)</div>
+                      <div>• <strong>Foto Kondisi Rumah</strong> (Untuk renovasi / perbaikan rumah)</div>
+                      <div>• <strong>Laporan SLIK OJK / Dokumen Penunjang Lainnya</strong></div>
+                    </VStack>
                   </VStack>
-                </VStack>
+                )}
               </VStack>
             </div>
-          ) : (
-            <Card style={{ padding: 12, backgroundColor: 'var(--color-background-primary)', border: '1px solid var(--color-border-primary)' }}>
-              <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
-                <HStack vAlign="center" gap={2}>
-                  <span style={{ fontSize: '24px' }}>
-                    {attachmentName.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}
-                  </span>
-                  <VStack gap={0}>
-                    <Text type="body" weight="bold">{attachmentName}</Text>
-                    <Text type="supporting" size="sm" color="secondary">
-                      {attachmentSize ? `${(attachmentSize / (1024 * 1024)).toFixed(2)} MB • ` : ''}
-                      Lampiran siap dikirim
-                    </Text>
-                  </VStack>
-                </HStack>
-                <HStack gap={2}>
-                  <Button
-                    label="Lihat File"
-                    size="sm"
-                    variant="secondary"
-                    type="button"
-                    onClick={() => window.open(getAuthenticatedFileUrl(attachmentUrl), '_blank')}
-                  />
-                  <Button
-                    label="Hapus"
-                    size="sm"
-                    variant="ghost"
-                    type="button"
-                    onClick={() => {
-                      setAttachmentUrl('');
-                      setAttachmentName('');
-                      setAttachmentSize(0);
-                      if (fileInputRef.current) fileInputRef.current.value = '';
-                    }}
-                  />
-                </HStack>
-              </HStack>
-            </Card>
           )}
 
           {attachmentError && (
@@ -337,7 +389,7 @@ export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
         )}
 
         <HStack justify="between" vAlign="center" wrap="wrap" gap={2}>
-          {!attachmentUrl ? (
+          {attachments.length === 0 ? (
             <Text type="supporting" size="sm" style={{ color: 'var(--color-text-error)' }}>
               * Lampiran dokumen pendukung wajib diunggah
             </Text>
@@ -354,7 +406,7 @@ export const ApplyLoanModal: React.FC<ApplyLoanModalProps> = ({
               label={applyLoading ? 'Mengirim...' : 'Ajukan Pinjaman Sekarang'}
               variant="primary"
               type="submit"
-              isDisabled={applyLoading || !attachmentUrl}
+              isDisabled={applyLoading || attachments.length === 0}
             />
           </HStack>
         </HStack>

@@ -39,6 +39,7 @@ import {
 import { requireRouteParam } from '../lib/serviceResponse'
 import { clearStatsCache } from './stats'
 import { audit, getActor, getClientIp } from '../lib/audit'
+import { getLoanAttachments } from '../services/memberPortalService'
 import {
   batchLoanImportSchema,
   batchPaymentImportSchema,
@@ -368,6 +369,12 @@ loans.get('/:id/attachment', async (c) => {
       'Cache-Control': 'private, no-cache, no-store, must-revalidate',
     },
   })
+})
+
+loans.get('/:id/attachments', requirePermission('read:loans'), async (c) => {
+  const id = requireRouteParam(c, 'id')
+  const attachments = await getLoanAttachments(db, id)
+  return c.json({ success: true, data: attachments })
 })
 
 loans.get('/:id/schedule', requirePermission('read:loans'), async (c) => {

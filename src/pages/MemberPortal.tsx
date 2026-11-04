@@ -284,6 +284,8 @@ export default function MemberPortal() {
                     paymentsLoading={data.paymentsLoading}
                     loadSchedule={data.loadSchedule}
                     setSchedule={data.setSchedule}
+                    portalToken={auth.memberToken}
+                    onReloadLoans={data.loadData}
                   />
                 )}
 

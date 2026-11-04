@@ -119,7 +119,11 @@ export async function getMemberLoans(
               l.approvedAt, l.totalInstallments, l.paidInstallments,
               l."attachmentUrl", l."attachmentName",
               l.rejection_reason AS "rejectionReason",
-              COALESCE(SUM(p.amount), 0) AS paidAmount
+              COALESCE(SUM(p.amount), 0) AS paidAmount,
+              GREATEST(
+                (SELECT COUNT(*) FROM loan_attachments la WHERE la.loan_id = l.id),
+                CASE WHEN l."attachmentUrl" IS NOT NULL AND l."attachmentUrl" != '' THEN 1 ELSE 0 END
+              ) AS "attachmentCount"
        FROM loans l
        LEFT JOIN members m ON m.id = l.memberId
        LEFT JOIN loan_payments p ON l.id = p.loanId
@@ -166,17 +170,48 @@ export async function getMemberLoanPayments(
     .all(loanId);
 }
 
+export interface LoanAttachmentInput {
+  url: string;
+  name: string;
+  size?: number | null;
+}
+
+export interface ApplyMemberLoanInput {
+  amount: number;
+  tenor: number;
+  purpose: string;
+  attachmentUrl?: string | null;
+  attachmentName?: string | null;
+  attachments?: LoanAttachmentInput[];
+}
+
+export interface LoanAttachmentResult {
+  id: string;
+  loanId: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number | null;
+  isSupplemental: boolean;
+  uploadedBy: string;
+  createdAt: string;
+}
+
 export async function applyMemberLoan(
   database: Db,
   memberId: string,
-  data: {
-    amount: number;
-    tenor: number;
-    purpose: string;
-    attachmentUrl: string;
-    attachmentName?: string | null;
-  }
-): Promise<{ id: string; amount: number; tenor: number; purpose: string; status: string; createdAt: string; attachmentUrl: string; attachmentName?: string | null; memberName: string }> {
+  data: ApplyMemberLoanInput
+): Promise<{
+  id: string;
+  amount: number;
+  tenor: number;
+  purpose: string;
+  status: string;
+  createdAt: string;
+  attachmentUrl: string;
+  attachmentName?: string | null;
+  attachments: LoanAttachmentResult[];
+  memberName: string;
+}> {
   const member = await database
     .query("SELECT id, name, status FROM members WHERE id = ? AND deletedAt IS NULL")
     .get<{ id: string; name: string; status: string }>(memberId);
@@ -193,14 +228,63 @@ export async function applyMemberLoan(
     throw new ServiceError('Anda masih memiliki pengajuan pinjaman yang sedang menunggu persetujuan pengurus.', 400);
   }
 
+  // Normalize attachments input
+  let normalizedAttachments: LoanAttachmentInput[] = [];
+  if (Array.isArray(data.attachments) && data.attachments.length > 0) {
+    normalizedAttachments = data.attachments.filter((a) => a && a.url && a.name);
+  } else if (data.attachmentUrl) {
+    normalizedAttachments = [
+      {
+        url: data.attachmentUrl,
+        name: data.attachmentName || 'Dokumen Lampiran',
+        size: null,
+      },
+    ];
+  }
+
+  if (normalizedAttachments.length === 0) {
+    throw new ServiceError('Lampiran dokumen pendukung wajib diunggah', 400);
+  }
+
+  if (normalizedAttachments.length > 5) {
+    throw new ServiceError('Maksimal 5 berkas lampiran yang dapat diunggah', 400);
+  }
+
+  const primaryUrl = normalizedAttachments[0].url;
+  const primaryName = normalizedAttachments[0].name || null;
+
   const loanId = crypto.randomUUID();
   const createdAt = new Date().toISOString();
 
   await database.run(
     `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt, "attachmentUrl", "attachmentName")
      VALUES (?, ?, ?, ?, ?, ?, 'Menunggu', ?, ?, ?)`,
-    [loanId, memberId, member.name, data.amount, data.tenor, data.purpose, createdAt, data.attachmentUrl, data.attachmentName || null]
+    [loanId, memberId, member.name, data.amount, data.tenor, data.purpose, createdAt, primaryUrl, primaryName]
   );
+
+  const baseTime = Date.now();
+  const savedAttachments: LoanAttachmentResult[] = [];
+  for (let idx = 0; idx < normalizedAttachments.length; idx++) {
+    const item = normalizedAttachments[idx];
+    const attId = crypto.randomUUID();
+    const itemCreatedAt = new Date(baseTime + idx * 1000).toISOString();
+    await database.run(
+      `INSERT INTO loan_attachments (id, loan_id, file_name, file_url, file_size, is_supplemental, uploaded_by, created_at)
+       VALUES (?, ?, ?, ?, ?, false, ?, ?)`,
+      [attId, loanId, item.name, item.url, item.size ?? null, memberId, itemCreatedAt]
+    );
+
+    savedAttachments.push({
+      id: attId,
+      loanId,
+      fileName: item.name,
+      fileUrl: item.url,
+      fileSize: item.size ?? null,
+      isSupplemental: false,
+      uploadedBy: memberId,
+      createdAt: itemCreatedAt,
+    });
+  }
 
   return {
     id: loanId,
@@ -209,9 +293,164 @@ export async function applyMemberLoan(
     purpose: data.purpose,
     status: 'Menunggu',
     createdAt,
-    attachmentUrl: data.attachmentUrl,
-    attachmentName: data.attachmentName || null,
+    attachmentUrl: primaryUrl,
+    attachmentName: primaryName,
+    attachments: savedAttachments,
     memberName: member.name,
+  };
+}
+
+export async function getLoanAttachments(
+  database: Db,
+  loanId: string
+): Promise<LoanAttachmentResult[]> {
+  const rows = await database
+    .query(
+      `SELECT id, loan_id, file_name, file_url, file_size, is_supplemental, uploaded_by, created_at
+       FROM loan_attachments
+       WHERE loan_id = ?
+       ORDER BY created_at ASC, id ASC`
+    )
+    .all<any>(loanId);
+
+  if (rows.length > 0) {
+    return rows.map((r) => ({
+      id: r.id,
+      loanId: r.loan_id,
+      fileName: r.file_name,
+      fileUrl: r.file_url,
+      fileSize: r.file_size ? Number(r.file_size) : null,
+      isSupplemental: Boolean(r.is_supplemental),
+      uploadedBy: r.uploaded_by,
+      createdAt: r.created_at,
+    }));
+  }
+
+  // Fallback to legacy loans.attachmentUrl if loan_attachments is empty
+  const loan = await database
+    .query('SELECT id, memberId, createdAt, "attachmentUrl", "attachmentName" FROM loans WHERE id = ?')
+    .get<any>(loanId);
+
+  if (loan && loan.attachmentUrl) {
+    return [
+      {
+        id: `legacy-${loan.id}`,
+        loanId: loan.id,
+        fileName: loan.attachmentName || 'Dokumen Lampiran',
+        fileUrl: loan.attachmentUrl,
+        fileSize: null,
+        isSupplemental: false,
+        uploadedBy: loan.memberId || 'member',
+        createdAt: loan.createdAt || new Date().toISOString(),
+      },
+    ];
+  }
+
+  return [];
+}
+
+export async function addLoanAttachment(
+  database: Db,
+  loanId: string,
+  memberId: string,
+  file: { url: string; name: string; size?: number | null }
+): Promise<LoanAttachmentResult> {
+  const loan = await database
+    .query('SELECT id, memberId, status FROM loans WHERE id = ? AND deletedAt IS NULL')
+    .get<{ id: string; memberId: string; status: string }>(loanId);
+
+  if (!loan) {
+    throw new ServiceError('Pinjaman tidak ditemukan', 404);
+  }
+
+  if (loan.memberId !== memberId) {
+    throw new ServiceError('Akses ditolak: Dokumen bukan milik Anda', 403);
+  }
+
+  if (loan.status !== 'Menunggu') {
+    throw new ServiceError(
+      'Dokumen susulan hanya dapat ditambahkan pada pengajuan yang masih berstatus Menunggu',
+      400
+    );
+  }
+
+  if (!file.url || !file.name) {
+    throw new ServiceError('File URL dan nama file wajib diisi', 400);
+  }
+
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+
+  await database.run(
+    `INSERT INTO loan_attachments (id, loan_id, file_name, file_url, file_size, is_supplemental, uploaded_by, created_at)
+     VALUES (?, ?, ?, ?, ?, true, ?, ?)`,
+    [id, loanId, file.name, file.url, file.size ?? null, memberId, createdAt]
+  );
+
+  return {
+    id,
+    loanId,
+    fileName: file.name,
+    fileUrl: file.url,
+    fileSize: file.size ?? null,
+    isSupplemental: true,
+    uploadedBy: memberId,
+    createdAt,
+  };
+}
+
+export async function deleteLoanSupplementalAttachment(
+  database: Db,
+  loanId: string,
+  attachmentId: string,
+  memberId: string
+): Promise<{ success: boolean; id: string; fileName: string; fileUrl: string }> {
+  const loan = await database
+    .query('SELECT id, memberId, status FROM loans WHERE id = ? AND deletedAt IS NULL')
+    .get<{ id: string; memberId: string; status: string }>(loanId);
+
+  if (!loan) {
+    throw new ServiceError('Pinjaman tidak ditemukan', 404);
+  }
+
+  if (loan.memberId !== memberId) {
+    throw new ServiceError('Akses ditolak: Dokumen bukan milik Anda', 403);
+  }
+
+  if (loan.status !== 'Menunggu') {
+    throw new ServiceError(
+      'Dokumen hanya dapat dihapus saat pengajuan masih berstatus Menunggu',
+      400
+    );
+  }
+
+  const attachment = await database
+    .query(
+      'SELECT id, loan_id, is_supplemental, file_name, file_url FROM loan_attachments WHERE id = ? AND loan_id = ?'
+    )
+    .get<{ id: string; loan_id: string; is_supplemental: boolean | number; file_name: string; file_url: string }>(
+      attachmentId,
+      loanId
+    );
+
+  if (!attachment) {
+    throw new ServiceError('File lampiran tidak ditemukan', 404);
+  }
+
+  if (!attachment.is_supplemental) {
+    throw new ServiceError(
+      'Dokumen awal pengajuan tidak dapat dihapus melalui fitur ini',
+      400
+    );
+  }
+
+  await database.run('DELETE FROM loan_attachments WHERE id = ?', [attachmentId]);
+
+  return {
+    success: true,
+    id: attachment.id,
+    fileName: attachment.file_name,
+    fileUrl: attachment.file_url,
   };
 }
 

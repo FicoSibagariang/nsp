@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { DialogHeader } from '@astryxdesign/core/Dialog';
 import { Layout, LayoutContent, VStack, HStack } from '@astryxdesign/core/Layout';
 import { Text } from '@astryxdesign/core/Text';
@@ -9,7 +9,7 @@ import { DateInput } from '@astryxdesign/core/DateInput';
 import { useToast } from '@astryxdesign/core/Toast';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { api, ApiError } from '../services/api';
-import type { LoanRow } from '@shared/types';
+import type { LoanRow, LoanAttachmentItem } from '@shared/types';
 import { useAuth } from '../hooks/useAuth';
 import { LoanInfoSection } from './loan/LoanInfoSection';
 import { LoanScheduleTable } from './loan/LoanScheduleTable';
@@ -86,11 +86,43 @@ export function LoanDetailDialogContent({
   const { data: schedule, isLoading: scheduleLoading, refetch: refetchSchedule } =
     useApiQuery<ScheduleRow[]>(`/api/loans/${loan.id}/schedule`);
 
+  const { data: attachmentsData, refetch: refetchAttachments } =
+    useApiQuery<LoanAttachmentItem[]>(`/api/loans/${loan.id}/attachments`);
+
+  const attachmentsList: LoanAttachmentItem[] = useMemo(() => {
+    if (attachmentsData && attachmentsData.length > 0) return attachmentsData;
+    if (loan.attachmentUrl) {
+      return [
+        {
+          id: `legacy-${loan.id}`,
+          loanId: loan.id,
+          fileName: loan.attachmentName || 'Dokumen Lampiran Pinjaman',
+          fileUrl: loan.attachmentUrl,
+          fileSize: null,
+          isSupplemental: false,
+          uploadedBy: loan.memberId,
+          createdAt: loan.createdAt || new Date().toISOString(),
+        },
+      ];
+    }
+    return [];
+  }, [attachmentsData, loan]);
+
+  const initialDocs = useMemo(
+    () => attachmentsList.filter((a) => !a.isSupplemental),
+    [attachmentsList]
+  );
+  const supplementalDocs = useMemo(
+    () => attachmentsList.filter((a) => a.isSupplemental),
+    [attachmentsList]
+  );
+
   const refreshAll = useCallback(() => {
     refetchPayments();
     refetchSchedule();
+    refetchAttachments();
     onUpdate();
-  }, [refetchPayments, refetchSchedule, onUpdate]);
+  }, [refetchPayments, refetchSchedule, refetchAttachments, onUpdate]);
 
   const handleSaveDisbursementDate = async () => {
     if (!disbursementDate) return;
@@ -180,9 +212,9 @@ export function LoanDetailDialogContent({
             )}
 
             {/* Attachment section */}
-            {loan.attachmentUrl && (
+            {attachmentsList.length > 0 && (
               <VStack
-                gap={2}
+                gap={3}
                 style={{
                   padding: 'var(--spacing-4)',
                   borderRadius: 'var(--radius-md)',
@@ -190,28 +222,110 @@ export function LoanDetailDialogContent({
                   backgroundColor: 'var(--color-background-secondary)',
                 }}
               >
-                <Text type="body" weight="bold">Dokumen Lampiran Pengajuan</Text>
-                <HStack hAlign="between" vAlign="center" wrap="wrap" gap={2}>
-                  <HStack vAlign="center" gap={2}>
-                    <span style={{ fontSize: '24px' }}>
-                      {loan.attachmentName?.toLowerCase().endsWith('.pdf') || loan.attachmentUrl.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}
-                    </span>
-                    <VStack gap={0}>
-                      <Text type="body" weight="semibold">
-                        {loan.attachmentName || 'Dokumen Lampiran Pinjaman'}
-                      </Text>
-                      <Text type="supporting" size="sm" color="secondary">
-                        File dokumen / foto terlampir
-                      </Text>
-                    </VStack>
-                  </HStack>
-                  <Button
-                    label="Buka / Unduh Lampiran"
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => window.open(getAuthenticatedFileUrl(loan.attachmentUrl), '_blank')}
-                  />
+                <HStack hAlign="between" vAlign="center" style={{ width: '100%' }}>
+                  <VStack gap={0}>
+                    <Text type="body" weight="bold">
+                      Dokumen Lampiran Pengajuan ({attachmentsList.length})
+                    </Text>
+                    <Text type="supporting" color="secondary" size="sm">
+                      Berkas persyaratan dan dokumen pendukung yang diunggah anggota
+                    </Text>
+                  </VStack>
                 </HStack>
+
+                {/* Dokumen Utama / Awal */}
+                {initialDocs.length > 0 && (
+                  <VStack gap={2}>
+                    <Text weight="bold" size="sm" color="secondary">
+                      Dokumen Utama / Awal ({initialDocs.length})
+                    </Text>
+                    {initialDocs.map((doc) => (
+                      <HStack
+                        key={doc.id}
+                        hAlign="between"
+                        vAlign="center"
+                        wrap="wrap"
+                        gap={2}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '6px',
+                          backgroundColor: 'var(--color-background-primary)',
+                          border: '1px solid var(--color-border-primary)',
+                          width: '100%',
+                        }}
+                      >
+                        <HStack vAlign="center" gap={2}>
+                          <span style={{ fontSize: '20px' }}>
+                            {doc.fileName.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}
+                          </span>
+                          <VStack gap={0}>
+                            <Text type="body" weight="semibold">{doc.fileName}</Text>
+                            <Text type="supporting" size="sm" color="secondary">
+                              {doc.fileSize ? `${(doc.fileSize / (1024 * 1024)).toFixed(2)} MB • ` : ''}
+                              Dokumen Utama
+                            </Text>
+                          </VStack>
+                        </HStack>
+                        <Button
+                          label="Buka / Unduh"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => window.open(getAuthenticatedFileUrl(doc.fileUrl), '_blank')}
+                        />
+                      </HStack>
+                    ))}
+                  </VStack>
+                )}
+
+                {/* Dokumen Susulan / Tambahan */}
+                {supplementalDocs.length > 0 && (
+                  <VStack gap={2}>
+                    <Text weight="bold" size="sm" color="secondary">
+                      Dokumen Susulan / Tambahan ({supplementalDocs.length})
+                    </Text>
+                    {supplementalDocs.map((doc) => (
+                      <HStack
+                        key={doc.id}
+                        hAlign="between"
+                        vAlign="center"
+                        wrap="wrap"
+                        gap={2}
+                        style={{
+                          padding: '10px 12px',
+                          borderRadius: '6px',
+                          backgroundColor: 'var(--color-background-primary)',
+                          border: '1px solid var(--color-border-primary)',
+                          width: '100%',
+                        }}
+                      >
+                        <HStack vAlign="center" gap={2}>
+                          <span style={{ fontSize: '20px' }}>
+                            {doc.fileName.toLowerCase().endsWith('.pdf') ? '📄' : '🖼️'}
+                          </span>
+                          <VStack gap={0}>
+                            <Text type="body" weight="semibold">{doc.fileName}</Text>
+                            <Text type="supporting" size="sm" color="secondary">
+                              {doc.fileSize ? `${(doc.fileSize / (1024 * 1024)).toFixed(2)} MB • ` : ''}
+                              Diunggah: {new Date(doc.createdAt).toLocaleDateString('id-ID', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </Text>
+                          </VStack>
+                        </HStack>
+                        <Button
+                          label="Buka / Unduh"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => window.open(getAuthenticatedFileUrl(doc.fileUrl), '_blank')}
+                        />
+                      </HStack>
+                    ))}
+                  </VStack>
+                )}
               </VStack>
             )}
 

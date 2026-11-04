@@ -13,6 +13,17 @@ export type PortalLoan = {
   attachmentUrl?: string | null;
   attachmentName?: string | null;
   rejectionReason?: string | null;
+  attachments?: Array<{
+    id: string;
+    loanId: string;
+    fileName: string;
+    fileUrl: string;
+    fileSize?: number | null;
+    isSupplemental: boolean;
+    uploadedBy: string;
+    createdAt: string;
+  }>;
+  attachmentCount?: number;
   [key: string]: unknown;
 };
 
