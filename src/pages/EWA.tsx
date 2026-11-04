@@ -53,6 +53,8 @@ export default function EWA() {
   const [requests, setRequests] = useState<EWARequest[]>([]);
   const [reqLoading, setReqLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
+  const [disbursedByFilter, setDisbursedByFilter] = useState('');
+  const [operators, setOperators] = useState<Array<{ id: string; name: string }>>([]);
   const [reqSearch, setReqSearch] = useState('');
   const [debouncedReqSearch, setDebouncedReqSearch] = useState('');
   const [reqPage, setReqPage] = useState(1);
@@ -104,6 +106,7 @@ export default function EWA() {
     try {
       const q = new URLSearchParams();
       if (statusFilter) q.append('status', statusFilter);
+      if (disbursedByFilter) q.append('disbursedBy', disbursedByFilter);
       if (debouncedReqSearch.trim()) q.append('search', debouncedReqSearch.trim());
       q.append('page', String(reqPage));
       q.append('limit', String(reqLimit));
@@ -118,7 +121,24 @@ export default function EWA() {
     } finally {
       setReqLoading(false);
     }
-  }, [statusFilter, debouncedReqSearch, reqPage, reqLimit]);
+  }, [statusFilter, disbursedByFilter, debouncedReqSearch, reqPage, reqLimit]);
+
+  // Fetch Operators
+  const fetchOperators = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/v1/ewa/operators');
+      const data = await res.json();
+      if (data.success) {
+        setOperators(data.data || []);
+      }
+    } catch (err) {
+      console.error('Fetch EWA operators error:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchOperators();
+  }, [fetchOperators]);
 
   // Fetch Employees
   const fetchEmployees = useCallback(async () => {
@@ -339,6 +359,9 @@ export default function EWA() {
               setReqSearch={setReqSearch}
               statusFilter={statusFilter}
               setStatusFilter={setStatusFilter}
+              disbursedByFilter={disbursedByFilter}
+              setDisbursedByFilter={setDisbursedByFilter}
+              operators={operators}
               reqPage={reqPage}
               reqLimit={reqLimit}
               reqTotal={reqTotal}
@@ -426,6 +449,7 @@ export default function EWA() {
             onSuccess={(msg) => {
               setActionMessage({ text: msg, type: 'success' });
               fetchRequests();
+              fetchOperators();
             }}
             onError={(msg) => {
               setActionMessage({ text: msg, type: 'error' });
@@ -443,6 +467,7 @@ export default function EWA() {
             onSuccess={(msg) => {
               setActionMessage({ text: msg, type: 'success' });
               fetchRequests();
+              fetchOperators();
             }}
             onError={(msg) => {
               setActionMessage({ text: msg, type: 'error' });

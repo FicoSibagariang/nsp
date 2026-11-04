@@ -681,6 +681,23 @@ export async function getEwaRequestById(db: Db, id: string): Promise<EWARequest 
   };
 }
 
+export async function getEwaOperators(db: Db): Promise<Array<{ id: string; name: string }>> {
+  const rows = await db
+    .query(
+      `SELECT DISTINCT r.disbursed_by AS id, COALESCE(NULLIF(TRIM(a.name), ''), a.email, r.disbursed_by) AS name
+       FROM withdrawal_requests r
+       LEFT JOIN admins a ON r.disbursed_by = a.id
+       WHERE r.disbursed_by IS NOT NULL AND r.disbursed_by != ''
+       ORDER BY name ASC`
+    )
+    .all();
+
+  return rows.map((r: any) => ({
+    id: String(r.id),
+    name: String(r.name || r.id),
+  }));
+}
+
 export async function getEwaRequestsList(
   db: Db,
   options: {
@@ -688,6 +705,7 @@ export async function getEwaRequestsList(
     periodMonth?: string;
     status?: string;
     search?: string;
+    disbursedBy?: string;
     page?: number;
     limit?: number;
   }
@@ -702,6 +720,10 @@ export async function getEwaRequestsList(
   if (options.employeeId) {
     conditions.push("r.employee_id = ?");
     params.push(options.employeeId);
+  }
+  if (options.disbursedBy && options.disbursedBy.trim()) {
+    conditions.push("r.disbursed_by = ?");
+    params.push(options.disbursedBy.trim());
   }
   if (options.periodMonth) {
     conditions.push("(r.period_month = ? OR (r.pay_period_start <= ?::date AND r.pay_period_end >= ?::date))");
