@@ -79,7 +79,7 @@ describe("Loans Payroll Deductions API Endpoint", () => {
   });
 
   describe("POST /api/v1/loans/payroll/settle (Issue #315)", () => {
-    const testPeriod = "2027-03";
+    const testPeriod = "2039-11";
     const testMemberId = "member-payroll-settle-test";
     const testLoanId1 = "loan-payroll-settle-1";
     const testLoanId2 = "loan-payroll-settle-2"; // Multiple loans for same member
@@ -96,31 +96,31 @@ describe("Loans Payroll Deductions API Endpoint", () => {
 
       // Seed test member
       await db.run(
-        `INSERT INTO members (id, name, status, role, nik, joindate) VALUES (?, ?, 'Aktif', 'Anggota', '3201019999990001', '2027-01-01')`,
+        `INSERT INTO members (id, name, status, role, nik, joindate) VALUES (?, ?, 'Aktif', 'Anggota', '3201019999990001', '2039-01-01')`,
         [testMemberId, "Budi Pegawai Payroll"]
       );
 
       // Seed 2 active loans for the same member (multiple active loans test)
       await db.run(
         `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
-         VALUES (?, ?, ?, 5000000, 10, 'Pinjaman 1', 'Disetujui', '2027-01-01')`,
+         VALUES (?, ?, ?, 5000000, 10, 'Pinjaman 1', 'Disetujui', '2039-01-01')`,
         [testLoanId1, testMemberId, "Budi Pegawai Payroll"]
       );
       await db.run(
         `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt)
-         VALUES (?, ?, ?, 3000000, 6, 'Pinjaman 2', 'Disetujui', '2027-01-01')`,
+         VALUES (?, ?, ?, 3000000, 6, 'Pinjaman 2', 'Disetujui', '2039-01-01')`,
         [testLoanId2, testMemberId, "Budi Pegawai Payroll"]
       );
 
       // Seed installment schedules due in testPeriod
       await db.run(
         `INSERT INTO loan_schedules (id, loanId, installmentNo, dueDate, principalAmount, interestAmount, paidAmount, status)
-         VALUES (?, ?, 1, '2027-03-25', 500000, 50000, 0, 'Pending')`,
+         VALUES (?, ?, 1, '2039-11-25', 500000, 50000, 0, 'Pending')`,
         ["sch-payroll-1", testLoanId1]
       );
       await db.run(
         `INSERT INTO loan_schedules (id, loanId, installmentNo, dueDate, principalAmount, interestAmount, paidAmount, status)
-         VALUES (?, ?, 1, '2027-03-25', 500000, 30000, 0, 'Pending')`,
+         VALUES (?, ?, 1, '2039-11-25', 500000, 30000, 0, 'Pending')`,
         ["sch-payroll-2", testLoanId2]
       );
     });
@@ -160,7 +160,7 @@ describe("Loans Payroll Deductions API Endpoint", () => {
           },
           body: JSON.stringify({
             periodMonth: testPeriod,
-            transactionDate: "2027-03-31",
+            transactionDate: "2039-11-30",
           }),
         })
       );
@@ -232,7 +232,7 @@ describe("Loans Payroll Deductions API Endpoint", () => {
           },
           body: JSON.stringify({
             periodMonth: testPeriod,
-            transactionDate: "2027-03-31",
+            transactionDate: "2039-11-30",
           }),
         })
       );
