@@ -22,6 +22,9 @@ interface RequestsTabProps {
   setReqSearch: (val: string) => void;
   statusFilter: string;
   setStatusFilter: (val: string) => void;
+  disbursedByFilter: string;
+  setDisbursedByFilter: (val: string) => void;
+  operators: Array<{ id: string; name: string }>;
   reqPage: number;
   reqLimit: number;
   reqTotal: number;
@@ -39,6 +42,9 @@ export function RequestsTab({
   setReqSearch,
   statusFilter,
   setStatusFilter,
+  disbursedByFilter,
+  setDisbursedByFilter,
+  operators = [],
   reqPage,
   reqLimit,
   reqTotal,
@@ -258,6 +264,23 @@ export function RequestsTab({
             </div>
             <HStack gap={2} vAlign="center">
               <Selector
+                label="Operator Pencair"
+                size="sm"
+                value={disbursedByFilter}
+                onChange={(val) => {
+                  setDisbursedByFilter(val);
+                  setReqPage(1);
+                }}
+                options={[
+                  { value: '', label: 'Semua Operator' },
+                  ...operators.map((op) => ({
+                    value: op.id,
+                    label: isDemoMode ? maskName(op.id, op.name) : op.name,
+                  })),
+                ]}
+                width={180}
+              />
+              <Selector
                 label="Status"
                 size="sm"
                 value={statusFilter}
@@ -292,7 +315,7 @@ export function RequestsTab({
           </VStack>
         ) : (
           <Text type="supporting" color="secondary">
-            {reqSearch || statusFilter
+            {reqSearch || statusFilter || disbursedByFilter
               ? 'Tidak ditemukan pengajuan EWA yang sesuai dengan filter pencarian.'
               : 'Belum ada data pengajuan EWA'}
           </Text>

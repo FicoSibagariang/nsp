@@ -5,6 +5,7 @@ import { getActor, getClientIp, audit } from '../lib/audit';
 import { notifyEwaDisbursed } from '../services/waNotificationService';
 import {
   getEwaRequestsList,
+  getEwaOperators,
   disburseEwa,
   rejectEwa,
   getPayrollRecap,
@@ -37,6 +38,7 @@ ewa.get('/requests', requirePermission('read:loans'), async (c) => {
   const periodMonth = c.req.query('periodMonth');
   const status = c.req.query('status');
   const search = c.req.query('search') || c.req.query('q');
+  const disbursedBy = c.req.query('disbursedBy') || c.req.query('operatorId');
   const page = Number(c.req.query('page') || 1);
   const limit = Number(c.req.query('limit') || 20);
 
@@ -45,6 +47,7 @@ ewa.get('/requests', requirePermission('read:loans'), async (c) => {
     periodMonth,
     status,
     search,
+    disbursedBy,
     page,
     limit,
   });
@@ -56,6 +59,12 @@ ewa.get('/requests', requirePermission('read:loans'), async (c) => {
 ewa.get('/payment-sources', requirePermission('approve:loans'), async (c) => {
   const accounts = await getEwaPaymentSources(db);
   return c.json({ success: true, data: accounts });
+});
+
+// 1.2 Get Distinct Operators who disbursed EWA Requests
+ewa.get('/operators', requirePermission('read:loans'), async (c) => {
+  const operators = await getEwaOperators(db);
+  return c.json({ success: true, data: operators });
 });
 
 // 2. Disburse EWA Request
