@@ -24,6 +24,10 @@ interface RequestsTabProps {
   setStatusFilter: (val: string) => void;
   disbursedByFilter: string;
   setDisbursedByFilter: (val: string) => void;
+  disbursedStartDate: string;
+  setDisbursedStartDate: (val: string) => void;
+  disbursedEndDate: string;
+  setDisbursedEndDate: (val: string) => void;
   operators: Array<{ id: string; name: string }>;
   reqPage: number;
   reqLimit: number;
@@ -44,6 +48,10 @@ export function RequestsTab({
   setStatusFilter,
   disbursedByFilter,
   setDisbursedByFilter,
+  disbursedStartDate,
+  setDisbursedStartDate,
+  disbursedEndDate,
+  setDisbursedEndDate,
   operators = [],
   reqPage,
   reqLimit,
@@ -262,7 +270,7 @@ export function RequestsTab({
                 </button>
               )}
             </div>
-            <HStack gap={2} vAlign="center">
+            <HStack gap={2} vAlign="center" wrap="wrap">
               <Selector
                 label="Operator Pencair"
                 size="sm"
@@ -297,6 +305,83 @@ export function RequestsTab({
                 ]}
                 width={170}
               />
+              <HStack gap={2} vAlign="end">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                    Dari Tanggal
+                  </label>
+                  <input
+                    type="date"
+                    aria-label="Dari Tanggal Pencairan"
+                    value={disbursedStartDate}
+                    onChange={(e) => {
+                      setDisbursedStartDate(e.target.value);
+                      setReqPage(1);
+                    }}
+                    style={{
+                      padding: '5px 8px',
+                      borderRadius: 6,
+                      border: '1px solid var(--color-border-primary)',
+                      backgroundColor: 'var(--color-background-primary)',
+                      color: 'var(--color-text-primary)',
+                      fontSize: 13,
+                      height: 32,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                    Sampai Tanggal
+                  </label>
+                  <input
+                    type="date"
+                    aria-label="Sampai Tanggal Pencairan"
+                    value={disbursedEndDate}
+                    onChange={(e) => {
+                      setDisbursedEndDate(e.target.value);
+                      setReqPage(1);
+                    }}
+                    style={{
+                      padding: '5px 8px',
+                      borderRadius: 6,
+                      border: '1px solid var(--color-border-primary)',
+                      backgroundColor: 'var(--color-background-primary)',
+                      color: 'var(--color-text-primary)',
+                      fontSize: 13,
+                      height: 32,
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+                {(disbursedStartDate || disbursedEndDate) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDisbursedStartDate('');
+                      setDisbursedEndDate('');
+                      setReqPage(1);
+                    }}
+                    style={{
+                      height: 32,
+                      padding: '0 8px',
+                      borderRadius: 6,
+                      border: '1px solid var(--color-border-primary)',
+                      backgroundColor: 'transparent',
+                      color: 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      fontSize: 13,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    title="Reset filter tanggal"
+                    aria-label="Reset filter tanggal"
+                  >
+                    ✕
+                  </button>
+                )}
+              </HStack>
             </HStack>
           </HStack>
         </HStack>
@@ -315,7 +400,7 @@ export function RequestsTab({
           </VStack>
         ) : (
           <Text type="supporting" color="secondary">
-            {reqSearch || statusFilter || disbursedByFilter
+            {reqSearch || statusFilter || disbursedByFilter || disbursedStartDate || disbursedEndDate
               ? 'Tidak ditemukan pengajuan EWA yang sesuai dengan filter pencarian.'
               : 'Belum ada data pengajuan EWA'}
           </Text>

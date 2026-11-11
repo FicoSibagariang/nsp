@@ -39,6 +39,8 @@ ewa.get('/requests', requirePermission('read:loans'), async (c) => {
   const status = c.req.query('status');
   const search = c.req.query('search') || c.req.query('q');
   const disbursedBy = c.req.query('disbursedBy') || c.req.query('operatorId');
+  const disbursedStartDate = c.req.query('disbursedStartDate');
+  const disbursedEndDate = c.req.query('disbursedEndDate');
   const page = Number(c.req.query('page') || 1);
   const limit = Number(c.req.query('limit') || 20);
 
@@ -48,6 +50,8 @@ ewa.get('/requests', requirePermission('read:loans'), async (c) => {
     status,
     search,
     disbursedBy,
+    disbursedStartDate,
+    disbursedEndDate,
     page,
     limit,
   });

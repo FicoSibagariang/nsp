@@ -706,6 +706,8 @@ export async function getEwaRequestsList(
     status?: string;
     search?: string;
     disbursedBy?: string;
+    disbursedStartDate?: string;
+    disbursedEndDate?: string;
     page?: number;
     limit?: number;
   }
@@ -724,6 +726,14 @@ export async function getEwaRequestsList(
   if (options.disbursedBy && options.disbursedBy.trim()) {
     conditions.push("r.disbursed_by = ?");
     params.push(options.disbursedBy.trim());
+  }
+  if (options.disbursedStartDate && /^\d{4}-\d{2}-\d{2}$/.test(options.disbursedStartDate.trim())) {
+    conditions.push("r.transferred_at >= ?::date");
+    params.push(options.disbursedStartDate.trim());
+  }
+  if (options.disbursedEndDate && /^\d{4}-\d{2}-\d{2}$/.test(options.disbursedEndDate.trim())) {
+    conditions.push("r.transferred_at < (?::date + INTERVAL '1 day')");
+    params.push(options.disbursedEndDate.trim());
   }
   if (options.periodMonth) {
     conditions.push("(r.period_month = ? OR (r.pay_period_start <= ?::date AND r.pay_period_end >= ?::date))");

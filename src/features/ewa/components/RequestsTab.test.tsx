@@ -44,6 +44,8 @@ describe("RequestsTab Component (#320)", () => {
     const setReqSearch = mock(() => {});
     const setStatusFilter = mock(() => {});
     const setDisbursedByFilter = mock(() => {});
+    const setDisbursedStartDate = mock(() => {});
+    const setDisbursedEndDate = mock(() => {});
     const setReqPage = mock(() => {});
     const onDisburse = mock(() => {});
     const onReject = mock(() => {});
@@ -58,6 +60,10 @@ describe("RequestsTab Component (#320)", () => {
         setStatusFilter={setStatusFilter}
         disbursedByFilter=""
         setDisbursedByFilter={setDisbursedByFilter}
+        disbursedStartDate=""
+        setDisbursedStartDate={setDisbursedStartDate}
+        disbursedEndDate=""
+        setDisbursedEndDate={setDisbursedEndDate}
         operators={dummyOperators}
         reqPage={1}
         reqLimit={20}
@@ -74,6 +80,8 @@ describe("RequestsTab Component (#320)", () => {
     expect(screen.getByText("Operator Pencair")).toBeDefined();
     expect(screen.getAllByText("Semua Operator").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Status").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Dari Tanggal")).toBeDefined();
+    expect(screen.getByText("Sampai Tanggal")).toBeDefined();
     expect(screen.getByPlaceholderText("Cari nama karyawan / NIP...")).toBeDefined();
 
     // Table should show disbursed by info
@@ -84,6 +92,8 @@ describe("RequestsTab Component (#320)", () => {
     const setReqSearch = mock(() => {});
     const setStatusFilter = mock(() => {});
     const setDisbursedByFilter = mock(() => {});
+    const setDisbursedStartDate = mock(() => {});
+    const setDisbursedEndDate = mock(() => {});
     const setReqPage = mock(() => {});
     const onDisburse = mock(() => {});
     const onReject = mock(() => {});
@@ -98,6 +108,10 @@ describe("RequestsTab Component (#320)", () => {
         setStatusFilter={setStatusFilter}
         disbursedByFilter=""
         setDisbursedByFilter={setDisbursedByFilter}
+        disbursedStartDate=""
+        setDisbursedStartDate={setDisbursedStartDate}
+        disbursedEndDate=""
+        setDisbursedEndDate={setDisbursedEndDate}
         operators={dummyOperators}
         reqPage={1}
         reqLimit={20}
@@ -120,6 +134,8 @@ describe("RequestsTab Component (#320)", () => {
     const setReqSearch = mock(() => {});
     const setStatusFilter = mock(() => {});
     const setDisbursedByFilter = mock(() => {});
+    const setDisbursedStartDate = mock(() => {});
+    const setDisbursedEndDate = mock(() => {});
     const setReqPage = mock(() => {});
     const onDisburse = mock(() => {});
     const onReject = mock(() => {});
@@ -134,6 +150,10 @@ describe("RequestsTab Component (#320)", () => {
         setStatusFilter={setStatusFilter}
         disbursedByFilter=""
         setDisbursedByFilter={setDisbursedByFilter}
+        disbursedStartDate=""
+        setDisbursedStartDate={setDisbursedStartDate}
+        disbursedEndDate=""
+        setDisbursedEndDate={setDisbursedEndDate}
         operators={dummyOperators}
         reqPage={2}
         reqLimit={20}
@@ -153,6 +173,88 @@ describe("RequestsTab Component (#320)", () => {
     expect(setReqPage).toHaveBeenCalledWith(1);
   });
 
+  test("changing date inputs calls setter and resets page to 1", () => {
+    const setDisbursedStartDate = mock(() => {});
+    const setDisbursedEndDate = mock(() => {});
+    const setReqPage = mock(() => {});
+
+    render(
+      <RequestsTab
+        requests={dummyRequests}
+        reqLoading={false}
+        reqSearch=""
+        setReqSearch={() => {}}
+        statusFilter=""
+        setStatusFilter={() => {}}
+        disbursedByFilter=""
+        setDisbursedByFilter={() => {}}
+        disbursedStartDate=""
+        setDisbursedStartDate={setDisbursedStartDate}
+        disbursedEndDate=""
+        setDisbursedEndDate={setDisbursedEndDate}
+        operators={dummyOperators}
+        reqPage={2}
+        reqLimit={20}
+        reqTotal={1}
+        setReqPage={setReqPage}
+        isDemoMode={false}
+        actionLoading={false}
+        onDisburse={() => {}}
+        onReject={() => {}}
+      />
+    );
+
+    const startDateInput = screen.getByLabelText("Dari Tanggal Pencairan");
+    fireEvent.change(startDateInput, { target: { value: "2026-10-01" } });
+    expect(setDisbursedStartDate).toHaveBeenCalledWith("2026-10-01");
+    expect(setReqPage).toHaveBeenCalledWith(1);
+
+    const endDateInput = screen.getByLabelText("Sampai Tanggal Pencairan");
+    fireEvent.change(endDateInput, { target: { value: "2026-10-15" } });
+    expect(setDisbursedEndDate).toHaveBeenCalledWith("2026-10-15");
+    expect(setReqPage).toHaveBeenCalledWith(1);
+  });
+
+  test("renders reset date button when date is filled and clears filters on click", () => {
+    const setDisbursedStartDate = mock(() => {});
+    const setDisbursedEndDate = mock(() => {});
+    const setReqPage = mock(() => {});
+
+    render(
+      <RequestsTab
+        requests={dummyRequests}
+        reqLoading={false}
+        reqSearch=""
+        setReqSearch={() => {}}
+        statusFilter=""
+        setStatusFilter={() => {}}
+        disbursedByFilter=""
+        setDisbursedByFilter={() => {}}
+        disbursedStartDate="2026-10-01"
+        setDisbursedStartDate={setDisbursedStartDate}
+        disbursedEndDate="2026-10-15"
+        setDisbursedEndDate={setDisbursedEndDate}
+        operators={dummyOperators}
+        reqPage={3}
+        reqLimit={20}
+        reqTotal={1}
+        setReqPage={setReqPage}
+        isDemoMode={false}
+        actionLoading={false}
+        onDisburse={() => {}}
+        onReject={() => {}}
+      />
+    );
+
+    const resetButton = screen.getByLabelText("Reset filter tanggal");
+    expect(resetButton).toBeDefined();
+
+    fireEvent.click(resetButton);
+    expect(setDisbursedStartDate).toHaveBeenCalledWith("");
+    expect(setDisbursedEndDate).toHaveBeenCalledWith("");
+    expect(setReqPage).toHaveBeenCalledWith(1);
+  });
+
   test("renders empty state message when no requests match filter", () => {
     render(
       <RequestsTab
@@ -164,6 +266,10 @@ describe("RequestsTab Component (#320)", () => {
         setStatusFilter={() => {}}
         disbursedByFilter="adm-1"
         setDisbursedByFilter={() => {}}
+        disbursedStartDate="2026-10-01"
+        setDisbursedStartDate={() => {}}
+        disbursedEndDate="2026-10-15"
+        setDisbursedEndDate={() => {}}
         operators={dummyOperators}
         reqPage={1}
         reqLimit={20}
