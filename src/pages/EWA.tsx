@@ -54,6 +54,8 @@ export default function EWA() {
   const [reqLoading, setReqLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
   const [disbursedByFilter, setDisbursedByFilter] = useState('');
+  const [disbursedStartDate, setDisbursedStartDate] = useState('');
+  const [disbursedEndDate, setDisbursedEndDate] = useState('');
   const [operators, setOperators] = useState<Array<{ id: string; name: string }>>([]);
   const [reqSearch, setReqSearch] = useState('');
   const [debouncedReqSearch, setDebouncedReqSearch] = useState('');
@@ -107,6 +109,8 @@ export default function EWA() {
       const q = new URLSearchParams();
       if (statusFilter) q.append('status', statusFilter);
       if (disbursedByFilter) q.append('disbursedBy', disbursedByFilter);
+      if (disbursedStartDate) q.append('disbursedStartDate', disbursedStartDate);
+      if (disbursedEndDate) q.append('disbursedEndDate', disbursedEndDate);
       if (debouncedReqSearch.trim()) q.append('search', debouncedReqSearch.trim());
       q.append('page', String(reqPage));
       q.append('limit', String(reqLimit));
@@ -121,7 +125,7 @@ export default function EWA() {
     } finally {
       setReqLoading(false);
     }
-  }, [statusFilter, disbursedByFilter, debouncedReqSearch, reqPage, reqLimit]);
+  }, [statusFilter, disbursedByFilter, disbursedStartDate, disbursedEndDate, debouncedReqSearch, reqPage, reqLimit]);
 
   // Fetch Operators
   const fetchOperators = useCallback(async () => {
@@ -361,6 +365,10 @@ export default function EWA() {
               setStatusFilter={setStatusFilter}
               disbursedByFilter={disbursedByFilter}
               setDisbursedByFilter={setDisbursedByFilter}
+              disbursedStartDate={disbursedStartDate}
+              setDisbursedStartDate={setDisbursedStartDate}
+              disbursedEndDate={disbursedEndDate}
+              setDisbursedEndDate={setDisbursedEndDate}
               operators={operators}
               reqPage={reqPage}
               reqLimit={reqLimit}
