@@ -698,6 +698,13 @@ export async function getEwaOperators(db: Db): Promise<Array<{ id: string; name:
   }));
 }
 
+export interface EwaRequestsSummary {
+  totalDisbursedAmount: number;
+  totalFeeAmount: number;
+  totalPayrollDeduction: number;
+  totalRequests: number;
+}
+
 export async function getEwaRequestsList(
   db: Db,
   options: {
@@ -711,7 +718,7 @@ export async function getEwaRequestsList(
     page?: number;
     limit?: number;
   }
-): Promise<{ data: EWARequest[]; total: number; page: number; limit: number }> {
+): Promise<{ data: EWARequest[]; total: number; page: number; limit: number; summary: EwaRequestsSummary }> {
   const page = Math.max(1, options.page || 1);
   const limit = Math.min(100, Math.max(1, options.limit || 20));
   const offset = (page - 1) * limit;
@@ -758,10 +765,26 @@ export async function getEwaRequestsList(
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  const totalRes = await db
-    .query(`SELECT COUNT(*) as count FROM withdrawal_requests r JOIN employees e ON r.employee_id = e.id ${whereClause}`)
+  const summaryRes = await db
+    .query(
+      `SELECT 
+        COUNT(*) as count,
+        COALESCE(SUM(r.amount), 0) as "totalDisbursedAmount",
+        COALESCE(SUM(r.fee), 0) as "totalFeeAmount",
+        COALESCE(SUM(COALESCE(r.total_payroll_deduction, r.amount + r.fee)), 0) as "totalPayrollDeduction"
+       FROM withdrawal_requests r 
+       JOIN employees e ON r.employee_id = e.id 
+       ${whereClause}`
+    )
     .get<any>(...params);
-  const total = Number(totalRes?.count || 0);
+
+  const total = Number(summaryRes?.count || 0);
+  const summary: EwaRequestsSummary = {
+    totalDisbursedAmount: Number(summaryRes?.totalDisbursedAmount || 0),
+    totalFeeAmount: Number(summaryRes?.totalFeeAmount || 0),
+    totalPayrollDeduction: Number(summaryRes?.totalPayrollDeduction || 0),
+    totalRequests: total,
+  };
 
   const rows = await db
     .query(
@@ -823,6 +846,7 @@ export async function getEwaRequestsList(
     total,
     page,
     limit,
+    summary,
   };
 }
 

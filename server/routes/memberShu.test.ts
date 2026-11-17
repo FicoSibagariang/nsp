@@ -166,7 +166,7 @@ describe("Member Portal SHU & Projections API", () => {
     const scheduleId = crypto.randomUUID();
     await db.run(
       `INSERT INTO loan_schedules (id, loanId, installmentNo, dueDate, principalAmount, interestAmount, paidAmount, status)
-       VALUES (?, ?, 1, '${currentYear}-11-15', 833333, 150000, 0, 'Pending')`,
+       VALUES (?, ?, 1, '${currentYear}-12-15', 833333, 150000, 0, 'Pending')`,
       [scheduleId, loanId]
     );
 
