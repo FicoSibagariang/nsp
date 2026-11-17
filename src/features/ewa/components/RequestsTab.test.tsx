@@ -293,14 +293,112 @@ describe("RequestsTab Component (#320)", () => {
       />
     );
 
-    const copyBtn = screen.getByLabelText("Salin nominal dicairkan");
-    expect(copyBtn).toBeDefined();
+    const copyBtns = screen.getAllByLabelText("Salin nominal dicairkan");
+    expect(copyBtns.length).toBeGreaterThanOrEqual(2);
 
     await act(async () => {
-      fireEvent.click(copyBtn);
+      fireEvent.click(copyBtns[1]);
     });
 
     expect(copiedText).toBe("1000000");
+  });
+
+  test("renders summary card with total amount, count, and copies plain digits to clipboard", async () => {
+    let copiedText = "";
+    Object.defineProperty(navigator, "clipboard", {
+      value: {
+        writeText: async (text: string) => {
+          copiedText = text;
+        },
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    render(
+      <RequestsTab
+        requests={dummyRequests}
+        reqLoading={false}
+        reqSearch=""
+        setReqSearch={() => {}}
+        statusFilter=""
+        setStatusFilter={() => {}}
+        disbursedByFilter="adm-1"
+        setDisbursedByFilter={() => {}}
+        disbursedStartDate="2026-10-01"
+        setDisbursedStartDate={() => {}}
+        disbursedEndDate="2026-10-15"
+        setDisbursedEndDate={() => {}}
+        operators={dummyOperators}
+        summary={{
+          totalDisbursedAmount: 12500000,
+          totalFeeAmount: 312500,
+          totalPayrollDeduction: 12812500,
+          totalRequests: 25,
+        }}
+        reqPage={1}
+        reqLimit={20}
+        reqTotal={25}
+        setReqPage={() => {}}
+        isDemoMode={false}
+        actionLoading={false}
+        onDisburse={() => {}}
+        onReject={() => {}}
+      />
+    );
+
+    // Summary Card header
+    expect(screen.getByText("Total Dana Ditransfer (Perlu Diganti)")).toBeDefined();
+    expect(screen.getByText("25 Transaksi")).toBeDefined();
+    expect(screen.getByText(/12\.500\.000/)).toBeDefined();
+
+    // Context filter text
+    expect(screen.getByText(/Pencairan oleh Budi Santoso/i)).toBeDefined();
+
+    // Click to copy the total summary amount
+    const copySummaryBtn = screen.getByTitle("Klik untuk salin nominal: 12500000");
+    await act(async () => {
+      fireEvent.click(copySummaryBtn);
+    });
+
+    expect(copiedText).toBe("12500000");
+  });
+
+  test("masks operator name in summary card context when isDemoMode is true", () => {
+    render(
+      <RequestsTab
+        requests={dummyRequests}
+        reqLoading={false}
+        reqSearch=""
+        setReqSearch={() => {}}
+        statusFilter=""
+        setStatusFilter={() => {}}
+        disbursedByFilter="adm-1"
+        setDisbursedByFilter={() => {}}
+        disbursedStartDate=""
+        setDisbursedStartDate={() => {}}
+        disbursedEndDate=""
+        setDisbursedEndDate={() => {}}
+        operators={dummyOperators}
+        summary={{
+          totalDisbursedAmount: 5000000,
+          totalFeeAmount: 125000,
+          totalPayrollDeduction: 5125000,
+          totalRequests: 5,
+        }}
+        reqPage={1}
+        reqLimit={20}
+        reqTotal={5}
+        setReqPage={() => {}}
+        isDemoMode={true}
+        actionLoading={false}
+        onDisburse={() => {}}
+        onReject={() => {}}
+      />
+    );
+
+    const maskedOpName = maskName("adm-1", "Budi Santoso");
+    expect(screen.getByText(new RegExp(`Pencairan oleh ${maskedOpName}`, "i"))).toBeDefined();
   });
 
   test("renders empty state message when no requests match filter", () => {

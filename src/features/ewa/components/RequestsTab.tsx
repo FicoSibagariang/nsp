@@ -14,7 +14,7 @@ import { CopyableAccountNumber } from '../../../components/CopyableAccountNumber
 import { CopyableAmount } from '../../../components/CopyableAmount';
 import { formatRp } from '../../../utils/format';
 import { maskName, maskNip } from '../../../utils/privacyMask';
-import type { EWARequest } from '../types';
+import type { EWARequest, EwaRequestsSummary } from '../types';
 
 interface RequestsTabProps {
   requests: EWARequest[];
@@ -30,6 +30,7 @@ interface RequestsTabProps {
   disbursedEndDate: string;
   setDisbursedEndDate: (val: string) => void;
   operators: Array<{ id: string; name: string }>;
+  summary?: EwaRequestsSummary | null;
   reqPage: number;
   reqLimit: number;
   reqTotal: number;
@@ -54,6 +55,7 @@ export function RequestsTab({
   disbursedEndDate,
   setDisbursedEndDate,
   operators = [],
+  summary,
   reqPage,
   reqLimit,
   reqTotal,
@@ -85,6 +87,67 @@ export function RequestsTab({
       return dateStr;
     }
   };
+
+  const formatFilterDate = (dStr: string) => {
+    try {
+      const [y, m, d] = dStr.split('-').map(Number);
+      if (!y || !m || !d) return dStr;
+      const date = new Date(y, m - 1, d);
+      return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return dStr;
+    }
+  };
+
+  const filterContext = useMemo(() => {
+    const parts: string[] = [];
+
+    if (disbursedByFilter) {
+      const selectedOp = operators.find((op) => op.id === disbursedByFilter);
+      const opName = selectedOp
+        ? isDemoMode
+          ? maskName(selectedOp.id, selectedOp.name)
+          : selectedOp.name
+        : disbursedByFilter;
+      parts.push(`Pencairan oleh ${opName}`);
+    }
+
+    if (disbursedStartDate && disbursedEndDate) {
+      parts.push(`Periode ${formatFilterDate(disbursedStartDate)} s/d ${formatFilterDate(disbursedEndDate)}`);
+    } else if (disbursedStartDate) {
+      parts.push(`Mulai ${formatFilterDate(disbursedStartDate)}`);
+    } else if (disbursedEndDate) {
+      parts.push(`Sampai ${formatFilterDate(disbursedEndDate)}`);
+    }
+
+    if (statusFilter) {
+      const statusLabels: Record<string, string> = {
+        PENDING: 'Menunggu Cair',
+        DISBURSED: 'Sudah Cair',
+        PAID_SETTLED: 'Lunas Payroll',
+        REJECTED: 'Ditolak',
+      };
+      parts.push(`Status: ${statusLabels[statusFilter] || statusFilter}`);
+    }
+
+    if (reqSearch.trim()) {
+      parts.push(`Pencarian "${reqSearch.trim()}"`);
+    }
+
+    return parts.length > 0 ? parts.join(' • ') : 'Semua transaksi EWA';
+  }, [disbursedByFilter, operators, isDemoMode, disbursedStartDate, disbursedEndDate, statusFilter, reqSearch]);
+
+  const effectiveSummary = useMemo(() => {
+    if (summary !== undefined && summary !== null) {
+      return summary;
+    }
+    return {
+      totalDisbursedAmount: requests.reduce((acc, r) => acc + (r.disbursedAmount || 0), 0),
+      totalRequests: reqTotal || requests.length,
+      totalFeeAmount: requests.reduce((acc, r) => acc + (r.feeAmount || 0), 0),
+      totalPayrollDeduction: requests.reduce((acc, r) => acc + (r.totalPayrollDeduction || 0), 0),
+    };
+  }, [summary, requests, reqTotal]);
 
   const requestColumns: TableColumn<EWARequest>[] = useMemo(
     () => [
@@ -384,6 +447,38 @@ export function RequestsTab({
             </HStack>
           </HStack>
         </HStack>
+
+        {/* Ringkasan Total Dana yang Ditransfer Sesuai Filter (Summary Card) */}
+        {effectiveSummary && (
+          <Card
+            style={{
+              padding: '14px 18px',
+              backgroundColor: 'var(--color-background-secondary, rgba(0, 0, 0, 0.02))',
+              border: '1px solid var(--color-border-primary)',
+              borderRadius: 8,
+            }}
+          >
+            <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
+              <VStack gap={1}>
+                <Text type="supporting" color="secondary" weight="medium" style={{ fontSize: 12 }}>
+                  Total Dana Ditransfer (Perlu Diganti)
+                </Text>
+                <HStack vAlign="center" gap={2}>
+                  <CopyableAmount
+                    amount={effectiveSummary.totalDisbursedAmount}
+                    weight="bold"
+                    textStyle={{ fontSize: 20, color: 'var(--color-text-primary)' }}
+                  />
+                  <Badge variant="neutral" label={`${effectiveSummary.totalRequests} Transaksi`} />
+                </HStack>
+              </VStack>
+
+              <Text type="supporting" color="secondary" style={{ fontSize: 12 }}>
+                {filterContext}
+              </Text>
+            </HStack>
+          </Card>
+        )}
 
         {reqLoading ? (
           <Spinner size="md" />

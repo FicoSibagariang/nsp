@@ -34,6 +34,7 @@ import {
   exportPayrollXlsx,
   type PaymentSourceAccount,
   type PayrollRecapData,
+  type EwaRequestsSummary,
 } from '../features/ewa';
 
 export default function EWA() {
@@ -62,6 +63,7 @@ export default function EWA() {
   const [reqPage, setReqPage] = useState(1);
   const reqLimit = 20;
   const [reqTotal, setReqTotal] = useState(0);
+  const [reqSummary, setReqSummary] = useState<EwaRequestsSummary | null>(null);
   const [selectedReq, setSelectedReq] = useState<EWARequest | null>(null);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [actionMessage, setActionMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -119,6 +121,7 @@ export default function EWA() {
       if (data.success) {
         setRequests(data.data || []);
         setReqTotal(data.total || 0);
+        setReqSummary(data.summary || null);
       }
     } catch (err) {
       console.error('Fetch requests error:', err);
@@ -370,6 +373,7 @@ export default function EWA() {
               disbursedEndDate={disbursedEndDate}
               setDisbursedEndDate={setDisbursedEndDate}
               operators={operators}
+              summary={reqSummary}
               reqPage={reqPage}
               reqLimit={reqLimit}
               reqTotal={reqTotal}

@@ -1,5 +1,12 @@
 export type { CompanyEmployee, EWARequest, EwaFeeTier } from '@shared/types';
 
+export interface EwaRequestsSummary {
+  totalDisbursedAmount: number;
+  totalFeeAmount: number;
+  totalPayrollDeduction: number;
+  totalRequests: number;
+}
+
 export interface PaymentSourceAccount {
   id: string;
   code: string;
