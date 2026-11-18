@@ -43,16 +43,27 @@ test.describe("Loans Management", () => {
     // Verify updated remaining debt: 2,200,320 - 500,000 = 1,700,320
     await expect(row.getByText("Sisa: Rp 1.700.320")).toBeVisible();
 
-    // 6. Cancel deletion and verify UI is NOT frozen
-    await loansPage.cancelDeleteLoan(loanMemberName);
+    // 6. Test cancellation of loan deletion and verify UI is NOT frozen
+    const secondMemberName = `Borrower E2E-Del-${Date.now()}`;
+    await membersPage.goto();
+    await membersPage.addMember(secondMemberName, "Anggota", "1000000");
+    await loansPage.goto();
+    await loansPage.addLoan(secondMemberName, "1000000", "6", "Modal Usaha Baru");
+    await loansPage.approveLoan(secondMemberName);
+    await adminPage.waitForTimeout(2000);
+
+    const secondRow = loansPage.getRow(secondMemberName);
+    await expect(secondRow).toBeVisible();
+
+    await loansPage.cancelDeleteLoan(secondMemberName);
     await adminPage.getByRole("button", { name: "Dasbor" }).click();
     await expect(adminPage.getByRole("heading", { name: "Tren Pertumbuhan Koperasi" })).toBeVisible();
     
     // Go back to loans page to delete
     await loansPage.goto();
 
-    // 7. Delete the loan
-    await loansPage.deleteLoan(loanMemberName);
-    await expect(row).not.toBeVisible();
+    // 7. Delete the clean loan (loans without payments can be deleted and journals cleaned)
+    await loansPage.deleteLoan(secondMemberName);
+    await expect(secondRow).not.toBeVisible();
   });
 });

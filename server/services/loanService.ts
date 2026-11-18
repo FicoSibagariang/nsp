@@ -964,18 +964,46 @@ export async function updateLoanDisbursementDate(
 }
 
 export async function deleteLoan(database: Db, loanId: string): Promise<void> {
-  const loan = await database
-    .query("SELECT id, status FROM loans WHERE id = ? AND deletedAt IS NULL")
-    .get<{ id: string; status: string }>(loanId);
+  await database.transaction(async () => {
+    const loan = await database
+      .query("SELECT id, status FROM loans WHERE id = ? AND deletedAt IS NULL")
+      .get<{ id: string; status: string }>(loanId);
 
-  if (!loan) {
-    throw new ServiceError("Loan not found", 404);
-  }
+    if (!loan) {
+      throw new ServiceError("Loan not found", 404);
+    }
 
-  // Soft-delete: stamp deletedAt, keep all FK-referenced payment rows intact
-  await database
-    .query("UPDATE loans SET deletedAt = ? WHERE id = ?")
-    .run(new Date().toISOString(), loanId);
+    // Periksa apakah pinjaman sudah memiliki riwayat pembayaran angsuran
+    const paymentRes = await database
+      .query("SELECT COUNT(*) as count FROM loan_payments WHERE loanId = ?")
+      .get<{ count: number | string }>(loanId);
+
+    if (Number(paymentRes?.count || 0) > 0) {
+      throw new ServiceError("Pinjaman yang sudah memiliki riwayat pembayaran angsuran tidak dapat dihapus", 400);
+    }
+
+    // Periksa apakah pinjaman memiliki jurnal pencairan (reference_type = 'loan_disbursement' dan reference_id = loanId)
+    const disbursementJournals = await database
+      .query("SELECT id FROM journal_entries WHERE reference_type = 'loan_disbursement' AND reference_id = ?")
+      .all<{ id: string }>(loanId);
+
+    for (const entry of disbursementJournals) {
+      const reversals = await database
+        .query("SELECT id FROM journal_entries WHERE reference_type = 'reversal_of' AND reference_id = ?")
+        .all<{ id: string }>(entry.id);
+      for (const rev of reversals) {
+        await database.run("DELETE FROM journal_lines WHERE journal_entry_id = ?", [rev.id]);
+        await database.run("DELETE FROM journal_entries WHERE id = ?", [rev.id]);
+      }
+      await database.run("DELETE FROM journal_lines WHERE journal_entry_id = ?", [entry.id]);
+      await database.run("DELETE FROM journal_entries WHERE id = ?", [entry.id]);
+    }
+
+    // Soft-delete: stamp deletedAt, keep all FK-referenced payment rows intact
+    await database
+      .query("UPDATE loans SET deletedAt = ? WHERE id = ?")
+      .run(new Date().toISOString(), loanId);
+  })();
 }
 
 // ---------------------------------------------------------------------------
