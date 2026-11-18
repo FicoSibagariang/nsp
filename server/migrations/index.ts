@@ -41,6 +41,7 @@ import { createSetDefaultBungaPinjamanMigration } from "./0042_set_default_bunga
 import { createFixEwaSeptemberPayrollJournalDateMigration } from "./0043_fix_ewa_september_payroll_journal_date";
 import { createFixEwaNullFeePercentageMigration } from "./0044_fix_ewa_null_fee_percentage";
 import { createSyncMemberEmployeeStatusMigration } from "./0045_sync_member_employee_status";
+import { createCleanupOrphanedLoanDisbursementJournalsMigration } from "./0047_cleanup_orphaned_loan_disbursement_journals";
 import { runMigrations, listAppliedMigrations } from "./runner";
 
 type AppDb = {
@@ -114,6 +115,7 @@ export function buildDataPatches(db: AppDb): Migration[] {
     createFixEwaSeptemberPayrollJournalDateMigration(db),
     createFixEwaNullFeePercentageMigration(db),
     createSyncMemberEmployeeStatusMigration(db),
+    createCleanupOrphanedLoanDisbursementJournalsMigration(db),
   ];
 }
 
