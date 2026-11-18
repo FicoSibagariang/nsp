@@ -1,4 +1,4 @@
-import { expect, test, describe, afterEach, spyOn } from "bun:test";
+import { expect, test, describe, beforeEach, afterEach, spyOn } from "bun:test";
 import { render, cleanup, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Savings from "./Savings";
@@ -16,12 +16,22 @@ function renderSavings() {
 }
 
 describe("Savings Component", () => {
-  afterEach(() => {
-    cleanup();
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem("token", "fake-token");
+    localStorage.setItem("role", "superadmin");
   });
 
-  test("renders without crashing with data and allows switching tabs", async () => {
+  afterEach(() => {
+    cleanup();
+    localStorage.clear();
+  });
+
+  const setupMockApi = () => {
     spyOn(apiModule.api, "get").mockImplementation(((url: string) => {
+      if (url.includes("/api/auth/verify")) {
+        return Promise.resolve({ success: true, data: { role: "superadmin" } });
+      }
       if (url.includes('/api/savings/transactions')) {
         return Promise.resolve({
           data: [
@@ -89,7 +99,10 @@ describe("Savings Component", () => {
       }
       return Promise.resolve({ data: [], total: 0, page: 1, limit: 20 });
     }) as any);
+  };
 
+  test("renders without crashing with data and allows switching tabs", async () => {
+    setupMockApi();
     renderSavings();
 
     // Verify heading rendered
@@ -107,5 +120,51 @@ describe("Savings Component", () => {
     // Switch to withdrawals tab
     const withdrawalsTab = screen.getByText(/Permohonan Penarikan Sukarela/);
     fireEvent.click(withdrawalsTab);
+  });
+
+  test("opens verification dialog when clicking Verifikasi button in deposits tab", async () => {
+    setupMockApi();
+    renderSavings();
+
+    // Switch to deposits tab
+    const depositsTab = screen.getByText(/Konfirmasi Setoran Masuk/);
+    fireEvent.click(depositsTab);
+
+    // Wait for deposit data and Verifikasi button to appear
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Verifikasi" })).toBeDefined();
+    });
+
+    // Click "Verifikasi" button
+    const verifyButton = screen.getByRole("button", { name: "Verifikasi" });
+    fireEvent.click(verifyButton);
+
+    // Verify modal dialog opens with heading
+    await waitFor(() => {
+      expect(screen.getByText("Verifikasi Setoran Simpanan")).toBeDefined();
+    });
+  });
+
+  test("opens rejection dialog when clicking Tolak button in deposits tab", async () => {
+    setupMockApi();
+    renderSavings();
+
+    // Switch to deposits tab
+    const depositsTab = screen.getByText(/Konfirmasi Setoran Masuk/);
+    fireEvent.click(depositsTab);
+
+    // Wait for deposit data and Tolak button to appear
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Tolak" })).toBeDefined();
+    });
+
+    // Click "Tolak" button
+    const rejectButton = screen.getByRole("button", { name: "Tolak" });
+    fireEvent.click(rejectButton);
+
+    // Verify modal dialog opens with heading
+    await waitFor(() => {
+      expect(screen.getByText("Tolak Konfirmasi Setoran Simpanan")).toBeDefined();
+    });
   });
 });

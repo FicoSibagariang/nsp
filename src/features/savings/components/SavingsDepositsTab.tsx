@@ -261,73 +261,76 @@ export function SavingsDepositsTab({ onMutationSuccess, pendingCount = 0 }: Savi
   ], [isDemoMode, hasPermission, dialog, fetchDeposits, onMutationSuccess, toast]);
 
   return (
-    <DataStateView
-      isLoading={depositsLoading}
-      error={depositsError}
-      onRetry={fetchDeposits}
-      errorTitle="Gagal Memuat Data Konfirmasi Setoran"
-    >
-      <VStack gap={4}>
-        {/* Status & Type Filter Pills */}
-        <HStack gap={4} wrap="wrap" vAlign="center" justify="between">
-          <HStack gap={2} vAlign="center" wrap="wrap">
-            <Text type="supporting" weight="semibold" color="secondary">
-              Status:
-            </Text>
-            {['Semua', 'Menunggu', 'Diverifikasi', 'Ditolak'].map((st) => (
-              <Button
-                key={st}
-                size="sm"
-                variant={depositStatusFilter === st ? 'primary' : 'secondary'}
-                onClick={() => {
-                  setDepositStatusFilter(st);
-                  setDepositPage(1);
-                }}
-                label={`${st}${st === 'Menunggu' && pendingCount > 0 ? ` (${pendingCount})` : ''}`}
-              />
-            ))}
+    <>
+      <DataStateView
+        isLoading={depositsLoading}
+        error={depositsError}
+        onRetry={fetchDeposits}
+        errorTitle="Gagal Memuat Data Konfirmasi Setoran"
+      >
+        <VStack gap={4}>
+          {/* Status & Type Filter Pills */}
+          <HStack gap={4} wrap="wrap" vAlign="center" justify="between">
+            <HStack gap={2} vAlign="center" wrap="wrap">
+              <Text type="supporting" weight="semibold" color="secondary">
+                Status:
+              </Text>
+              {['Semua', 'Menunggu', 'Diverifikasi', 'Ditolak'].map((st) => (
+                <Button
+                  key={st}
+                  size="sm"
+                  variant={depositStatusFilter === st ? 'primary' : 'secondary'}
+                  onClick={() => {
+                    setDepositStatusFilter(st);
+                    setDepositPage(1);
+                  }}
+                  label={`${st}${st === 'Menunggu' && pendingCount > 0 ? ` (${pendingCount})` : ''}`}
+                />
+              ))}
+            </HStack>
+
+            <HStack gap={2} vAlign="center" wrap="wrap">
+              <Text type="supporting" weight="semibold" color="secondary">
+                Jenis:
+              </Text>
+              {[
+                { val: 'Semua', label: 'Semua Jenis' },
+                { val: 'pokok', label: 'Pokok' },
+                { val: 'wajib', label: 'Wajib' },
+                { val: 'sukarela', label: 'Sukarela' },
+              ].map((t) => (
+                <Button
+                  key={t.val}
+                  size="sm"
+                  variant={depositTypeFilter === t.val ? 'primary' : 'secondary'}
+                  onClick={() => {
+                    setDepositTypeFilter(t.val);
+                    setDepositPage(1);
+                  }}
+                  label={t.label}
+                />
+              ))}
+            </HStack>
           </HStack>
 
-          <HStack gap={2} vAlign="center" wrap="wrap">
-            <Text type="supporting" weight="semibold" color="secondary">
-              Jenis:
-            </Text>
-            {[
-              { val: 'Semua', label: 'Semua Jenis' },
-              { val: 'pokok', label: 'Pokok' },
-              { val: 'wajib', label: 'Wajib' },
-              { val: 'sukarela', label: 'Sukarela' },
-            ].map((t) => (
-              <Button
-                key={t.val}
-                size="sm"
-                variant={depositTypeFilter === t.val ? 'primary' : 'secondary'}
-                onClick={() => {
-                  setDepositTypeFilter(t.val);
-                  setDepositPage(1);
-                }}
-                label={t.label}
-              />
-            ))}
-          </HStack>
-        </HStack>
+          <Table<SavingsDepositRow>
+            data={depositsResponse?.data || []}
+            columns={depositColumns}
+            idKey="id"
+            density="balanced"
+            dividers="rows"
+            hasHover
+          />
 
-        <Table<SavingsDepositRow>
-          data={depositsResponse?.data || []}
-          columns={depositColumns}
-          idKey="id"
-          density="balanced"
-          dividers="rows"
-          hasHover
-        />
-
-        <Pagination
-          page={depositsResponse?.page || depositPage}
-          limit={depositsResponse?.limit || depositLimit}
-          total={depositsResponse?.total || 0}
-          onPageChange={setDepositPage}
-        />
-      </VStack>
-    </DataStateView>
+          <Pagination
+            page={depositsResponse?.page || depositPage}
+            limit={depositsResponse?.limit || depositLimit}
+            total={depositsResponse?.total || 0}
+            onPageChange={setDepositPage}
+          />
+        </VStack>
+      </DataStateView>
+      {dialog.element}
+    </>
   );
 }

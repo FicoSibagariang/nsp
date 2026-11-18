@@ -182,76 +182,79 @@ export function SavingsMutationsTab() {
   ], [isDemoMode]);
 
   return (
-    <DataStateView
-      isLoading={isLoading}
-      error={error}
-      onRetry={fetchTransactions}
-      errorTitle="Gagal Memuat Riwayat Transaksi"
-    >
-      <VStack gap={4}>
-        <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
-          <div style={{ flex: 1, minWidth: 280 }}>
-            <PowerSearch
-              config={config}
-              filters={filters}
-              onChange={(newFilters) => {
-                setFilters([...newFilters]);
-              }}
-              placeholder="Cari transaksi..."
-              resultCount={filtered.length}
-            />
-          </div>
-          <HStack gap={2}>
-            {hasPermission('update:savings') && (
-              <>
-                <Button
-                  label="Unduh Format CSV"
-                  variant="ghost"
-                  onClick={handleDownloadTemplate}
-                />
-                <Button
-                  label="Import Batch (CSV)"
-                  variant="secondary"
-                  onClick={() => {
-                    dialog.show(
-                      <ImportSavingsDialogContent
-                        onClose={() => dialog.hide()}
-                        onSuccess={() => {
-                          fetchTransactions();
-                        }}
-                      />
-                    );
-                  }}
-                />
-              </>
-            )}
-            {hasPermission('export:reports') && (
-              <Button
-                label="Ekspor CSV"
-                variant="secondary"
-                icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
-                onClick={handleExportCsv}
+    <>
+      <DataStateView
+        isLoading={isLoading}
+        error={error}
+        onRetry={fetchTransactions}
+        errorTitle="Gagal Memuat Riwayat Transaksi"
+      >
+        <VStack gap={4}>
+          <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
+            <div style={{ flex: 1, minWidth: 280 }}>
+              <PowerSearch
+                config={config}
+                filters={filters}
+                onChange={(newFilters) => {
+                  setFilters([...newFilters]);
+                }}
+                placeholder="Cari transaksi..."
+                resultCount={filtered.length}
               />
-            )}
+            </div>
+            <HStack gap={2}>
+              {hasPermission('update:savings') && (
+                <>
+                  <Button
+                    label="Unduh Format CSV"
+                    variant="ghost"
+                    onClick={handleDownloadTemplate}
+                  />
+                  <Button
+                    label="Import Batch (CSV)"
+                    variant="secondary"
+                    onClick={() => {
+                      dialog.show(
+                        <ImportSavingsDialogContent
+                          onClose={() => dialog.hide()}
+                          onSuccess={() => {
+                            fetchTransactions();
+                          }}
+                        />
+                      );
+                    }}
+                  />
+                </>
+              )}
+              {hasPermission('export:reports') && (
+                <Button
+                  label="Ekspor CSV"
+                  variant="secondary"
+                  icon={<Icon icon={ArrowDownTrayIcon} size="sm" />}
+                  onClick={handleExportCsv}
+                />
+              )}
+            </HStack>
           </HStack>
-        </HStack>
 
-        <Table<SavingsTransactionRow>
-          data={filtered}
-          columns={transactionColumns}
-          idKey="id"
-          density="balanced"
-          dividers="rows"
-          hasHover
-        />
+          <Table<SavingsTransactionRow>
+            data={filtered}
+            columns={transactionColumns}
+            idKey="id"
+            density="balanced"
+            dividers="rows"
+            hasHover
+          />
 
-        <Pagination
-          page={transactionsResponse?.page || page}
-          limit={transactionsResponse?.limit || limit}
-          total={transactionsResponse?.total || 0}
-          onPageChange={setPage}
-        />
-      </VStack>
-    </DataStateView>
+          <Pagination
+            page={transactionsResponse?.page || page}
+            limit={transactionsResponse?.limit || limit}
+            total={transactionsResponse?.total || 0}
+            onPageChange={setPage}
+          />
+        </VStack>
+      </DataStateView>
+      {dialog.element}
+    </>
   );
 }

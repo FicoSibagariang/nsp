@@ -242,47 +242,50 @@ export function SavingsWithdrawalsTab({ onMutationSuccess }: SavingsWithdrawalsT
   ], [isDemoMode, hasPermission, dialog, fetchWithdrawals, onMutationSuccess, toast]);
 
   return (
-    <DataStateView
-      isLoading={withdrawalsLoading}
-      error={withdrawalsError}
-      onRetry={fetchWithdrawals}
-      errorTitle="Gagal Memuat Data Pengajuan Penarikan"
-    >
-      <VStack gap={4}>
-        <HStack gap={2} vAlign="center" wrap="wrap">
-          <Text type="supporting" weight="semibold" color="secondary">
-            Filter Status:
-          </Text>
-          {['Semua', 'Menunggu', 'Disetujui', 'Ditolak'].map((st) => (
-            <Button
-              key={st}
-              size="sm"
-              variant={withdrawalStatusFilter === st ? 'primary' : 'secondary'}
-              onClick={() => {
-                setWithdrawalStatusFilter(st);
-                setWithdrawalPage(1);
-              }}
-              label={st}
-            />
-          ))}
-        </HStack>
+    <>
+      <DataStateView
+        isLoading={withdrawalsLoading}
+        error={withdrawalsError}
+        onRetry={fetchWithdrawals}
+        errorTitle="Gagal Memuat Data Pengajuan Penarikan"
+      >
+        <VStack gap={4}>
+          <HStack gap={2} vAlign="center" wrap="wrap">
+            <Text type="supporting" weight="semibold" color="secondary">
+              Filter Status:
+            </Text>
+            {['Semua', 'Menunggu', 'Disetujui', 'Ditolak'].map((st) => (
+              <Button
+                key={st}
+                size="sm"
+                variant={withdrawalStatusFilter === st ? 'primary' : 'secondary'}
+                onClick={() => {
+                  setWithdrawalStatusFilter(st);
+                  setWithdrawalPage(1);
+                }}
+                label={st}
+              />
+            ))}
+          </HStack>
 
-        <Table<SavingsWithdrawalRow>
-          data={withdrawalsResponse?.data || []}
-          columns={withdrawalColumns}
-          idKey="id"
-          density="balanced"
-          dividers="rows"
-          hasHover
-        />
+          <Table<SavingsWithdrawalRow>
+            data={withdrawalsResponse?.data || []}
+            columns={withdrawalColumns}
+            idKey="id"
+            density="balanced"
+            dividers="rows"
+            hasHover
+          />
 
-        <Pagination
-          page={withdrawalsResponse?.page || withdrawalPage}
-          limit={withdrawalsResponse?.limit || withdrawalLimit}
-          total={withdrawalsResponse?.total || 0}
-          onPageChange={setWithdrawalPage}
-        />
-      </VStack>
-    </DataStateView>
+          <Pagination
+            page={withdrawalsResponse?.page || withdrawalPage}
+            limit={withdrawalsResponse?.limit || withdrawalLimit}
+            total={withdrawalsResponse?.total || 0}
+            onPageChange={setWithdrawalPage}
+          />
+        </VStack>
+      </DataStateView>
+      {dialog.element}
+    </>
   );
 }
