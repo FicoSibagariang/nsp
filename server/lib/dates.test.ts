@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { isEndOfMonthStr, generateLoanDueDates, toLocalYmd, getLocalTodayYmd } from "./dates";
+import { isEndOfMonthStr, generateLoanDueDates, toLocalYmd, getLocalTodayYmd, sanitizeTimezone } from "./dates";
 
 describe("dates helper functions", () => {
   describe("isEndOfMonthStr", () => {
@@ -88,6 +88,31 @@ describe("dates helper functions", () => {
       const today = getLocalTodayYmd("Asia/Jakarta");
       expect(toLocalYmd(null, "Asia/Jakarta")).toBe(today);
       expect(toLocalYmd(undefined, "Asia/Jakarta")).toBe(today);
+    });
+  });
+
+  describe("sanitizeTimezone", () => {
+    it("returns valid IANA timezones as-is", () => {
+      expect(sanitizeTimezone("Asia/Jakarta")).toBe("Asia/Jakarta");
+      expect(sanitizeTimezone("Asia/Makassar")).toBe("Asia/Makassar");
+      expect(sanitizeTimezone("Asia/Jayapura")).toBe("Asia/Jayapura");
+      expect(sanitizeTimezone("UTC")).toBe("UTC");
+      expect(sanitizeTimezone("America/New_York")).toBe("America/New_York");
+      expect(sanitizeTimezone("  Asia/Jakarta  ")).toBe("Asia/Jakarta");
+    });
+
+    it("falls back to Asia/Jakarta (or default) for invalid, malformed, or injection strings", () => {
+      expect(sanitizeTimezone("")).toBe("Asia/Jakarta");
+      expect(sanitizeTimezone(null)).toBe("Asia/Jakarta");
+      expect(sanitizeTimezone(undefined)).toBe("Asia/Jakarta");
+      expect(sanitizeTimezone("Invalid/Foo_Bar")).toBe("Asia/Jakarta");
+      expect(sanitizeTimezone("Asia/Jakarta; DROP TABLE")).toBe("Asia/Jakarta");
+      expect(sanitizeTimezone("12345")).toBe("Asia/Jakarta");
+      expect(sanitizeTimezone("<script>")).toBe("Asia/Jakarta");
+    });
+
+    it("supports custom fallback parameter", () => {
+      expect(sanitizeTimezone("Invalid/Zone", "UTC")).toBe("UTC");
     });
   });
 });

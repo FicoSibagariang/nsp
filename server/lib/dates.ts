@@ -10,6 +10,22 @@ export const APP_TIMEZONE =
   'Asia/Jakarta';
 
 /**
+ * Sanitizes and validates an IANA timezone string.
+ * Falls back to APP_TIMEZONE (default 'Asia/Jakarta') if invalid, non-string, or unsafe.
+ */
+export function sanitizeTimezone(tz?: string | null, fallback = APP_TIMEZONE): string {
+  if (!tz || typeof tz !== 'string') return fallback;
+  const trimmed = tz.trim();
+  if (!/^[A-Za-z0-9_+/-]+$/.test(trimmed)) return fallback;
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: trimmed });
+    return trimmed;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
  * Returns today's calendar date in the configured app timezone as YYYY-MM-DD.
  */
 export function getLocalTodayYmd(timeZone = APP_TIMEZONE): string {

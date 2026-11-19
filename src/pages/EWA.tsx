@@ -114,6 +114,10 @@ export default function EWA() {
       if (disbursedStartDate) q.append('disbursedStartDate', disbursedStartDate);
       if (disbursedEndDate) q.append('disbursedEndDate', disbursedEndDate);
       if (debouncedReqSearch.trim()) q.append('search', debouncedReqSearch.trim());
+      const clientTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jakarta';
+      if (disbursedStartDate || disbursedEndDate) {
+        q.append('timezone', clientTimezone);
+      }
       q.append('page', String(reqPage));
       q.append('limit', String(reqLimit));
       const res = await apiFetch(`/api/v1/ewa/requests?${q.toString()}`);
