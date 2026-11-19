@@ -1,6 +1,6 @@
 import type { Db } from "../db";
 import { ServiceError } from "./errors";
-import { getLocalTodayYmd } from "../lib/dates";
+import { getLocalTodayYmd, sanitizeTimezone } from "../lib/dates";
 import type { CompanyEmployee, EWARequest, EwaQuotaInfo, EwaFeeTier } from "../../shared/types";
 
 export const EWA_MAX_PERCENTAGE = 50; // 50% from monthly base salary
@@ -715,6 +715,7 @@ export async function getEwaRequestsList(
     disbursedBy?: string;
     disbursedStartDate?: string;
     disbursedEndDate?: string;
+    timezone?: string;
     page?: number;
     limit?: number;
   }
@@ -726,6 +727,8 @@ export async function getEwaRequestsList(
   const conditions: string[] = [];
   const params: any[] = [];
 
+  const tz = sanitizeTimezone(options.timezone);
+
   if (options.employeeId) {
     conditions.push("r.employee_id = ?");
     params.push(options.employeeId);
@@ -735,12 +738,12 @@ export async function getEwaRequestsList(
     params.push(options.disbursedBy.trim());
   }
   if (options.disbursedStartDate && /^\d{4}-\d{2}-\d{2}$/.test(options.disbursedStartDate.trim())) {
-    conditions.push("r.transferred_at >= ?::date");
-    params.push(options.disbursedStartDate.trim());
+    conditions.push("r.transferred_at >= (? || ' 00:00:00')::timestamp AT TIME ZONE ?");
+    params.push(options.disbursedStartDate.trim(), tz);
   }
   if (options.disbursedEndDate && /^\d{4}-\d{2}-\d{2}$/.test(options.disbursedEndDate.trim())) {
-    conditions.push("r.transferred_at < (?::date + INTERVAL '1 day')");
-    params.push(options.disbursedEndDate.trim());
+    conditions.push("r.transferred_at < ((? || ' 00:00:00')::timestamp + INTERVAL '1 day') AT TIME ZONE ?");
+    params.push(options.disbursedEndDate.trim(), tz);
   }
   if (options.periodMonth) {
     conditions.push("(r.period_month = ? OR (r.pay_period_start <= ?::date AND r.pay_period_end >= ?::date))");

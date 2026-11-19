@@ -15,6 +15,9 @@ describe("EWA Disbursed Date Range Filter API (#323)", () => {
   let reqId1: number | string;
   let reqId2: number | string;
   let reqIdPending: number | string;
+  let reqEarlyMorning: number | string;
+  let reqLateNight: number | string;
+  let reqNextDayEarly: number | string;
 
   beforeAll(async () => {
     adminToken = await sign(
@@ -101,13 +104,63 @@ describe("EWA Disbursed Date Range Filter API (#323)", () => {
       )
       .get<{ id: number | string }>(employeeId);
     reqIdPending = r3!.id;
+
+    // 4. Early morning transaction on 2026-11-15 01:10:41 WIB (UTC: 2026-11-14 18:10:41Z)
+    const rEarly = await db
+      .query(
+        `INSERT INTO withdrawal_requests (
+          employer_id, employee_id, amount, status, period_month, pay_period_start, pay_period_end,
+          fee, fee_percentage, destination_bank_name, destination_account_number, destination_account_holder,
+          disbursed_by, transferred_at
+        ) VALUES (
+          1, ?, 1200000, 'transferred', '2026-11', '2026-11-01', '2026-11-30',
+          30000, 2.5, 'Bank BCA', '1122334455', 'Karyawan',
+          ?, '2026-11-14 18:10:41+00'
+        ) RETURNING id`
+      )
+      .get<{ id: number | string }>(employeeId, adminId);
+    reqEarlyMorning = rEarly!.id;
+
+    // 5. Late night transaction on 2026-11-15 23:45:00 WIB (UTC: 2026-11-15 16:45:00Z)
+    const rLate = await db
+      .query(
+        `INSERT INTO withdrawal_requests (
+          employer_id, employee_id, amount, status, period_month, pay_period_start, pay_period_end,
+          fee, fee_percentage, destination_bank_name, destination_account_number, destination_account_holder,
+          disbursed_by, transferred_at
+        ) VALUES (
+          1, ?, 800000, 'transferred', '2026-11', '2026-11-01', '2026-11-30',
+          20000, 2.5, 'Bank BCA', '1122334455', 'Karyawan',
+          ?, '2026-11-15 16:45:00+00'
+        ) RETURNING id`
+      )
+      .get<{ id: number | string }>(employeeId, adminId);
+    reqLateNight = rLate!.id;
+
+    // 6. Next day early morning on 2026-11-16 00:15:00 WIB (UTC: 2026-11-15 17:15:00Z)
+    const rNext = await db
+      .query(
+        `INSERT INTO withdrawal_requests (
+          employer_id, employee_id, amount, status, period_month, pay_period_start, pay_period_end,
+          fee, fee_percentage, destination_bank_name, destination_account_number, destination_account_holder,
+          disbursed_by, transferred_at
+        ) VALUES (
+          1, ?, 500000, 'transferred', '2026-11', '2026-11-01', '2026-11-30',
+          12500, 2.5, 'Bank BCA', '1122334455', 'Karyawan',
+          ?, '2026-11-15 17:15:00+00'
+        ) RETURNING id`
+      )
+      .get<{ id: number | string }>(employeeId, adminId);
+    reqNextDayEarly = rNext!.id;
   });
 
   afterAll(async () => {
-    if (reqId1 || reqId2 || reqIdPending) {
+    const allIds = [reqId1, reqId2, reqIdPending, reqEarlyMorning, reqLateNight, reqNextDayEarly].filter(Boolean);
+    if (allIds.length > 0) {
+      const placeholders = allIds.map(() => '?').join(', ');
       await db.run(
-        `DELETE FROM withdrawal_requests WHERE id IN (?, ?, ?)`,
-        [reqId1, reqId2, reqIdPending]
+        `DELETE FROM withdrawal_requests WHERE id IN (${placeholders})`,
+        allIds
       );
     }
     if (employeeId) {
@@ -217,5 +270,127 @@ describe("EWA Disbursed Date Range Filter API (#323)", () => {
     expect(body.success).toBe(true);
     expect(body.data.length).toBe(0);
     expect(body.total).toBe(0);
+  });
+
+  test("GET /api/v1/ewa/requests includes early morning WIB transactions (00:00 - 06:59 WIB) when filtering single day with timezone=Asia/Jakarta (#331)", async () => {
+    const res = await server.fetch(
+      new Request(
+        `http://localhost/api/v1/ewa/requests?employeeId=${employeeId}&disbursedStartDate=2026-11-15&disbursedEndDate=2026-11-15&timezone=Asia/Jakarta`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+          },
+        }
+      )
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBe(2);
+
+    const ids = body.data.map((r: any) => String(r.id));
+    // Early morning 01:10 WIB (UTC 18:10 previous day) must be present
+    expect(ids).toContain(String(reqEarlyMorning));
+    // Late night 23:45 WIB must be present
+    expect(ids).toContain(String(reqLateNight));
+    // Next day 00:15 WIB must NOT be present
+    expect(ids).not.toContain(String(reqNextDayEarly));
+  });
+
+  test("GET /api/v1/ewa/requests defaults to Asia/Jakarta timezone when timezone parameter is omitted (#331)", async () => {
+    const res = await server.fetch(
+      new Request(
+        `http://localhost/api/v1/ewa/requests?employeeId=${employeeId}&disbursedStartDate=2026-11-15&disbursedEndDate=2026-11-15`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+          },
+        }
+      )
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBe(2);
+
+    const ids = body.data.map((r: any) => String(r.id));
+    expect(ids).toContain(String(reqEarlyMorning));
+    expect(ids).toContain(String(reqLateNight));
+  });
+
+  test("GET /api/v1/ewa/requests respects UTC timezone when explicitly requested (#331)", async () => {
+    // In UTC:
+    // reqEarlyMorning (2026-11-14 18:10:41 UTC) is on 2026-11-14, NOT 2026-11-15
+    // reqLateNight (2026-11-15 16:45:00 UTC) is on 2026-11-15
+    // reqNextDayEarly (2026-11-15 17:15:00 UTC) is on 2026-11-15
+    const res = await server.fetch(
+      new Request(
+        `http://localhost/api/v1/ewa/requests?employeeId=${employeeId}&disbursedStartDate=2026-11-15&disbursedEndDate=2026-11-15&timezone=UTC`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+          },
+        }
+      )
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.data.length).toBe(2);
+
+    const ids = body.data.map((r: any) => String(r.id));
+    expect(ids).not.toContain(String(reqEarlyMorning));
+    expect(ids).toContain(String(reqLateNight));
+    expect(ids).toContain(String(reqNextDayEarly));
+  });
+
+  test("GET /api/v1/ewa/requests includes early morning transactions in summary card totals (#331)", async () => {
+    const res = await server.fetch(
+      new Request(
+        `http://localhost/api/v1/ewa/requests?employeeId=${employeeId}&disbursedStartDate=2026-11-15&disbursedEndDate=2026-11-15&timezone=Asia/Jakarta`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+          },
+        }
+      )
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    expect(body.summary).toBeDefined();
+    expect(body.summary.totalRequests).toBe(2);
+    // 1.200.000 + 800.000 = 2.000.000
+    expect(body.summary.totalDisbursedAmount).toBe(2000000);
+    // 30.000 + 20.000 = 50.000
+    expect(body.summary.totalFeeAmount).toBe(50000);
+  });
+
+  test("GET /api/v1/ewa/requests sanitizes invalid or malicious timezone parameters safely (#331)", async () => {
+    const res = await server.fetch(
+      new Request(
+        `http://localhost/api/v1/ewa/requests?employeeId=${employeeId}&disbursedStartDate=2026-11-15&disbursedEndDate=2026-11-15&timezone=InvalidZone%27;DROP%20TABLE%20users;--`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${adminToken}`,
+          },
+        }
+      )
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    // Falls back to Asia/Jakarta cleanly without error
+    expect(body.data.length).toBe(2);
   });
 });
