@@ -461,7 +461,7 @@ export function RequestsTab({
             <HStack justify="between" vAlign="center" wrap="wrap" gap={3}>
               <VStack gap={1}>
                 <Text type="supporting" color="secondary" weight="medium" style={{ fontSize: 12 }}>
-                  Total Dana Ditransfer (Perlu Diganti)
+                  Total Dana Ditransfer
                 </Text>
                 <HStack vAlign="center" gap={2}>
                   <CopyableAmount

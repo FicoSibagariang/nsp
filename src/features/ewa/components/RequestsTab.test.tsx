@@ -348,7 +348,7 @@ describe("RequestsTab Component (#320)", () => {
     );
 
     // Summary Card header
-    expect(screen.getByText("Total Dana Ditransfer (Perlu Diganti)")).toBeDefined();
+    expect(screen.getByText("Total Dana Ditransfer")).toBeDefined();
     expect(screen.getByText("25 Transaksi")).toBeDefined();
     expect(screen.getByText(/12\.500\.000/)).toBeDefined();
 
