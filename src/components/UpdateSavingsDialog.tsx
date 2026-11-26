@@ -1,10 +1,11 @@
-import {useState} from 'react';
+import {useState, useEffect, useMemo} from 'react';
 import {VStack, HStack} from '@astryxdesign/core/Layout';
 import {Text, Heading} from '@astryxdesign/core/Text';
 import {TextInput} from '@astryxdesign/core/TextInput';
 import {DateInput} from '@astryxdesign/core/DateInput';
 import {Button} from '@astryxdesign/core/Button';
 import {Selector} from '@astryxdesign/core/Selector';
+import {useApiQuery} from '../hooks/useApiQuery';
 import {formatAmountInput, parseAmountInput} from '../utils/format';
 
 function todayIsoDate(): string {
@@ -19,6 +20,7 @@ export type SavingsMutationPayload = {
   additionalSavings: number;
   savingsType: 'pokok' | 'wajib' | 'sukarela';
   transactionDate: string;
+  paymentSourceAccountId?: string;
 };
 
 interface Props {
@@ -30,6 +32,23 @@ export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
   const [amount, setAmount] = useState('');
   const [savingsType, setSavingsType] = useState<'pokok' | 'wajib' | 'sukarela'>('sukarela');
   const [transactionDate, setTransactionDate] = useState<string>(todayIsoDate());
+  const [selectedAccountId, setSelectedAccountId] = useState<string>('');
+
+  const { data: paymentSourcesRes } = useApiQuery<{
+    success: boolean;
+    data: Array<{ id: string; code: string; name: string; type: string }>;
+  }>('/api/savings/payment-sources');
+
+  const paymentSources = useMemo(() => paymentSourcesRes?.data || [], [paymentSourcesRes?.data]);
+
+  useEffect(() => {
+    if (!selectedAccountId && paymentSources.length > 0) {
+      // Default to 11102 (Bank Mandiri)
+      const mandiri = paymentSources.find((a) => a.code === '11102');
+      if (mandiri) setSelectedAccountId(mandiri.id);
+      else setSelectedAccountId(paymentSources[0].id);
+    }
+  }, [paymentSources, selectedAccountId]);
 
   const handleAmountChange = (raw: string) => {
     setAmount(formatAmountInput(raw));
@@ -42,6 +61,7 @@ export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
       additionalSavings,
       savingsType,
       transactionDate,
+      paymentSourceAccountId: selectedAccountId || undefined,
     });
     onClose();
   };
@@ -51,7 +71,7 @@ export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
       <VStack gap={1}>
         <Heading level={3}>Mutasi Simpanan</Heading>
         <Text type="supporting" color="secondary">
-          Masukkan nominal setor (positif) atau tarik (negatif), jenis simpanan, dan tanggal transaksi.
+          Masukkan nominal setor (positif) atau tarik (negatif), jenis simpanan, rekening kas/bank, dan tanggal transaksi.
           Tanggal bisa diisi mundur untuk data historis.
         </Text>
       </VStack>
@@ -74,6 +94,19 @@ export function UpdateSavingsDialogContent({onClose, onSave}: Props) {
           onChange={handleAmountChange}
           placeholder="Contoh: 1.000.000 (Setor) atau -50.000 (Tarik)"
           description="Pemisah ribuan ditambahkan otomatis. Awali dengan - untuk penarikan."
+        />
+        <Selector
+          label="Rekening Kas / Bank"
+          value={selectedAccountId}
+          onChange={setSelectedAccountId}
+          options={
+            paymentSources.length > 0
+              ? paymentSources.map((acc) => ({ value: acc.id, label: `${acc.name} (${acc.code})` }))
+              : [
+                  { value: 'ed0ad424-aff5-4a79-8fa2-24eaa541d6fc', label: 'Bank Mandiri (11102)' },
+                  { value: '64fa79d2-cd8f-414a-80ac-7daae0e3fd1f', label: 'Kas Kecil (11101)' },
+                ]
+          }
         />
         <DateInput
           label="Tanggal Transaksi"

@@ -132,13 +132,14 @@ export default function MembersTemplate() {
       <UpdateSavingsDialogContent 
         key={`update-savings-${member.id}`}
         onClose={() => dialog.hide()}
-        onSave={({ additionalSavings, savingsType, transactionDate }) => {
+        onSave={({ additionalSavings, savingsType, transactionDate, paymentSourceAccountId }) => {
           apiAction.execute(
             () =>
               api.put(`/api/members/${member.id}/savings`, {
                 additionalSavings,
                 savingsType,
                 transactionDate,
+                paymentSourceAccountId,
               }),
             {
               successMsg: 'Mutasi simpanan berhasil',
