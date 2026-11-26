@@ -14,6 +14,7 @@ import { CopyableAccountNumber } from '../../../components/CopyableAccountNumber
 import { CopyableAmount } from '../../../components/CopyableAmount';
 import { formatRp } from '../../../utils/format';
 import { maskName, maskNip } from '../../../utils/privacyMask';
+import { getCurrentEwaCycleRange } from '../utils';
 import type { EWARequest, EwaRequestsSummary } from '../types';
 
 interface RequestsTabProps {
@@ -65,6 +66,19 @@ export function RequestsTab({
   onDisburse,
   onReject,
 }: RequestsTabProps) {
+  const currentCycle = useMemo(() => getCurrentEwaCycleRange(), []);
+  const isCurrentCycleActive =
+    Boolean(disbursedStartDate && disbursedEndDate) &&
+    disbursedStartDate === currentCycle.startDate &&
+    disbursedEndDate === currentCycle.endDate;
+
+  const handleSelectCurrentCycle = () => {
+    const { startDate, endDate } = getCurrentEwaCycleRange();
+    setDisbursedStartDate(startDate);
+    setDisbursedEndDate(endDate);
+    setReqPage(1);
+  };
+
   const formatDisbursedDateTime = (dateStr?: string | null) => {
     if (!dateStr) return '';
     try {
@@ -416,6 +430,12 @@ export function RequestsTab({
                     }}
                   />
                 </div>
+                <Button
+                  label="Periode Berjalan"
+                  size="sm"
+                  variant={isCurrentCycleActive ? 'primary' : 'secondary'}
+                  onClick={handleSelectCurrentCycle}
+                />
                 {(disbursedStartDate || disbursedEndDate) && (
                   <button
                     type="button"

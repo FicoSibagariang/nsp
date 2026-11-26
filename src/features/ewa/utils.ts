@@ -2,6 +2,38 @@ import { getEwaPaycycleDates, exportEwaPayrollToExcel } from '../../utils/export
 import { maskName, maskNip, maskNik } from '../../utils/privacyMask';
 import type { PayrollRecapData } from './types';
 
+/**
+ * Returns the current EWA payroll cycle date range up to today.
+ * The payroll cycle runs from the 26th to the 25th:
+ * - If today is 1-25: startDate is the 26th of the previous month.
+ * - If today is 26-31: startDate is the 26th of the current month.
+ * - endDate is today (local time YYYY-MM-DD).
+ */
+export function getCurrentEwaCycleRange(now: Date = new Date()): { startDate: string; endDate: string } {
+  const year = now.getFullYear();
+  const month = now.getMonth(); // 0-indexed (0 = Jan, 11 = Dec)
+  const day = now.getDate(); // 1-31
+
+  const endYear = year;
+  const endMonth = String(month + 1).padStart(2, '0');
+  const endDay = String(day).padStart(2, '0');
+  const endDate = `${endYear}-${endMonth}-${endDay}`;
+
+  let startDate: string;
+  if (day >= 26) {
+    const startYear = year;
+    const startMonth = String(month + 1).padStart(2, '0');
+    startDate = `${startYear}-${startMonth}-26`;
+  } else {
+    const prevDate = new Date(year, month - 1, 26);
+    const startYear = prevDate.getFullYear();
+    const startMonth = String(prevDate.getMonth() + 1).padStart(2, '0');
+    startDate = `${startYear}-${startMonth}-26`;
+  }
+
+  return { startDate, endDate };
+}
+
 export function getDefaultSettleDate(periodMonth: string): string {
   if (!periodMonth) return new Date().toISOString().split('T')[0];
   const parts = periodMonth.split('-');

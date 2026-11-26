@@ -3,6 +3,7 @@ import { render, cleanup, screen, fireEvent, act } from "@testing-library/react"
 import { RequestsTab } from "./RequestsTab";
 import type { EWARequest } from "../types";
 import { maskName } from "../../../utils/privacyMask";
+import { getCurrentEwaCycleRange } from "../utils";
 
 describe("RequestsTab Component (#320)", () => {
   afterEach(() => {
@@ -252,6 +253,48 @@ describe("RequestsTab Component (#320)", () => {
     fireEvent.click(resetButton);
     expect(setDisbursedStartDate).toHaveBeenCalledWith("");
     expect(setDisbursedEndDate).toHaveBeenCalledWith("");
+    expect(setReqPage).toHaveBeenCalledWith(1);
+  });
+
+  test("renders 'Periode Berjalan' button and sets cycle range on click", () => {
+    const setDisbursedStartDate = mock(() => {});
+    const setDisbursedEndDate = mock(() => {});
+    const setReqPage = mock(() => {});
+
+    render(
+      <RequestsTab
+        requests={dummyRequests}
+        reqLoading={false}
+        reqSearch=""
+        setReqSearch={() => {}}
+        statusFilter=""
+        setStatusFilter={() => {}}
+        disbursedByFilter=""
+        setDisbursedByFilter={() => {}}
+        disbursedStartDate=""
+        setDisbursedStartDate={setDisbursedStartDate}
+        disbursedEndDate=""
+        setDisbursedEndDate={setDisbursedEndDate}
+        operators={dummyOperators}
+        reqPage={4}
+        reqLimit={20}
+        reqTotal={1}
+        setReqPage={setReqPage}
+        isDemoMode={false}
+        actionLoading={false}
+        onDisburse={() => {}}
+        onReject={() => {}}
+      />
+    );
+
+    const presetBtn = screen.getByRole("button", { name: "Periode Berjalan" });
+    expect(presetBtn).toBeDefined();
+
+    fireEvent.click(presetBtn);
+
+    const expectedRange = getCurrentEwaCycleRange();
+    expect(setDisbursedStartDate).toHaveBeenCalledWith(expectedRange.startDate);
+    expect(setDisbursedEndDate).toHaveBeenCalledWith(expectedRange.endDate);
     expect(setReqPage).toHaveBeenCalledWith(1);
   });
 
