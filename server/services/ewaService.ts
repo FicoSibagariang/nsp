@@ -347,18 +347,32 @@ export async function getEmployeeEwaQuota(
   const progressivePercentage = Math.round(progressiveRatio * 10000) / 100;
   const dailyAccumulatedLimit = Math.floor(maxMonthlyLimit * progressiveRatio);
 
-  // Sum used advances in this period (pending_transfer, transferred, PENDING, APPROVED, DISBURSED)
-  const usedRes = await db
+  // Sum used advances and payroll deduction aggregates in this period
+  const summaryRes = await db
     .query(
-      `SELECT COALESCE(SUM(amount), 0) as used
+      `SELECT 
+         COALESCE(SUM(CASE WHEN status IN ('pending_transfer', 'transferred', 'PENDING', 'APPROVED', 'DISBURSED') THEN amount ELSE 0 END), 0) as "totalUsed",
+         COALESCE(SUM(CASE WHEN status IN ('transferred', 'DISBURSED', 'settled', 'PAID_SETTLED') THEN COALESCE(total_payroll_deduction, amount + fee) ELSE 0 END), 0) as "totalPayrollDeduction",
+         COALESCE(SUM(CASE WHEN status IN ('transferred', 'DISBURSED', 'settled', 'PAID_SETTLED') THEN amount ELSE 0 END), 0) as "totalDisbursed",
+         COALESCE(SUM(CASE WHEN status IN ('transferred', 'DISBURSED', 'settled', 'PAID_SETTLED') THEN fee ELSE 0 END), 0) as "totalFee",
+         COALESCE(SUM(CASE WHEN status IN ('pending_transfer', 'PENDING', 'APPROVED') THEN COALESCE(total_payroll_deduction, amount + fee) ELSE 0 END), 0) as "pendingPayrollDeduction"
        FROM withdrawal_requests
        WHERE employee_id = ? 
-         AND (period_month = ? OR (pay_period_start <= ?::date AND pay_period_end >= ?::date))
-         AND status IN ('pending_transfer', 'transferred', 'PENDING', 'APPROVED', 'DISBURSED')`
+         AND (period_month = ? OR (pay_period_start <= ?::date AND pay_period_end >= ?::date))`
     )
-    .get<{ used: string | number }>(employeeId, period, period + "-15", period + "-15");
+    .get<{
+      totalUsed: string | number;
+      totalPayrollDeduction: string | number;
+      totalDisbursed: string | number;
+      totalFee: string | number;
+      pendingPayrollDeduction: string | number;
+    }>(employeeId, period, period + "-15", period + "-15");
 
-  const totalUsedThisMonth = Number(usedRes?.used || 0);
+  const totalUsedThisMonth = Number(summaryRes?.totalUsed || 0);
+  const totalPayrollDeductionThisMonth = Number(summaryRes?.totalPayrollDeduction || 0);
+  const totalDisbursedThisMonth = Number(summaryRes?.totalDisbursed || 0);
+  const totalFeeThisMonth = Number(summaryRes?.totalFee || 0);
+  const pendingPayrollDeductionThisMonth = Number(summaryRes?.pendingPayrollDeduction || 0);
   const remainingQuota = Math.max(0, dailyAccumulatedLimit - totalUsedThisMonth);
   const feePercentage = emp.isMember ? EWA_MEMBER_FEE_PCT : EWA_NON_MEMBER_FEE_PCT;
 
@@ -393,6 +407,10 @@ export async function getEmployeeEwaQuota(
     progressivePercentage,
     dailyAccumulatedLimit,
     totalUsedThisMonth,
+    totalPayrollDeductionThisMonth,
+    totalDisbursedThisMonth,
+    totalFeeThisMonth,
+    pendingPayrollDeductionThisMonth,
     remainingQuota: isEligible ? remainingQuota : 0,
     feePercentage,
     isEligible,

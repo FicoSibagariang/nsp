@@ -115,6 +115,10 @@ export interface EwaQuotaInfo {
   progressivePercentage?: number; // Persentase progresif akumulatif (e.g. 51.61%)
   dailyAccumulatedLimit?: number; // Plafon maksimal akumulatif progresif s/d hari ini
   totalUsedThisMonth: number;
+  totalPayrollDeductionThisMonth?: number; // Total potong payroll transaksi cair siklus ini (pokok + fee)
+  totalDisbursedThisMonth?: number;        // Total pokok pencairan transaksi cair siklus ini
+  totalFeeThisMonth?: number;              // Total biaya admin transaksi cair siklus ini
+  pendingPayrollDeductionThisMonth?: number; // Total estimasi potong payroll pengajuan pending siklus ini
   remainingQuota: number; // Sisa kuota yang dapat diajukan hari ini (dailyAccumulatedLimit - totalUsedThisMonth)
   feePercentage: number; // e.g. 2.0% (member) vs 3.5% (non-member)
   isEligible?: boolean;

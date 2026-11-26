@@ -118,6 +118,10 @@ export interface EwaQuota {
   maxMonthlyLimit?: number;
   remainingQuota?: number;
   totalUsedThisMonth?: number;
+  totalPayrollDeductionThisMonth?: number;
+  totalDisbursedThisMonth?: number;
+  totalFeeThisMonth?: number;
+  pendingPayrollDeductionThisMonth?: number;
   dailyAccumulatedLimit?: number;
   currentDayInCycle?: number;
   totalDaysInCycle?: number;
