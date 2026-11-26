@@ -123,11 +123,23 @@ export const EwaTab: React.FC<EwaTabProps> = ({
 
         <Card style={{ padding: 16 }}>
           <VStack gap={1}>
-            <Text type="supporting">Sudah Ditarik Periode Ini</Text>
-            <Heading level={3}>{formatRp(ewaQuota?.totalUsedThisMonth || 0)}</Heading>
+            <Text type="supporting">Total Potong Payroll Siklus Ini</Text>
+            <Heading level={3}>
+              {formatRp(ewaQuota?.totalPayrollDeductionThisMonth ?? ewaQuota?.totalUsedThisMonth ?? 0)}
+            </Heading>
             <Text type="supporting" color="secondary" style={{ fontSize: 11 }}>
-              Total penarikan periode berjalan
+              Pokok {formatRp(ewaQuota?.totalDisbursedThisMonth ?? ewaQuota?.totalUsedThisMonth ?? 0)} + Biaya Admin {formatRp(ewaQuota?.totalFeeThisMonth ?? 0)}
             </Text>
+            {ewaQuota?.cycleStartDate && ewaQuota?.cycleEndDate && (
+              <Text type="supporting" color="secondary" style={{ fontSize: 10 }}>
+                Siklus: {ewaQuota.cycleStartDate} s/d {ewaQuota.cycleEndDate}
+              </Text>
+            )}
+            {Boolean(ewaQuota?.pendingPayrollDeductionThisMonth && ewaQuota.pendingPayrollDeductionThisMonth > 0) && (
+              <Text type="supporting" style={{ fontSize: 11, color: 'var(--color-warning-500)', fontWeight: 500 }}>
+                + {formatRp(ewaQuota!.pendingPayrollDeductionThisMonth!)} masih menunggu pencairan
+              </Text>
+            )}
           </VStack>
         </Card>
 
