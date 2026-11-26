@@ -33,8 +33,12 @@ describe("Security Hardening (Issue #303)", () => {
     const jpegBytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
     writeFileSync(join(savingsDir, savingsFileName), jpegBytes);
 
-    // Create test members and admin in db
+    // Clean existing test data first
+    await db.run("DELETE FROM loans WHERE id = ?", [loanAId]);
+    await db.run("DELETE FROM savings_deposits WHERE id = ?", [depositAId]);
     await db.run("DELETE FROM members WHERE id IN (?, ?)", [memberAId, memberBId]);
+
+    // Create test members and admin in db
     await db.run(
       `INSERT INTO members (id, name, email, role, status, phone, joinDate, totalSavings)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -47,14 +51,12 @@ describe("Security Hardening (Issue #303)", () => {
     );
 
     // Create test loan and savings deposit
-    await db.run("DELETE FROM loans WHERE id = ?", [loanAId]);
     await db.run(
       `INSERT INTO loans (id, memberId, name, amount, tenor, purpose, status, createdAt, "attachmentUrl", "attachmentName")
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [loanAId, memberAId, "Member A", 5000000, 12, "Renovasi", "Disetujui", "2026-10-30", `/uploads/loans/${loanFileName}`, "dokumen.pdf"]
     );
 
-    await db.run("DELETE FROM savings_deposits WHERE id = ?", [depositAId]);
     await db.run(
       `INSERT INTO savings_deposits (id, member_id, amount, savings_type, status, proof_url, proof_name)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,

@@ -149,6 +149,7 @@ export const savingsSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Format tanggal harus YYYY-MM-DD")
     .optional(),
+  paymentSourceAccountId: z.string().trim().min(1).optional().nullable(),
 })
 
 export const batchSavingsImportItemSchema = z.object({
